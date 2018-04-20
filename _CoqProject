@@ -1,0 +1,2 @@
+-R . fcsl
+-arg "-w -notation-overridden,-projection-no-head-constant,-redundant-canonical-projection"
