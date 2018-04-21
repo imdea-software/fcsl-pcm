@@ -6,7 +6,7 @@ pointer-manipulating sequential and concurrent programs.
 
 The library provides lemmas for mechanised and automated reasoning about PCMs
 in the abstract, but also supports concrete common PCM instances, such as heaps, 
-histories and mutexes.
+histories, and mutexes.
 
 It is based on the [Coq](http://coq.inria.fr) proof assistant, 
 [SSReflect](https://coq.inria.fr/distrib/current/refman/ssreflect.html)
@@ -25,7 +25,7 @@ opam install coq-fcsl-pcm
 
 If you need assistance or would like to report a bug, drop us an email:
 <fcsl@software.imdea.org>
-or open and [issue](https://github.com/imdea-software/fcsl-pcm/issues).
+or open an [issue](https://github.com/imdea-software/fcsl-pcm/issues).
 
 ## More Information
 
