@@ -289,11 +289,8 @@ Qed.
 Lemma path_last (A : ordType) (s : seq A) x : 
         path oleq x s -> oleq x (last x s).
 Proof.
-elim: s x=>[|y s IH] /= x; first by rewrite /oleq eq_refl orbT. 
-case/andP=>H1 /IH; case/orP=>H2; rewrite /oleq.
-- case/orP: H1=>H1; first by rewrite (trans H1 H2).
-  by rewrite (eqP H1) H2.
-by rewrite -(eqP H2); case/orP: H1=>-> //=; rewrite orbT.
+move/(order_path_min (@otrans _)); rewrite -nth_last.
+by case: s =>// h s' /all_nthP->.
 Qed.
 
 (* in a sorted list, the last element is maximal *)
