@@ -85,6 +85,7 @@ Prenex Implicits ord oleq.
 
 Section Lemmas.
 Variable T : ordType.
+Implicit Types x y : T.
 
 Lemma irr : irreflexive (@ord T). 
 Proof. by case: T=>s [b [m]]. Qed.
@@ -92,11 +93,14 @@ Proof. by case: T=>s [b [m]]. Qed.
 Lemma trans : transitive (@ord T). 
 Proof. by case: T=>s [b [m]]. Qed.
 
-Lemma total (x y : T) : [|| ord x y, x == y | ord y x]. 
+Lemma total x y : [|| ord x y, x == y | ord y x].
 Proof. by case: T x y=>s [b [m]]. Qed. 
 
-Lemma nsym (x y : T) : ord x y -> ord y x -> False.
+Lemma nsym x y : ord x y -> ord y x -> False.
 Proof. by move=>E1 E2; move: (trans E1 E2); rewrite irr. Qed. 
+
+Lemma orefl x : oleq x x.
+Proof. by rewrite /oleq eq_refl orbT. Qed.
 
 Lemma otrans : transitive (@oleq T).
 Proof.
@@ -109,6 +113,8 @@ Lemma sorted_oleq s : sorted (@ord T) s -> sorted (@oleq T) s.
 Proof. by elim: s=>[|x s IH] //=; apply: sub_path=>z y; rewrite /oleq=>->. Qed.
 
 End Lemmas. 
+
+Hint Resolve orefl.
 
 Section Totality.
 Variable K : ordType.  
