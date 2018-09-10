@@ -352,7 +352,7 @@ Definition pick (h : heap) :=
 (* fresh *)
 (*********)
 
-Lemma path_last n s x : path ord x s -> ord x (last x s).+(n+1).
+Lemma path_last_nat n s x : path ord x s -> ord x (last x s).+(n+1).
 Proof.
 move: n s x.
 suff L: forall s x, path ord x s -> ord x (last x s).+(1).
@@ -380,7 +380,7 @@ case=>[|[s H1]] //; rewrite /supp => /= H2 x.
 rewrite /dom /fresh /supp /=. 
 elim: s H1 null H2 x=>[|[y d] s IH] //= H1 x.
 rewrite inE negb_or; case/andP=>H3 H4 z; rewrite inE.
-case/orP; first by move/eqP=>->{z}; apply: (path_last 0).
+case/orP; first by move/eqP=>->{z}; apply: (path_last_nat 0).
 by apply: IH; [apply: path_sorted H1 | apply: notin_path H1].
 Qed.
 
