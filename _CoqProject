@@ -1,5 +1,6 @@
 -R . fcsl
--arg "-w -notation-overridden,-redundant-canonical-projection"
+-arg -w -arg -notation-overridden
+-arg -w -arg -redundant-canonical-projection
 
 finmap/finmap.v
 finmap/ordtype.v
