@@ -93,7 +93,7 @@ Qed.
 
 End Helpers.
 
-Hint Resolve prefix_refl.
+Hint Resolve prefix_refl : core.
 
 Lemma onth_mem (A : eqType) (s : seq A) n x : onth s n = Some x -> x \in s.
 Proof.

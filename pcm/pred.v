@@ -278,7 +278,7 @@ Definition EqPredType_trans r2 r1 r3 := @EqPredType_trans' r1 r2 r3.
 Definition SubPredType_trans r2 r1 r3 := @SubPredType_trans' r1 r2 r3.
 End RelProperties.
 
-Hint Resolve EqPredType_refl SubPredType_refl.
+Hint Resolve EqPredType_refl SubPredType_refl : core.
 
 (* Declaration of relations *)
 
@@ -420,7 +420,7 @@ Proof. by move=>H x [H1 H2]; split; [|apply: H]. Qed.
 
 End SubMemLaws.
 
-Hint Resolve subp_refl.
+Hint Resolve subp_refl : core.
 
 Section ListMembership.
 Variable T : Type.

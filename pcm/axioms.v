@@ -91,7 +91,7 @@ End Cast.
 
 Arguments cast {C} interp [A][B] pf v.
 Arguments jmeq {C} interp [A][B] v w.
-Hint Resolve jmrefl.
+Hint Resolve jmrefl : core.
 (* special notation for the common case when interp = id *)
 Notation icast pf v := (@cast _ id _ _ pf v).
 Notation ijmeq v w := (@jmeq _ id _ _ v w).

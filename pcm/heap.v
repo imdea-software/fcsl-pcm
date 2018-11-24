@@ -389,7 +389,7 @@ Proof. by rewrite -lt0n addn1. Qed.
 
 Opaque fresh.
 
-Hint Resolve dom_fresh fresh_null.
+Hint Resolve dom_fresh fresh_null : core.
 
 (********)
 (* pick *)

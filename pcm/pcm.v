@@ -131,7 +131,7 @@ Proof. by rewrite joinA; apply: validL. Qed.
 
 End Laws.
 
-Hint Resolve valid_unit.
+Hint Resolve valid_unit : core.
 
 Section UnfoldingRules.
 Variable U : pcm.
@@ -621,7 +621,7 @@ Proof. by rewrite !(joinC x); apply: pleq_joinxK. Qed.
 
 End PleqLemmas.
 
-Hint Resolve pleq_unit pleq_refl pleq_joinr pleq_joinl.
+Hint Resolve pleq_unit pleq_refl pleq_joinr pleq_joinl : core.
 
 (*******************)
 (* Local functions *)

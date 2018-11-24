@@ -719,7 +719,7 @@ Proof. by move/perm_domUn/perm_eq_size; rewrite size_cat. Qed.
 
 End DomLemmas.
 
-Hint Resolve sorted_dom uniq_dom.
+Hint Resolve sorted_dom uniq_dom : core.
 Prenex Implicits find_some find_none.
 
 
@@ -951,7 +951,7 @@ Proof. by case/domeqP; rewrite valid_unit dom0; apply: dom0E. Qed.
 Lemma domeq_refl f : dom_eq f f.
 Proof. by case: domeqP=>//; case. Qed.
 
-Hint Resolve domeq_refl.
+Hint Resolve domeq_refl : core.
 
 Lemma domeq_sym f1 f2 : dom_eq f1 f2 = dom_eq f2 f1.
 Proof. 
@@ -1028,7 +1028,7 @@ Qed.
 
 End DomEqLemmas.
 
-Hint Resolve domeq_refl.
+Hint Resolve domeq_refl : core.
 
 
 (*************************)
@@ -1443,7 +1443,7 @@ Definition um_all f := forall k v, find k f = Some v -> P v.
 Lemma umall_undef : um_all um_undef.
 Proof. by move=>k v; rewrite find_undef. Qed.
 
-Hint Resolve umall_undef.
+Hint Resolve umall_undef : core.
 
 Lemma umall0 : um_all Unit.
 Proof. by move=>k v; rewrite find0E. Qed.
@@ -1464,7 +1464,7 @@ Proof. by rewrite joinC; apply: umallUnL. Qed.
 
 End AllDefLemmas.
 
-Hint Resolve umall_undef umall0.
+Hint Resolve umall_undef umall0 : core.
 
 
 (********************************************)
@@ -1539,7 +1539,7 @@ Implicit Types (x y a b : U) (p : pred K).
 Lemma umpleq_undef x : [pcm x <= um_undef].
 Proof. by exists um_undef; rewrite join_undefR. Qed.
 
-Hint Resolve umpleq_undef.
+Hint Resolve umpleq_undef : core.
 
 (* pcm-induced preorder, is an order in the case of union maps *)
 
@@ -1567,7 +1567,7 @@ exists (um_filter (predD predT p) x); rewrite -umfilt_predU.
 by rewrite -{1}[x]umfilt_predT; apply: eq_in_umfilt=>a; rewrite /= orbT. 
 Qed.
 
-Hint Resolve umpleq_filtI.
+Hint Resolve umpleq_filtI : core.
 
 (* in valid case, we can define the order by means of filter *)
 Lemma umpleq_filtE a x : 
@@ -2016,7 +2016,7 @@ Qed.
 
 End PointsToLemmas.
 
-Hint Resolve domeqPt domeqPtUn domeqUnPt.
+Hint Resolve domeqPt domeqPtUn domeqUnPt : core.
 Prenex Implicits validPtUn_cond findPt_inv um_eta2.
 
 (********************)

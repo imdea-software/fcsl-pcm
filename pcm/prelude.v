@@ -234,7 +234,7 @@ Proof. by apply: iter1. Qed.
 
 Prenex Implicits iter1 iter2.
 Arguments iter_refl [T g s].
-Hint Resolve iter_refl.
+Hint Resolve iter_refl : core.
 
 (**************)
 (* empty type *)

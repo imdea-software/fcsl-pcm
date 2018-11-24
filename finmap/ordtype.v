@@ -114,7 +114,7 @@ Proof. by elim: s=>[|x s IH] //=; apply: sub_path=>z y; rewrite /oleq=>->. Qed.
 
 End Lemmas. 
 
-Hint Resolve orefl.
+Hint Resolve orefl : core.
 
 Section Totality.
 Variable K : ordType.  
