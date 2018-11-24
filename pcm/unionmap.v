@@ -259,14 +259,14 @@ Structure class_of (T : Type) := Class {
   p : pred K;
   mixin : mixin_of V p T}.
 
-Structure type : Type := Pack {sort : Type; _ : class_of sort; _ : Type}.
+Structure type : Type := Pack {sort : Type; _ : class_of sort}.
 Local Coercion sort : type >-> Sortclass.
 
 Variables (T : Type) (cT : type).
-Definition class := let: Pack _ c _ as cT' := cT return class_of cT' in c.
-Definition clone c of phant_id class c := @Pack T c T.
+Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
+Definition clone c of phant_id class c := @Pack T c.
 Definition pack p (m : @mixin_of K V p T) := 
-  @Pack T (@Class T p m) T.
+  @Pack T (@Class T p m).
 
 (* Definition cond : pred K := @p _ class. *)
 Definition cond := [pred x : K | @p _ class x].

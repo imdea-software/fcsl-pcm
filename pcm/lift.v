@@ -38,12 +38,12 @@ Section ClassDef.
 
 Notation class_of := mixin_of (only parsing).
 
-Structure type : Type := Pack {sort : Type; _ : class_of sort; _ : Type}.
+Structure type : Type := Pack {sort : Type; _ : class_of sort}.
 Local Coercion sort : type >-> Sortclass.
 
 Variables (T : Type) (cT : type).
-Definition class := let: Pack _ c _ as cT' := cT return class_of cT' in c.
-Definition pack c := @Pack T c T.
+Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
+Definition pack c := @Pack T c.
 Definition clone := fun c & cT -> T & phant_id (pack c) cT => pack c.
 
 Definition ounit := ounit_op class.
