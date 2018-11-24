@@ -42,7 +42,7 @@ Section ClassDef.
 
 Record class_of (T : Type) := Class {
    base : Equality.class_of T; 
-   mixin : mixin_of (Equality.Pack base T)}.
+   mixin : mixin_of (EqType T base)}.
 
 Local Coercion base : class_of >-> Equality.class_of.
 
@@ -59,7 +59,7 @@ Definition clone c of phant_id class c := @Pack T c T.
 Definition pack b (m0 : mixin_of (EqType T b)) := 
   fun m & phant_id m0 m => Pack (@Class T b m) T.
 
-Definition eqType := Equality.Pack class cT.
+Definition eqType := Eval hnf in EqType cT class.
 
 End ClassDef.
 
