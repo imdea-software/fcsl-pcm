@@ -798,7 +798,7 @@ Lemma umfiltUnK p f1 f2 :
         um_filter p f1 = f1 /\ um_filter p f2 = Unit. 
 Proof.
 move=>V'; rewrite (umfiltUn _ V') => E.
-have {V'} V' : valid (um_filter p f1 \+ um_filter p f2). 
+have {V'}-V' : valid (um_filter p f1 \+ um_filter p f2).
 - by rewrite E; move/validL: V'.
 have F : dom (um_filter p f1) =i dom f1.
 - move=>x; rewrite dom_umfilt inE /=.

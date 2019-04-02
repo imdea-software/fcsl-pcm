@@ -240,7 +240,7 @@ Proof. by rewrite /last_key domPtK /= => ->. Qed.
 
 Lemma hist_path h : path oleq 0 (dom h).
 Proof.
-rewrite !umEX; case: (UMC.from h)=>// {h} h /= _; case: h; case=>//= x s H.
+rewrite !umEX; case: (UMC.from h)=>// {h}-h /= _; case: h; case=>//= x s H.
 rewrite {1}/oleq /ord /= orbC -leq_eqVlt /=.
 by apply: sub_path H=>z y; rewrite /oleq=>->. 
 Qed.

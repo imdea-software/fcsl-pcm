@@ -77,7 +77,7 @@ Proof. by move=>pf; rewrite eqc. Qed.
 Lemma jmsym A B (v : interp A) (w : interp B) : jmeq v w -> jmeq w v.
 Proof.
 move=> H pf; rewrite (H (esym pf)).
-by move: (pf); rewrite pf in w H * => {pf} pf; rewrite !eqc.
+by move: (pf); rewrite pf in w H * => {pf}-pf; rewrite !eqc.
 Qed.
 
 Lemma jmE A (v w : interp A) : jmeq v w <-> v = w.

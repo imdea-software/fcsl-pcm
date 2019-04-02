@@ -507,7 +507,7 @@ Lemma updi_inv x xs1 xs2 :
 Proof.
 elim: xs1 x xs2 =>[|v1 xs1 IH] x /=; case=>[|v2 xs2] //= D;
 [move/esym| |]; try by rewrite empbE empbUn empbPt.
-by case/(hcancelV D)=><- {D} D /(IH _ _ D) <-.
+by move=> {D}/(hcancelV D) [<- D /(IH _ _ D) <-].
 Qed.
 
 Lemma updi_iinv x xs1 xs2 h1 h2 : 
@@ -516,7 +516,7 @@ Lemma updi_iinv x xs1 xs2 h1 h2 :
 Proof.
 elim: xs1 x xs2 h1 h2=>[|v1 xs1 IH] x /=; case=>[|v2 xs2] //= h1 h2.
 - by rewrite !unitL.
-move=>[E]; rewrite -!joinA=>D; case/(hcancelV D)=><- {D} D.
+move=>[E]; rewrite -!joinA=> D {D}/(hcancelV D)[<- D].
 by case/(IH _ _ _ _ E D)=>->->.
 Qed.
 

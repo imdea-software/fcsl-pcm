@@ -282,7 +282,7 @@ End unitOrd.
 Lemma seq_last_in (A : eqType) (s : seq A) x : 
         last x s \notin s -> s = [::].
 Proof.
-case: (lastP s)=>// {s} s y; case: negP=>//; elim; rewrite last_rcons.  
+case: (lastP s)=>// {s}-s y; case: negP=>//; elim; rewrite last_rcons.
 by elim: s=>[|y' s IH]; rewrite /= inE // IH orbT.
 Qed.
 
