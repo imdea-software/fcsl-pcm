@@ -758,7 +758,9 @@ Proof. by rewrite !fgraph_codom /= !codomE !size_map. Qed.
 
 Lemma fgraphE T (r1 r2 : {ffun I -> T}) : 
         fgraph r1 = fgraph r2 -> r1 = r2.
-Proof. by case: r1; case=>r1 H1; case: r2; case=>r2 H2 /= ->. Qed.
+Proof.
+by move=> eq_r12; apply/ffunP=> x; rewrite -[x]enum_rankK -!tnth_fgraph eq_r12.
+Qed.
 
 End Array.
 
