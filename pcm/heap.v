@@ -577,7 +577,7 @@ Lemma defPtUnO A h x (v : A) (f : partition (x :-> v) h) :
         valid (untag f) = [&& x != null, valid h & x \notin dom h].
 Proof. by rewrite partitionE validPtUn. Qed.
 
-Arguments defPtUnO [A][h] x [v][f].
+Arguments defPtUnO [A][h] x {v f}.
 
 Lemma defPt_nullO A h x (v : A) (f : partition (x :-> v) h) : 
         valid (untag f) -> x != null.

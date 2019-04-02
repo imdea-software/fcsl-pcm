@@ -134,9 +134,9 @@ Notation nown := nown.
 Notation own := own.
 Notation mutexPCM := mutexPCM.
 Notation mutexTPCM := mutexTPCM.
-Arguments mx_undef [T]. 
-Arguments nown [T].
-Arguments own [T].
+Arguments mx_undef {T}.
+Arguments nown {T}.
+Arguments own {T}.
 
 (* binary mutexes can be obtained with T = Empty_set *)
 Notation mtx := (mutex Empty_set).

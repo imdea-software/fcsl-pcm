@@ -288,10 +288,10 @@ Definition pts : K -> V -> cT := pts_op (mixin class).
 
 End ClassDef.
 
-Arguments um_undef [K V cT].
-Arguments empty [K V cT].
-Arguments pts [K V cT] _ _.
-Prenex Implicits to um_undef empty pts.
+Arguments to {K V cT}.
+Arguments um_undef {K V cT}.
+Arguments empty {K V cT}.
+Arguments pts {K V cT} _ _.
 
 Section Lemmas.
 Variables (K : ordType) (V : Type) (U : type K V).

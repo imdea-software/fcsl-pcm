@@ -28,8 +28,7 @@ Unset Printing Implicit Defensive.
 
 (* export inj_pair without exporting the whole Eqdep library *)
 Definition inj_pair2 := @inj_pair2.
-Arguments inj_pair2 [U P p x y] _.
-Prenex Implicits inj_pair2.
+Arguments inj_pair2 {U P p x y} _.
 
 (* eta laws for pairs and units *)
 Notation prod_eta := surjective_pairing.
@@ -169,17 +168,16 @@ Qed.
 
 End ReflectConnectives.
 
-Arguments and6P [b1 b2 b3 b4 b5 b6].
-Arguments and7P [b1 b2 b3 b4 b5 b6 b7].
-Arguments or5P [b1 b2 b3 b4 b5].
-Arguments or6P [b1 b2 b3 b4 b5 b6].
-Arguments or7P [b1 b2 b3 b4 b5 b6 b7].
-Prenex Implicits and6P and7P or5P or6P or7P.
+Arguments and6P {b1 b2 b3 b4 b5 b6}.
+Arguments and7P {b1 b2 b3 b4 b5 b6 b7}.
+Arguments or5P {b1 b2 b3 b4 b5}.
+Arguments or6P {b1 b2 b3 b4 b5 b6}.
+Arguments or7P {b1 b2 b3 b4 b5 b6 b7}.
 
 Lemma andX (a b : bool) : reflect (a * b) (a && b).
 Proof. by case: a; case: b; constructor=>//; case. Qed.
 
-Arguments andX [a b].
+Arguments andX {a b}.
 
 (**********************************************)
 (* Reflexive-transitive closure of a relation *)
@@ -233,7 +231,7 @@ Lemma iter2 A T (g : A -> T -> A -> T -> Prop)  x1 s1 x2 s2 :
 Proof. by apply: iter1. Qed.
 
 Prenex Implicits iter1 iter2.
-Arguments iter_refl [T g s].
+Arguments iter_refl {T g s}.
 Hint Resolve iter_refl : core.
 
 (**************)

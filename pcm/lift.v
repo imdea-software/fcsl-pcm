@@ -67,7 +67,7 @@ Notation "[ 'unlifted' 'of' T ]" := (@clone T _ _ id id)
 Notation ounit := ounit. 
 Notation ojoin := ojoin.
 
-Arguments ounit [cT].
+Arguments ounit {cT}.
 
 Lemma ojoinC (U : unlifted) (x y : U) : ojoin x y = ojoin y x.
 Proof. by case: U x y=>T [ou oj ojC]. Qed.
@@ -154,7 +154,7 @@ Canonical liftEqType := Eval hnf in EqType _ liftEqMixin.
 End LiftEqType.
 
 Module Exports.
-Arguments down [A].
+Arguments down {A}.
 Arguments up [A].
 Canonical liftEqType.
 

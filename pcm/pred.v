@@ -111,9 +111,9 @@ Canonical Structure simplpredPredType :=
 
 End Predicates.
 
-Arguments Pred0 [T].
-Arguments PredT [T].
-Prenex Implicits Pred0 PredT PredI PredU PredC PredD Preim.
+Arguments Pred0 {T}.
+Arguments PredT {T}.
+Prenex Implicits PredI PredU PredC PredD Preim.
 
 Notation "r1 +p r2" := (PredU r1 r2 : Pred _) 
   (at level 55, right associativity) : rel_scope.

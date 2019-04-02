@@ -63,7 +63,7 @@ Definition unit := unit_op class.
 
 End ClassDef.
 
-Arguments unit [cT].
+Arguments unit {cT}.
 
 Module Exports.
 Coercion sort : type >-> Sortclass.
@@ -83,7 +83,7 @@ Notation "x \+ y" := (join x y)
 Notation valid := valid.
 Notation Unit := unit.
 
-Arguments unit [cT].
+Arguments unit {cT}.
 Prenex Implicits valid join unit. 
 
 (* Restating the laws, with the notation. *) 
@@ -308,10 +308,9 @@ Notation "[ 'tpcm' 'of' T 'for' cT ]" := (@clone T cT _ id)
 Notation "[ 'tpcm' 'of' T ]" := (@clone T _ _ id)
   (at level 0, format "[ 'tpcm'  'of'  T ]") : pcm_scope.
 
+Arguments undef {cT}.
 Notation undef := undef.
 Notation unitb := unitb. 
-Arguments undef [cT].
-Prenex Implicits undef.
 
 Section Lemmas.
 Variable U : tpcm.

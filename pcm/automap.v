@@ -817,7 +817,7 @@ Proof. by rewrite undefX valid_undef. Qed.
 
 End Exports.
 
-Arguments invalidX [K T U m i ts g].
+Arguments invalidX {K T U m i ts g}.
 
 Example ex0 (x y z : nat) (v1 v2 : nat) h: 
           valid (Unit \+ y \\-> v1 \+ h \+ y \\-> v1).
