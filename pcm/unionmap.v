@@ -703,7 +703,7 @@ Qed.
 Lemma perm_domUn f1 f2 : 
         valid (f1 \+ f2) -> perm_eq (dom (f1 \+ f2)) (dom f1 ++ dom f2). 
 Proof.
-move=>Vh; apply: uniq_perm_eq; last 1 first. 
+move=>Vh; apply: uniq_perm; last 1 first.
 - by move=>x; rewrite mem_cat domUn inE Vh.
 - by apply: uniq_dom.
 rewrite cat_uniq !uniq_dom /= andbT; apply/hasPn=>x.
@@ -715,7 +715,7 @@ Qed.
 Lemma size_domUn f1 f2 : 
         valid (f1 \+ f2) -> 
         size (dom (f1 \+ f2)) = size (dom f1) + size (dom f2).
-Proof. by move/perm_domUn/perm_eq_size; rewrite size_cat. Qed.
+Proof. by move/perm_domUn/perm_size; rewrite size_cat. Qed.
 
 End DomLemmas.
 
