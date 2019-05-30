@@ -1654,9 +1654,7 @@ Qed.
 
 (* a weaker version of gen_domPtK, but legacy *)
 Lemma domPt k v : dom (pts k v : U) =i [pred x | cond U k & k == x].
-Proof. 
-by move=>x; rewrite ptsU domU !inE eq_sym valid_unit dom0; case: eqP. 
-Qed.
+Proof. by move=>x; rewrite ptsU domU !inE valid_unit dom0; case: eqVneq. Qed.
 
 Lemma validPt k v : valid (pts k v : U) = cond U k. 
 Proof. by rewrite ptsU validU valid_unit andbT. Qed.

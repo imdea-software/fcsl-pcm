@@ -1074,8 +1074,8 @@ Definition zip_unit' (s : seq (K * V)) := mapf' unit_f s.
 
 Lemma zipC' s1 s2 : zip' s1 s2 = zip' s2 s1.
 Proof.
-elim: s1 s2=>[|[k1 v1] s1 IH]; first by case=>//; case. 
-case=>[|[k2 v2] s2] //=; rewrite eq_sym; case: eqP=>// ->{k2}.
+elim: s1 s2=>[|[k1 v1] s1 IH]; first by case=>//; case.
+case=>[|[k2 v2] s2] //=; case: eqVneq => // ->.
 by rewrite comm IH.
 Qed.
 
