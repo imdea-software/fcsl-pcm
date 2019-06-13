@@ -922,14 +922,9 @@ Definition mapf' (m : seq (K * U)) : seq (K * V) :=
 Lemma map_key_mapf (m : seq (K * U)) : map key (mapf' m) = map key m.
 Proof. by elim: m=>[|[k v] m IH] //=; rewrite IH. Qed.
 
-Lemma sorted_map (m : seq (K * U)) : 
-        sorted ord (map key m) -> sorted ord (map key (mapf' m)). 
-Proof.
-elim: m=>[|[k v] m IH] //= H. 
-rewrite path_min_sorted; first by apply: IH; apply: path_sorted H. 
-move=>y; rewrite map_key_mapf. 
-by apply/allP; apply: order_path_min H; apply: trans.
-Qed.
+Lemma sorted_map (m : seq (K * U)) :
+        sorted ord (map key m) -> sorted ord (map key (mapf' m)).
+Proof. by rewrite map_key_mapf. Qed.
 
 Definition mapf (m : finMap K U) : finMap K V := 
   let: FinMap _ pf := m in FinMap (sorted_map pf).
