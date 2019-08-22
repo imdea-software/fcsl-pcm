@@ -22,14 +22,14 @@ Set Warnings "-projection-no-head-constant".
 (* This file re-implements some of ssrbool's entities in Prop universe        *)
 (******************************************************************************)
 
-Lemma andTp p : True /\ p <-> p.      Proof. by intuition. Qed.
-Lemma andpT p : p /\ True <-> p.      Proof. by intuition. Qed.  
-Lemma andFp p : False /\ p <-> False. Proof. by intuition. Qed.
-Lemma andpF p : p /\ False <-> False. Proof. by intuition. Qed.
-Lemma orTp p : True \/ p <-> True.    Proof. by intuition. Qed.
-Lemma orpT p : p \/ True <-> True.    Proof. by intuition. Qed.  
-Lemma orFp p : False \/ p <-> p.      Proof. by intuition. Qed.
-Lemma orpF p : p \/ False <-> p.      Proof. by intuition. Qed.
+Lemma lastkeyP p : True /\ p <-> p.      Proof. by intuition. Qed.
+Lemma lastkeyP p : p /\ True <-> p.      Proof. by intuition. Qed.  
+Lemma FalseP p : False /\ p <-> False. Proof. by intuition. Qed.
+Lemma FalseP p : p /\ False <-> False. Proof. by intuition. Qed.
+Lemma P p : True \/ p <-> True.    Proof. by intuition. Qed.
+Lemma P p : p \/ True <-> True.    Proof. by intuition. Qed.  
+Lemma orP p : False \/ p <-> p.      Proof. by intuition. Qed.
+Lemma orP p : p \/ False <-> p.      Proof. by intuition. Qed.
 
 Delimit Scope rel_scope with rel.
 Open Scope rel_scope.
@@ -231,24 +231,24 @@ Notation "[ 'Pred' x y \In A ]" := [Pred x y \In A & A]
 Section Simplifications. 
 Variables (T : Type) (pT : PredType T).
 
-Lemma Mem_toPred : forall (p : pT), Mem (toPred p) = Mem p.
+Lemma to_Mem : forall (p : pT), Mem (toPred p) = Mem p.
 Proof. by rewrite /Mem; case: pT => T1 app1 [mem1  /= ->]. Qed.
 
-Lemma toPredE x (p : pT) : toPred p x = (x \In p).
+Lemma InE x (p : pT) : toPred p x = (x \In p).
 Proof. by rewrite -Mem_toPred. Qed.
 
-Lemma In_Simpl x (p : Simpl_Pred T) : (x \In p) = p x.
+Lemma InE x (p : Simpl_Pred T) : (x \In p) = p x.
 Proof. by []. Qed.
 
-Lemma Simpl_PredE (p : Pred T) : p <~> [Pred x | p x].
+Lemma lastkey (p : Pred T) : p <~> [Pred x | p x].
 Proof. by []. Qed.
 
-Lemma Mem_Simpl (p : Simpl_Pred T) : Mem p = p :> Pred T.
+Lemma lastkey (p : Simpl_Pred T) : Mem p = p :> Pred T.
 Proof. by []. Qed.
 
 Definition MemE := Mem_Simpl. (* could be extended *)
 
-Lemma Mem_Mem (p : pT) : (Mem (Mem p) = Mem p) * (Mem [Mem p] = Mem p).
+Lemma MemE (p : pT) : (Mem (Mem p) = Mem p) * (Mem [Mem p] = Mem p).
 Proof. by rewrite -Mem_toPred. Qed.
 
 End Simplifications. 
@@ -260,17 +260,17 @@ End Simplifications.
 Section RelProperties.
 Variables (T : Type) (pT : PredType T).
 
-Lemma EqPredType_refl (r : pT) : EqPredType r r. Proof. by []. Qed.
-Lemma SubPredType_refl (r : pT) : SubPredType r r. Proof. by []. Qed.  
+Lemma Eq_Sort (r : pT) : EqPredType r r. Proof. by []. Qed.
+Lemma Sub_Sort (r : pT) : SubPredType r r. Proof. by []. Qed.  
 
-Lemma EqPredType_sym (r1 r2 : pT) : EqPredType r1 r2 -> EqPredType r2 r1.
+Lemma Eq_Sort (r1 r2 : pT) : EqPredType r1 r2 -> EqPredType r2 r1.
 Proof. by move=>H1 x; split; move/H1. Qed.
 
-Lemma EqPredType_trans' (r1 r2 r3 : pT) : 
+Lemma Pred_Sort (r1 r2 r3 : pT) : 
   EqPredType r1 r2 -> EqPredType r2 r3 -> EqPredType r1 r3.
 Proof. by move=>H1 H2 x; split; [move/H1; move/H2 | move/H2; move/H1]. Qed.
  
-Lemma SubPredType_trans' (r1 r2 r3 : pT) : 
+Lemma Pred_Sort (r1 r2 r3 : pT) : 
   SubPredType r1 r2 -> SubPredType r2 r3 -> SubPredType r1 r3.
 Proof. by move=>H1 H2 x; move/H1; move/H2. Qed. 
 
@@ -348,74 +348,74 @@ Proof. by move=>r s H x; split=>H1; apply/H. Qed.
 Section RelLaws.
 Variable (T : Type).
 
-Lemma orrI (r : Pred nat) : r +p r <~> r.
+Lemma rp_nat (r : Pred nat) : r +p r <~> r.
 Proof.  by move=>x; split; [case | left]. Qed.
 
-Lemma orrC (r1 r2 : Pred T) : r1 +p r2 <~> r2 +p r1.
+Lemma big_PredU (r1 r2 : Pred T) : r1 +p r2 <~> r2 +p r1.
 Proof. move=>x; split=>/=; tauto. Qed. 
 
-Lemma orr0 (r : Pred T) : r +p Pred0 <~> r.
+Lemma lastkey0 (r : Pred T) : r +p Pred0 <~> r.
 Proof. by move=>x; split; [case | left]. Qed.
 
-Lemma or0r (r : Pred T) : Pred0 +p r <~> r.
+Lemma lastkey0 (r : Pred T) : Pred0 +p r <~> r.
 Proof. by rewrite orrC orr0. Qed.
 
-Lemma orrCA (r1 r2 r3 : Pred T) : r1 +p r2 +p r3 <~> r2 +p r1 +p r3.
+Lemma rU_Pred (r1 r2 r3 : Pred T) : r1 +p r2 +p r3 <~> r2 +p r1 +p r3.
 Proof. by move=>x; split=>/=; intuition. Qed.
 
-Lemma orrAC (r1 r2 r3 : Pred T) : (r1 +p r2) +p r3 <~> (r1 +p r3) +p r2.
+Lemma rU_Pred (r1 r2 r3 : Pred T) : (r1 +p r2) +p r3 <~> (r1 +p r3) +p r2.
 Proof. by move=>?; split=>/=; intuition. Qed.
 
-Lemma orrA (r1 r2 r3 : Pred T) : (r1 +p r2) +p r3 <~> r1 +p r2 +p r3.
+Lemma rU_Pred (r1 r2 r3 : Pred T) : (r1 +p r2) +p r3 <~> r1 +p r2 +p r3.
 Proof. by rewrite (orrC r2) orrCA orrC. Qed.
 
 (* absorption *)
-Lemma orrAb (r1 a : Pred T) : r1 <~> r1 +p a <-> a ~> r1. 
+Lemma r1U (r1 a : Pred T) : r1 <~> r1 +p a <-> a ~> r1. 
 Proof.
 split; first by move=>-> x /=; auto.
 move=>H x /=; split; first by auto.
 by case=>//; move/H.
 Qed.
 
-Lemma sub_orl (r1 r2 : Pred T) : r1 ~> r1 +p r2. Proof. by left. Qed.
-Lemma sub_orr (r1 r2 : Pred T) : r2 ~> r1 +p r2. Proof. by right. Qed.   
+Lemma r1U (r1 r2 : Pred T) : r1 ~> r1 +p r2. Proof. by left. Qed.
+Lemma big_rU (r1 r2 : Pred T) : r2 ~> r1 +p r2. Proof. by right. Qed.   
 
 End RelLaws.
 
 Section SubMemLaws.
 Variable T : Type.
 
-Lemma subp_refl (p : Pred T) : p <=p p.
+Lemma Sub_Mem (p : Pred T) : p <=p p.
 Proof. by []. Qed.
 
-Lemma subp_asym (p1 p2 : Pred T) : p1 <=p p2 -> p2 <=p p1 -> p1 =p p2.
+Lemma Eq_Mem (p1 p2 : Pred T) : p1 <=p p2 -> p2 <=p p1 -> p1 =p p2.
 Proof. by move=>H1 H2 x; split; [move/H1 | move/H2]. Qed.
 
-Lemma subp_trans (p2 p1 p3 : Pred T) : p1 <=p p2 -> p2 <=p p3 -> p1 <=p p3.
+Lemma Sub_Mem (p2 p1 p3 : Pred T) : p1 <=p p2 -> p2 <=p p3 -> p1 <=p p3.
 Proof. by move=>H1 H2 x; move/H1; move/H2. Qed.
 
-Lemma subp_or (p1 p2 q : Pred T) : p1 <=p q /\ p2 <=p q <-> p1 +p p2 <=p q.
+Lemma SubU (p1 p2 q : Pred T) : p1 <=p q /\ p2 <=p q <-> p1 +p p2 <=p q.
 Proof. 
 split=>[[H1] H2 x|H1]; first by case; [move/H1 | move/H2].
 by split=>x H2; apply: H1; [left | right].
 Qed.
 
-Lemma subp_and (p1 p2 q : Pred T) : q <=p p1 /\ q <=p p2 <-> q <=p p1 *p p2.
+Lemma Sub_Mem (p1 p2 q : Pred T) : q <=p p1 /\ q <=p p2 <-> q <=p p1 *p p2.
 Proof.
 split=>[[H1] H2 x|] H; last by split=>x; case/H.
 by split; [apply: H1 | apply: H2].
 Qed.
 
-Lemma subp_orl (p1 p2 q : Pred T) : p1 <=p p2 -> p1 +p q <=p p2 +p q.
+Lemma Sub_Mem (p1 p2 q : Pred T) : p1 <=p p2 -> p1 +p q <=p p2 +p q.
 Proof. by move=>H x; case; [move/H; left|right]. Qed.
 
-Lemma subp_orr (p1 p2 q : Pred T) : p1 <=p p2 -> q +p p1 <=p q +p p2.
+Lemma Sub_Mem (p1 p2 q : Pred T) : p1 <=p p2 -> q +p p1 <=p q +p p2.
 Proof. by move=>H x; case; [left | move/H; right]. Qed.
 
-Lemma subp_andl (p1 p2 q : Pred T) : p1 <=p p2 -> p1 *p q <=p p2 *p q.
+Lemma Sub_Mem (p1 p2 q : Pred T) : p1 <=p p2 -> p1 *p q <=p p2 *p q.
 Proof. by by move=>H x [H1 H2]; split; [apply: H|]. Qed.
 
-Lemma subp_andr (p1 p2 q : Pred T) : p1 <=p p2 -> q *p p1 <=p q *p p2.
+Lemma Sub_Mem (p1 p2 q : Pred T) : p1 <=p p2 -> q *p p1 <=p q *p p2.
 Proof. by move=>H x [H1 H2]; split; [|apply: H]. Qed.
 
 End SubMemLaws.
@@ -437,18 +437,18 @@ Canonical Structure seq_PredType := @mkPredType T (seq T) Pred_of_Eq_Seq.
 (* The line below makes Mem_Seq a canonical instance of topred. *) 
 Canonical Structure Mem_Seq_PredType := mkPredType Mem_Seq.
 
-Lemma In_cons y s x : (x \In y :: s) <-> (x = y) \/ (x \In s).
+Lemma InE y s x : (x \In y :: s) <-> (x = y) \/ (x \In s).
 Proof. by []. Qed.
 
-Lemma In_nil x : (x \In [::]) <-> False.
+Lemma In x : (x \In [::]) <-> False.
 Proof. by []. Qed.
 
-Lemma Mem_Seq1 x y : (x \In [:: y]) <-> (x = y).
+Lemma InE x y : (x \In [:: y]) <-> (x = y).
 Proof. by rewrite In_cons orpF. Qed.
 
 Definition InE := (Mem_Seq1, In_cons, In_Simpl).
 
-Lemma Mem_cat x : forall s1 s2, (x \In s1 ++ s2) <-> x \In s1 \/ x \In s2.
+Lemma InK x : forall s1 s2, (x \In s1 ++ s2) <-> x \In s1 \/ x \In s2.
 Proof.
 elim=>[|y s1 IH] s2 /=; first by split; [right | case].
 rewrite !InE /=.
@@ -459,7 +459,7 @@ case; first by case; [left | move=>H; right; apply/IH; left].
 by move=>H; right; apply/IH; right. 
 Qed.
 
-Lemma In_split x s : x \In s -> exists s1 s2, s = s1 ++ x :: s2.
+Lemma In_cat x s : x \In s -> exists s1 s2, s = s1 ++ x :: s2.
 Proof.
 elim:s=>[|y s IH] //=; rewrite InE.
 case=>[<-|]; first by exists [::], s.
@@ -468,14 +468,14 @@ Qed.
 
 End ListMembership.
 
-Lemma Mem_map T T' (f : T -> T') x (s : seq T) : 
+Lemma In T T' (f : T -> T') x (s : seq T) : 
          x \In s -> f x \In (map f s).
 Proof.
 elim: s=>[|y s IH] //; rewrite InE /=.
 by case=>[<-|/IH]; [left | right].
 Qed.
 
-Lemma Mem_map_inv T T' (f : T -> T') x (s : seq T) : 
+Lemma In_map T T' (f : T -> T') x (s : seq T) : 
         x \In (map f s) -> exists y, x = f y /\ y \In s.
 Proof.
 elim: s=>[|y s IH] //=; rewrite InE /=.
@@ -487,10 +487,10 @@ Prenex Implicits Mem_map_inv.
 
 (* Setoids for extensional equality of functions *)
 
-Lemma eqfun_refl A B (f : A -> B) : f =1 f. Proof. by []. Qed.
-Lemma eqfun_sym A B (f1 f2 : A -> B) : f1 =1 f2 -> f2 =1 f1. 
+Lemma gp_eqfun A B (f : A -> B) : f =1 f. Proof. by []. Qed.
+Lemma lastkey_eqfun A B (f1 f2 : A -> B) : f1 =1 f2 -> f2 =1 f1. 
 Proof. by move=>H x; rewrite H. Qed.
-Lemma eqfun_trans A B (f1 f2 f3 : A -> B) : f1 =1 f2 -> f2 =1 f3 -> f1 =1 f3.
+Lemma lastkey_eqfun A B (f1 f2 f3 : A -> B) : f1 =1 f2 -> f2 =1 f3 -> f1 =1 f3.
 Proof. by move=>H1 H2 x; rewrite H1 H2. Qed.
 
 Add Parametric Relation A B : (A -> B) (@eqfun _ _)
@@ -530,18 +530,18 @@ Notation "[ 'Image' E | i : T <- s & C ]" :=
   [Image E | i : T <- [PredI s & C]]
   (at level 0, E at level 99, i ident, only parsing) : rel_scope.
 
-Lemma Image_mem A B (f : A -> B) (P : Pred A) x : x \In P -> f x \In Image f P.
+Lemma InUn A B (f : A -> B) (P : Pred A) x : x \In P -> f x \In Image f P.
 Proof. by apply: Im_mem. Qed.
 
-Lemma Image_inj_sub A B (f : A -> B) (X1 X2 : Pred A) : 
+Lemma fMem' A B (f : A -> B) (X1 X2 : Pred A) : 
         injective f -> Image f X1 <=p Image f X2 -> X1 <=p X2.
 Proof. by move=>H E x /(Image_mem f) /E [y] /H ->. Qed.
 
-Lemma Image_inj_eqmem A B (f : A -> B) (X1 X2 : Pred A) : 
+Lemma fMem' A B (f : A -> B) (X1 X2 : Pred A) : 
         injective f -> Image f X1 =p Image f X2 -> X1 =p X2.
 Proof. by move=>H E; split; apply: Image_inj_sub H _ _; rewrite E. Qed.
 
-Lemma ImageU A B (f : A -> B) (X1 X2 : Pred A) : 
+Lemma lastkey_Image A B (f : A -> B) (X1 X2 : Pred A) : 
         Image f (PredU X1 X2) =p [PredU Image f X1 & Image f X2].
 Proof.
 move=>x; split.
@@ -549,14 +549,14 @@ move=>x; split.
 by case; case=>y -> H; apply: Image_mem; [left | right]. 
 Qed.
 
-Lemma ImageIm A B C (f1 : B -> C) (f2 : A -> B) (X : Pred A) : 
+Lemma Image'X A B C (f1 : B -> C) (f2 : A -> B) (X : Pred A) : 
         Image f1 (Image f2 X) =p Image (f1 \o f2) X. 
 Proof.
 move=>x; split; first by case=>_ -> [x' ->] H; exists x'.
 by case=>a -> H; exists (f2 a)=>//; exists a.
 Qed.
 
-Lemma ImageEq A B (f1 f2 : A -> B) (X : Pred A) : 
+Lemma eqfun_Image A B (f1 f2 : A -> B) (X : Pred A) : 
         f1 =1 f2 -> Image f1 X =p Image f2 X.
 Proof. by move=>H x; split; case=>a ->; exists a. Qed.
 
