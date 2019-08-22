@@ -49,19 +49,19 @@ Definition join x y :=
 
 Definition valid x := if x is undef then false else true.
 
-Lemma joinC : commutative join.
+Lemma joinT : commutative join.
 Proof. by case=>[|||x]; case=>[|||y]. Qed.
 
 Lemma joinA : associative join.
 Proof. by case=>[|||x]; case=>[|||y]; case=>[|||z]. Qed.
 
-Lemma unitL : left_id nown join.
+Lemma own : left_id nown join.
 Proof. by case. Qed.
 
-Lemma validL x y : valid (join x y) -> valid x. 
+Lemma join_valid x y : valid (join x y) -> valid x. 
 Proof. by case: x. Qed.
 
-Lemma valid_unit : valid nown.
+Lemma valid_mutex : valid nown.
 Proof. by []. Qed.
 
 Definition mutexPCMMix := PCMMixin joinC joinA unitL validL valid_unit.
@@ -69,7 +69,7 @@ Canonical mutexPCM := Eval hnf in PCM mutex mutexPCMMix.
 
 (* cancelativity *)
 
-Lemma joinmK m1 m2 m : valid (m1 \+ m) -> m1 \+ m = m2 \+ m -> m1 = m2.
+Lemma mutex_join m1 m2 m : valid (m1 \+ m) -> m1 \+ m = m2 \+ m -> m1 = m2.
 Proof. by case: m m1 m2=>[|||m][|||m1][|||m2]. Qed.
 
 Definition mutexCPCMMix := CPCMMixin joinmK.
@@ -77,21 +77,21 @@ Canonical mutexCPCM := Eval hnf in CPCM mutex mutexCPCMMix.
 
 (* topped structure *)
 
-Lemma unitb (x : mutex) :
+Lemma mutexP (x : mutex) :
         reflect (x = Unit) (if x is nown then true else false).
 Proof. by case: x; constructor. Qed.
 
-Lemma join0E (x y : mutex) : x \+ y = Unit -> x = Unit /\ y = Unit. 
+Lemma mutex_unit (x y : mutex) : x \+ y = Unit -> x = Unit /\ y = Unit. 
 Proof. by case: x y=>[|||x][|||y]. Qed.
 
-Lemma valid3 (x y z : mutex) : valid (x \+ y \+ z) = 
+Lemma valid_mutex (x y z : mutex) : valid (x \+ y \+ z) = 
         [&& valid (x \+ y), valid (y \+ z) & valid (x \+ z)].
 Proof. by case: x y z=>[|||x][|||y][|||z]. Qed.
 
-Lemma valid_undef : ~~ valid undef. 
+Lemma inj_valid : ~~ valid undef. 
 Proof. by []. Qed.
 
-Lemma undef_join x : undef \+ x = undef. 
+Lemma mutex_undef x : undef \+ x = undef. 
 Proof. by []. Qed.
 
 Definition mutexTPCMMix := TPCMMixin unitb join0E valid_undef undef_join.
@@ -158,55 +158,55 @@ CoInductive mutex_spec x : mutex T -> Type :=
 | mutex_own of x = own : mutex_spec x own
 | mutex_mx t of x = mx t : mutex_spec x (mx t).
 
-Lemma mxP x : mutex_spec x x. 
+Lemma mutexP x : mutex_spec x x. 
 Proof. by case: x=>[|||t]; constructor. Qed.
 
-Lemma mxE0 x y : x \+ y = Unit -> (x = Unit) * (y = Unit). 
+Lemma mutex_unit x y : x \+ y = Unit -> (x = Unit) * (y = Unit). 
 Proof. by case: x=>[|||t1]; case: y=>[|||t2]. Qed.
 
 (* a form of cancelativity, more useful than the usual form *)
-Lemma cancelMx t1 t2 x : (mx t1 \+ x = mx t2) <-> (t1 = t2) * (x = Unit).
+Lemma mutex_unit t1 t2 x : (mx t1 \+ x = mx t2) <-> (t1 = t2) * (x = Unit).
 Proof. by case: x=>[|||x] //=; split=>//; case=>->. Qed.
 
-Lemma cancelxM t1 t2 x : (x \+ mx t1 = mx t2) <-> (t1 = t2) * (x = Unit).
+Lemma mutex_unit t1 t2 x : (x \+ mx t1 = mx t2) <-> (t1 = t2) * (x = Unit).
 Proof. by rewrite joinC cancelMx. Qed.
 
-Lemma mxMx t x : valid (mx t \+ x) -> x = Unit. 
+Lemma mutex_unit t x : valid (mx t \+ x) -> x = Unit. 
 Proof. by case: x. Qed.
 
-Lemma mxxM t x : valid (x \+ mx t) -> x = Unit.
+Lemma mutex_unit t x : valid (x \+ mx t) -> x = Unit.
 Proof. by rewrite joinC=>/mxMx. Qed.
 
-Lemma mxxyM t x y : valid (x \+ (y \+ mx t)) -> x \+ y = Unit. 
+Lemma mutex_join t x y : valid (x \+ (y \+ mx t)) -> x \+ y = Unit. 
 Proof. by rewrite joinC joinAC=>/mxMx; rewrite joinC. Qed.
 
-Lemma mxMxy t x y : valid (mx t \+ x \+ y) -> x \+ y = Unit. 
+Lemma mutex_unit t x y : valid (mx t \+ x \+ y) -> x \+ y = Unit. 
 Proof. by rewrite -joinA=>/mxMx. Qed.
 
-Lemma mxxMy t x y : valid (x \+ (mx t \+ y)) -> x \+ y = Unit. 
+Lemma mutex_join t x y : valid (x \+ (mx t \+ y)) -> x \+ y = Unit. 
 Proof. by rewrite joinCA=>/mxMx. Qed.
 
-Lemma mxyMx t x y : valid (y \+ mx t \+ x) -> y \+ x = Unit. 
+Lemma mutex_unit t x y : valid (y \+ mx t \+ x) -> y \+ x = Unit. 
 Proof. by rewrite joinAC=>/mxMx. Qed.
 
 (* and the same for own *)
 
-Lemma mxOx x : valid (own \+ x) -> x = Unit.
+Lemma valid_unit x : valid (own \+ x) -> x = Unit.
 Proof. by case: x. Qed.
 
-Lemma mxxO x : valid (x \+ own) -> x = Unit.
+Lemma valid_unit x : valid (x \+ own) -> x = Unit.
 Proof. by rewrite joinC=>/mxOx. Qed.
 
-Lemma mxxyO x y : valid (x \+ (y \+ own)) -> x \+ y = Unit. 
+Lemma mutex_unit x y : valid (x \+ (y \+ own)) -> x \+ y = Unit. 
 Proof. by rewrite joinC joinAC=>/mxOx; rewrite joinC. Qed.
 
-Lemma mxOxy x y : valid (own \+ x \+ y) -> x \+ y = Unit. 
+Lemma mutex_unit x y : valid (own \+ x \+ y) -> x \+ y = Unit. 
 Proof. by rewrite -joinA=>/mxOx. Qed.
 
-Lemma mxxOy x y : valid (x \+ (own \+ y)) -> x \+ y = Unit. 
+Lemma mutex_unit x y : valid (x \+ (own \+ y)) -> x \+ y = Unit. 
 Proof. by rewrite joinCA=>/mxOx. Qed.
 
-Lemma mxyOx x y : valid (y \+ own \+ x) -> y \+ x = Unit. 
+Lemma mutex_unit x y : valid (y \+ own \+ x) -> y \+ x = Unit. 
 Proof. by rewrite joinAC=>/mxOx. Qed.
 
 (* inversion principle for join *)
@@ -220,7 +220,7 @@ CoInductive mxjoin_spec (x y : mutex T) :
 | rightmx t of x = nown & y = mx t : mxjoin_spec x y (mx t) nown (mx t)
 | invalid of ~~ valid (x \+ y) : mxjoin_spec x y undef x y.
 
-Lemma mxPJ x y : mxjoin_spec x y (x \+ y) x y.
+Lemma mutexP x y : mxjoin_spec x y (x \+ y) x y.
 Proof. by case: x y=>[|||x][|||y]; constructor. Qed.
 
 End MutexLemmas.
@@ -230,10 +230,10 @@ Prenex Implicits mxMx mxxM mxxyM mxMxy mxxMy mxyMx
 
 (* specific lemmas for binary mutexes *)
 
-Lemma mxON (x : mtx) : valid x -> x != own -> x = nown.
+Lemma valid_mutex (x : mtx) : valid x -> x != own -> x = nown.
 Proof. by case: x. Qed.
 
-Lemma mxNN (x : mtx) : valid x -> x != nown -> x = own.
+Lemma valid_mutex (x : mtx) : valid x -> x != nown -> x = own.
 Proof. by case: x. Qed.
 
 (* the next batch of lemmas is for automatic simplification *)
@@ -242,7 +242,7 @@ Section MutexRewriting.
 Variable T : eqType.
 Implicit Types (t : T) (x : mutex T). 
 
-Lemma mxE1 :  ((@mx_undef T == nown) = false) * 
+Lemma mutex_mx_eq :  ((@mx_undef T == nown) = false) * 
               ((@nown T == mx_undef) = false) *
               ((@mx_undef T == own) = false) *
               ((@own T == mx_undef) = false) *
@@ -250,7 +250,7 @@ Lemma mxE1 :  ((@mx_undef T == nown) = false) *
               ((@own T == nown) = false).
 Proof. by []. Qed.
 
-Lemma mxE2 t : ((mx t == nown) = false) * 
+Lemma mutex_mx_eq t : ((mx t == nown) = false) * 
                ((nown == mx t) = false) *
                ((mx t == mx_undef) = false) *
                ((mx_undef == mx t) = false) * 
@@ -268,7 +268,7 @@ Lemma mxE3 t x : ((mx t \+ x == nown) = false) *
                  ((x \+ own == mx t) = false).
 Proof. by case: x. Qed.
 
-Lemma mxE4 x : 
+Lemma mutexP x : 
        ((own \+ x == nown) = false) *
        ((x \+ own == nown) = false) * 
        ((own \+ x == own) = (x == Unit)) * 
@@ -286,13 +286,13 @@ have L : forall t1 t2 x, (mx t1 \+ x == mx t2) = (t1 == t2) && (x == Unit).
 by do !split=>//; rewrite ?L // eq_sym L eq_sym.
 Qed.
 
-Lemma mx_valid t : valid (mx t).
+Lemma mutex_valid t : valid (mx t).
 Proof. by []. Qed.
 
-Lemma mx_valid_own : valid (@own T).
+Lemma mutex_valid : valid (@own T).
 Proof. by []. Qed.
 
-Lemma mx_injE t1 t2 : (mx t1 == mx t2) = (t1 == t2).
+Lemma eq_mutex t1 t2 : (mx t1 == mx t2) = (t1 == t2).
 Proof. by []. Qed. 
 
 Definition mxE := (mxE1, mxE2, mxE3, mxE4, mxE5, mx_injE,

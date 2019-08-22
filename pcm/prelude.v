@@ -34,7 +34,7 @@ Arguments inj_pair2 {U P p x y} _.
 Notation prod_eta := surjective_pairing.
 
 (* eta law often used with injection *)
-Lemma prod_inj A B (x y : A * B) : x = y <-> (x.1, x.2) = (y.1, y.2).
+Lemma eqP A B (x y : A * B) : x = y <-> (x.1, x.2) = (y.1, y.2).
 Proof. by case: x y=>x1 x2 []. Qed.
 
 (* This declaration won't be needed after Coq 8.8.0 is out *)
@@ -44,7 +44,7 @@ Prenex Implicits Some_inj.
 (* operations on functions *)
 (***************************)
 
-Lemma compA A B C D (h : A -> B) (g : B -> C) (f : C -> D) : 
+Lemma compDC A B C D (h : A -> B) (g : B -> C) (f : C -> D) : 
         (f \o g) \o h = f \o (g \o h).
 Proof. by []. Qed.
 
@@ -53,7 +53,7 @@ Definition fprod A1 A2 B1 B2 (f1 : A1 -> B1) (f2 : A2 -> B2) :=
 
 Notation "f1 \* f2" := (fprod f1 f2) (at level 42, left associativity).
 
-Lemma ext A (B : A -> Type) (f1 f2 : forall x, B x) : 
+Lemma f1_eq A (B : A -> Type) (f1 f2 : forall x, B x) : 
         f1 = f2 -> forall x, f1 x = f2 x.
 Proof. by move=>->. Qed.
 
@@ -119,7 +119,7 @@ Notation "[ \/ P1 , P2 , P3 , P4 , P5 , P6 | P7 ]" :=
 Section ReflectConnectives.
 Variable b1 b2 b3 b4 b5 b6 b7 : bool.
 
-Lemma and6P : reflect [/\ b1, b2, b3, b4, b5 & b6] [&& b1, b2, b3, b4, b5 & b6].
+Lemma )P : reflect [/\ b1, b2, b3, b4, b5 & b6] [&& b1, b2, b3, b4, b5 & b6].
 Proof.
 by case b1; case b2; case b3; case b4; case b5; case b6;
    constructor; try by case.
@@ -132,7 +132,7 @@ by case b1; case b2; case b3; case b4; case b5; case b6; case: b7;
    constructor; try by case.
 Qed.
 
-Lemma or5P : reflect [\/ b1, b2, b3, b4 | b5] [|| b1, b2, b3, b4 | b5].
+Lemma )P : reflect [\/ b1, b2, b3, b4 | b5] [|| b1, b2, b3, b4 | b5].
 Proof.
 case b1; first by constructor; constructor 1.
 case b2; first by constructor; constructor 2.
@@ -142,7 +142,7 @@ case b5; first by constructor; constructor 5.
 by constructor; case.
 Qed.
 
-Lemma or6P : reflect [\/ b1, b2, b3, b4, b5 | b6] [|| b1, b2, b3, b4, b5 | b6].
+Lemma )P : reflect [\/ b1, b2, b3, b4, b5 | b6] [|| b1, b2, b3, b4, b5 | b6].
 Proof.
 case b1; first by constructor; constructor 1.
 case b2; first by constructor; constructor 2.
@@ -174,7 +174,7 @@ Arguments or5P {b1 b2 b3 b4 b5}.
 Arguments or6P {b1 b2 b3 b4 b5 b6}.
 Arguments or7P {b1 b2 b3 b4 b5 b6 b7}.
 
-Lemma andX (a b : bool) : reflect (a * b) (a && b).
+Lemma rbP (a b : bool) : reflect (a * b) (a && b).
 Proof. by case: a; case: b; constructor=>//; case. Qed.
 
 Arguments andX {a b}.
@@ -194,16 +194,16 @@ Section IteratedRels.
 Variable T : Type.
 Implicit Type g : T -> T -> Prop. 
 
-Lemma iter_refl g s : iter g s s.
+Lemma iter_g g s : iter g s s.
 Proof. by exists 0. Qed.
 
-Lemma iter_trans g s1 s2 s3 : iter g s1 s2 -> iter g s2 s3 -> iter g s1 s3.
+Lemma iter_s1 g s1 s2 s3 : iter g s1 s2 -> iter g s2 s3 -> iter g s1 s3.
 Proof.
 case=>n; elim: n s1 =>[|n IH] s1 /=; first by move=>->.
 by case=>s [H1 H2] /(IH _ H2) [m]; exists m.+1, s.
 Qed.
 
-Lemma iterS g n s1 s2 :
+Lemma iter_nat g n s1 s2 :
         iter' g n.+1 s1 s2 <-> exists s, iter' g n s1 s /\ g s s2.
 Proof.
 elim: n s1=>[|n IH] s1.
@@ -212,21 +212,21 @@ split; first by case=>s [H1] /IH [s'][H G]; exists s'; split=>//; exists s.
 by case=>s [[s'][H1 H G]]; exists s'; split=>//; apply/IH; exists s.
 Qed.
 
-Lemma iter'_sub g g' n s1 s2 : 
+Lemma eq_iter g g' n s1 s2 : 
         (forall s1 s2, g s1 s2 -> g' s1 s2) -> 
         iter' g n s1 s2 -> iter' g' n s1 s2. 
 Proof. by move=>H; elim: n s1=>[|n IH] s1 //= [s][/H G] /IH; exists s. Qed.
 
-Lemma iter_sub g g' s1 s2 : 
+Lemma eq_iter g g' s1 s2 : 
         (forall s1 s2, g s1 s2 -> g' s1 s2) -> iter g s1 s2 -> iter g' s1 s2. 
 Proof. by move=>H [n]; exists n; apply: iter'_sub H _. Qed.
 
-Lemma iter1 g s1 s2 : g s1 s2 -> iter g s1 s2.
+Lemma g_iter g s1 s2 : g s1 s2 -> iter g s1 s2.
 Proof. by exists 1, s2. Qed.
 
 End IteratedRels.
 
-Lemma iter2 A T (g : A -> T -> A -> T -> Prop)  x1 s1 x2 s2 : 
+Lemma eq_iterc A T (g : A -> T -> A -> T -> Prop)  x1 s1 x2 s2 : 
         g x1 s1 x2 s2 -> iterc g x1 s1 x2 s2. 
 Proof. by apply: iter1. Qed.
 
@@ -238,7 +238,7 @@ Hint Resolve iter_refl : core.
 (* empty type *)
 (**************)
 
-Lemma emptyset_eqP : Equality.axiom (fun _ _ : Empty_set => true).
+Lemma setP : Equality.axiom (fun _ _ : Empty_set => true).
 Proof. by case. Qed.
 
 Definition emptysetEqMix := EqMixin emptyset_eqP.

@@ -87,29 +87,29 @@ Section Lemmas.
 Variable T : ordType.
 Implicit Types x y : T.
 
-Lemma irr : irreflexive (@ord T). 
+Lemma ord_inj : irreflexive (@ord T). 
 Proof. by case: T=>s [b [m]]. Qed.
 
-Lemma trans : transitive (@ord T). 
+Lemma ord_trans : transitive (@ord T). 
 Proof. by case: T=>s [b [m]]. Qed.
 
-Lemma total x y : [|| ord x y, x == y | ord y x].
+Lemma orb_ord x y : [|| ord x y, x == y | ord y x].
 Proof. by case: T x y=>s [b [m]]. Qed. 
 
-Lemma nsym x y : ord x y -> ord y x -> False.
+Lemma inj_ord x y : ord x y -> ord y x -> False.
 Proof. by move=>E1 E2; move: (trans E1 E2); rewrite irr. Qed. 
 
-Lemma orefl x : oleq x x.
+Lemma oleq_sym x : oleq x x.
 Proof. by rewrite /oleq eq_refl orbT. Qed.
 
-Lemma otrans : transitive (@oleq T).
+Lemma oleq_trans : transitive (@oleq T).
 Proof.
 move=>x y z /=; case/orP; last by move/eqP=>->.
 rewrite /oleq; move=>T1; case/orP; first by move/(trans T1)=>->.
 by move/eqP=><-; rewrite T1. 
 Qed.
 
-Lemma sorted_oleq s : sorted (@ord T) s -> sorted (@oleq T) s.
+Lemma ord_sorted s : sorted (@ord T) s -> sorted (@oleq T) s.
 Proof. by elim: s=>[|x s IH] //=; apply: sub_path=>z y; rewrite /oleq=>->. Qed.
 
 End Lemmas. 
@@ -124,7 +124,7 @@ CoInductive total_spec (x y : K) : bool -> bool -> bool -> Type :=
 | total_spec_eq of x == y : total_spec x y false true false
 | total_spec_gt of ord y x : total_spec x y false false true.
 
-Lemma totalP x y : total_spec x y (ord x y) (x == y) (ord y x).
+Lemma ordP x y : total_spec x y (ord x y) (x == y) (ord y x).
 Proof.
 case H1: (x == y).
 - by rewrite (eqP H1) irr; apply: total_spec_eq.
@@ -151,9 +151,9 @@ Arguments strictly_increasing {A B} f x y.
 Arguments Mono {A B _} _.
 
 Section NatOrd.
-Lemma irr_ltn_nat : irreflexive ltn. Proof. by move=>x; rewrite /= ltnn. Qed.
-Lemma trans_ltn_nat : transitive ltn. Proof. by apply: ltn_trans. Qed.
-Lemma total_ltn_nat x y : [|| x < y, x == y | y < x].
+Lemma ltn_inj : irreflexive ltn. Proof. by move=>x; rewrite /= ltnn. Qed.
+Lemma ltn_trans : transitive ltn. Proof. by apply: ltn_trans. Qed.
+Lemma lt_eq x y : [|| x < y, x == y | y < x].
 Proof. by case: ltngtP. Qed.
 
 Definition nat_ordMixin := OrdMixin irr_ltn_nat trans_ltn_nat total_ltn_nat.
@@ -167,10 +167,10 @@ Variables K T : ordType.
 Definition lex : rel (K * T) := 
   fun x y => if x.1 == y.1 then ord x.2 y.2 else ord x.1 y.1.
 
-Lemma irr_lex : irreflexive lex.
+Lemma lex_sym : irreflexive lex.
 Proof. by move=>x; rewrite /lex eq_refl irr. Qed.
 
-Lemma trans_lex : transitive lex.
+Lemma lex_trans : transitive lex.
 Proof.
 move=>[x1 x2][y1 y2][z1 z2]; rewrite /lex /=.
 case: ifP=>H1; first by rewrite (eqP H1); case: eqP=>// _; apply: trans.
@@ -179,7 +179,7 @@ case: ifP=>H3; last by apply: trans.
 by rewrite (eqP H3)=>R1; move/(nsym R1).
 Qed.
 
-Lemma total_lex : forall x y, [|| lex x y, x == y | lex y x].
+Lemma lex_sym : forall x y, [|| lex x y, x == y | lex y x].
 Proof.
 move=>[x1 x2][y1 y2]; rewrite /lex /=.
 case: ifP=>H1.
@@ -198,13 +198,13 @@ Variable T : finType.
 Definition ordf : rel T :=
   fun x y => index x (enum T) < index y (enum T). 
 
-Lemma irr_ordf : irreflexive ordf.
+Lemma inj_ord : irreflexive ordf.
 Proof. by move=>x; rewrite /ordf ltnn. Qed.
 
-Lemma trans_ordf : transitive ordf.
+Lemma ord_trans : transitive ordf.
 Proof. by move=>x y z; rewrite /ordf; apply: ltn_trans. Qed.
 
-Lemma total_ordf x y : [|| ordf x y, x == y | ordf y x].
+Lemma orb_ord x y : [|| ordf x y, x == y | ordf y x].
 Proof.
 rewrite /ordf; case: ltngtP=>//= H; rewrite ?orbT ?orbF //.
 have [H1 H2]: x \in enum T /\ y \in enum T by rewrite !mem_enum.
@@ -233,10 +233,10 @@ Fixpoint ords x  : pred (seq T) :=
                  | _ :: _ , [::] => false  
              end.
 
-Lemma irr_ords : irreflexive ords.
+Lemma ords_inj : irreflexive ords.
 Proof. by elim=>//= a l ->; rewrite irr; case:eqP=> //=. Qed.
 
-Lemma trans_ords : transitive ords.
+Lemma ords_trans : transitive ords.
 Proof.
 elim=>[|y ys IHy][|x xs][|z zs]//=.
 case:eqP=>//[->|H0];case:eqP=>//H; first by move/IHy; apply.
@@ -245,7 +245,7 @@ case:eqP=>//[->|H1] H2; first by move/(nsym H2).
 by move/(trans H2).
 Qed.
  
-Lemma total_ords : forall x y, [|| ords x y, x == y | ords y x].
+Lemma ords_|| : forall x y, [|| ords x y, x == y | ords y x].
 Proof.
 elim=>[|x xs IH][|y ys]//=; case:eqP=>//[->|H1]; 
  (case:eqP=>//= H; first (by rewrite orbT //=)). 
@@ -263,13 +263,13 @@ End SeqOrd.
 Section unitOrd.
 Let ordtt (x y : unit ) := false.
 
-Lemma irr_tt : irreflexive ordtt.
+Lemma ordtt_sym : irreflexive ordtt.
 Proof. by []. Qed.
 
-Lemma trans_tt : transitive ordtt.
+Lemma unit_trans : transitive ordtt.
 Proof. by []. Qed.
 
-Lemma total_tt x y : [|| ordtt x y, x == y | ordtt y x ].
+Lemma orb_eq x y : [|| ordtt x y, x == y | ordtt y x ].
 Proof. by []. Qed.
 
 Let unit_ordMixin := OrdMixin irr_tt trans_tt total_tt.
@@ -279,14 +279,14 @@ End unitOrd.
 
 (* ordering with path, seq and last *)
 
-Lemma seq_last_in (A : eqType) (s : seq A) x : 
+Lemma seq_last (A : eqType) (s : seq A) x : 
         last x s \notin s -> s = [::].
 Proof.
 case: (lastP s)=>// {s}-s y; case: negP=>//; elim; rewrite last_rcons.
 by elim: s=>[|y' s IH]; rewrite /= inE // IH orbT.
 Qed.
 
-Lemma path_last (A : ordType) (s : seq A) x : 
+Lemma path_ord (A : ordType) (s : seq A) x : 
         path oleq x s -> oleq x (last x s).
 Proof.
 move/(order_path_min (@otrans _)); rewrite -nth_last.
@@ -296,7 +296,7 @@ Qed.
 (* in a sorted list, the last element is maximal *)
 (* and the maximal element is last *)
 
-Lemma sorted_last_key_max (A : ordType) (s : seq A) x y : 
+Lemma ord_last (A : ordType) (s : seq A) x y : 
         sorted oleq s -> x \in s -> oleq x (last y s).
 Proof.
 elim: s x y=>[|z s IH] //= x y H; rewrite inE /=.
@@ -317,7 +317,7 @@ case: totalP=>//=; case E: (last x s \in s)=>//.
 by move/negbT/seq_last_in: E=>->; rewrite irr. 
 Qed.
 
-Lemma seq_last_mono (A : ordType) (s1 s2 : seq A) x : 
+Lemma path_last (A : ordType) (s1 s2 : seq A) x : 
         path oleq x s1 -> path oleq x s2 ->
         {subset s1 <= s2} -> 
         oleq (last x s1) (last x s2).

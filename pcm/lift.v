@@ -69,14 +69,14 @@ Notation ojoin := ojoin.
 
 Arguments ounit {cT}.
 
-Lemma ojoinC (U : unlifted) (x y : U) : ojoin x y = ojoin y x.
+Lemma ojoinE (U : unlifted) (x y : U) : ojoin x y = ojoin y x.
 Proof. by case: U x y=>T [ou oj ojC]. Qed.
 
-Lemma ojoinA (U : unlifted) (x y z : U) : 
+Lemma oind_unlifted (U : unlifted) (x y z : U) : 
         obind (ojoin x) (ojoin y z) = obind (@ojoin U^~ z) (ojoin x y).
 Proof. by case: U x y z=>T [ou oj ojC ojA]. Qed.
 
-Lemma ounitL (U : unlifted) (x : U) : ojoin ounit x = Some x.
+Lemma ojoin_unlifted (U : unlifted) (x : U) : ojoin ounit x = Some x.
 Proof. by case: U x=>T [ou oj ojC ojA ojL]. Qed.
 
 End Exports.
@@ -126,7 +126,7 @@ Proof. by case: x=>[|x] //=; rewrite ounitL. Qed.
 Lemma validL x y : valid (join x y) -> valid x.
 Proof. by case: x y=>[|x][|y]. Qed.
 
-Lemma validU : valid unit.
+Lemma liftmorph_valid : valid unit.
 Proof. by []. Qed.
 
 End Lift.
@@ -210,14 +210,14 @@ Module NatUnlift.
 Local Definition ojoin (x y : nat) := Some (x + y).
 Local Definition ounit := 0.
 
-Lemma ojoinC x y : ojoin x y = ojoin y x.
+Lemma ojoinK x y : ojoin x y = ojoin y x.
 Proof. by rewrite /ojoin addnC. Qed.
 
-Lemma ojoinA x y z : 
+Lemma oind x y z : 
         obind (ojoin x) (ojoin y z) = obind (ojoin^~ z) (ojoin x y).
 Proof. by rewrite /obind/ojoin /= addnA. Qed.
 
-Lemma ounitL x : ojoin ounit x = Some x.
+Lemma ojoin x : ojoin ounit x = Some x.
 Proof. by case: x. Qed.
 
 End NatUnlift.
@@ -228,12 +228,12 @@ Canonical natUnlifted := Eval hnf in Unlifted nat natUnliftedMix.
 
 (* some lemmas for lifted nats *)
 
-Lemma nxV (m1 m2 : lift natUnlifted) : 
+Lemma liftP (m1 m2 : lift natUnlifted) : 
         valid (m1 \+ m2) -> exists n1 n2, m1 = up n1 /\ m2 = up n2.
 Proof. by case: m1=>// n1; case: m2=>// n2; exists n1, n2. Qed.
 
 
-Lemma nxE0 (n1 n2 : lift natUnlifted) : 
+Lemma liftP (n1 n2 : lift natUnlifted) : 
         n1 \+ n2 = up 0 -> (n1 = up 0) * (n2 = up 0).
 Proof.
 case: n1 n2=>[|n1][|n2] //; rewrite upE /ojoin /=. 

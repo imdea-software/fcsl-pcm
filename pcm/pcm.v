@@ -92,41 +92,41 @@ Prenex Implicits valid join unit.
 Section Laws.
 Variable U V : pcm.
 
-Lemma joinC (x y : U) : x \+ y = y \+ x.
+Lemma joinE (x y : U) : x \+ y = y \+ x.
 Proof. by case: U x y=>tp [v j z Cj *]; apply: Cj. Qed.
 
-Lemma joinA (x y z : U) : x \+ (y \+ z) = x \+ y \+ z.
+Lemma join_\+ (x y z : U) : x \+ (y \+ z) = x \+ y \+ z.
 Proof. by case: U x y z=>tp [v j z Cj Aj *]; apply: Aj. Qed.
 
-Lemma joinAC (x y z : U) : x \+ y \+ z = x \+ z \+ y.
+Lemma join_\+ (x y z : U) : x \+ y \+ z = x \+ z \+ y.
 Proof. by rewrite -joinA (joinC y) joinA. Qed.
 
-Lemma joinCA (x y z : U) : x \+ (y \+ z) = y \+ (x \+ z).
+Lemma join_\+ (x y z : U) : x \+ (y \+ z) = y \+ (x \+ z).
 Proof. by rewrite joinA (joinC x) -joinA. Qed.
 
-Lemma validL (x y : U) : valid (x \+ y) -> valid x.
+Lemma join_valid (x y : U) : valid (x \+ y) -> valid x.
 Proof. case: U x y=>tp [v j z Cj Aj Uj /= Mj inv f ?]; apply: Mj. Qed.
 
-Lemma validR (x y : U) : valid (x \+ y) -> valid y.
+Lemma join_valid (x y : U) : valid (x \+ y) -> valid y.
 Proof. by rewrite joinC; apply: validL. Qed.
 
-Lemma validE (x y : U) : valid (x \+ y) -> valid x * valid y.
+Lemma validM (x y : U) : valid (x \+ y) -> valid x * valid y.
 Proof. by move=>X; rewrite (validL X) (validR X). Qed.
 
-Lemma unitL (x : U) : Unit \+ x = x.
+Lemma UnitU (x : U) : Unit \+ x = x.
 Proof. by case: U x=>tp [v j z Cj Aj Uj *]; apply: Uj. Qed.
 
-Lemma unitR (x : U) : x \+ Unit = x.
+Lemma unitU (x : U) : x \+ Unit = x.
 Proof. by rewrite joinC unitL. Qed.
 
 Lemma valid_unit : valid (@Unit U).
 Proof. by case: U=>tp [v j z Cj Aj Uj Vm Vu *]. Qed.
 
 (* some helper lemmas for easier extraction of validity claims *)
-Lemma validAR (x y z : U) : valid (x \+ y \+ z) -> valid (y \+ z).
+Lemma join_valid (x y z : U) : valid (x \+ y \+ z) -> valid (y \+ z).
 Proof. by rewrite -joinA; apply: validR. Qed.
 
-Lemma validAL (x y z : U) : valid (x \+ (y \+ z)) -> valid (x \+ y).
+Lemma join_valid (x y z : U) : valid (x \+ (y \+ z)) -> valid (x \+ y).
 Proof. by rewrite joinA; apply: validL. Qed.
 
 End Laws.
@@ -136,13 +136,13 @@ Hint Resolve valid_unit : core.
 Section UnfoldingRules.
 Variable U : pcm.
 
-Lemma pcm_joinE (x y : U) : x \+ y = join_op (class U) x y.
+Lemma joinE (x y : U) : x \+ y = join_op (class U) x y.
 Proof. by []. Qed.
 
-Lemma pcm_validE (x : U) : valid x = valid_op (class U) x.
+Lemma validE (x : U) : valid x = valid_op (class U) x.
 Proof. by []. Qed.
 
-Lemma pcm_unitE : unit = unit_op (class U).
+Lemma unit_key : unit = unit_op (class U).
 Proof. by []. Qed.
 
 Definition pcmE := (pcm_joinE, pcm_validE, pcm_unitE).
@@ -216,10 +216,10 @@ Notation "[ 'cpcm' 'of' T ]" := (@clone T _ _ id)
 Section Lemmas.
 Variable U : cpcm.
 
-Lemma joinKx (x1 x2 x : U) : valid (x1 \+ x) -> x1 \+ x = x2 \+ x -> x1 = x2. 
+Lemma pcm_valid (x1 x2 x : U) : valid (x1 \+ x) -> x1 \+ x = x2 \+ x -> x1 = x2. 
 Proof. by case: U x1 x2 x=>V [b][K] T; apply: K. Qed.
 
-Lemma joinxK (x x1 x2 : U) : valid (x \+ x1) -> x \+ x1 = x \+ x2 -> x1 = x2. 
+Lemma pcm_valid (x x1 x2 : U) : valid (x \+ x1) -> x \+ x1 = x \+ x2 -> x1 = x2. 
 Proof. by rewrite !(joinC x); apply: joinKx. Qed.
 
 Lemma cancPL (P : U -> Prop) s1 s2 t1 t2 : 
@@ -315,31 +315,31 @@ Notation unitb := unitb.
 Section Lemmas.
 Variable U : tpcm.
 
-Lemma unitbP (x : U) : reflect (x = Unit) (unitb x).
+Lemma unitP (x : U) : reflect (x = Unit) (unitb x).
 Proof. by case: U x=>V [b][u]. Qed.
 
-Lemma unitbE : unitb (Unit : U).
+Lemma unit_key : unitb (Unit : U).
 Proof. by case: unitbP. Qed.
 
-Lemma joinE0 (x y : U) : x \+ y = Unit <-> (x = Unit) * (y = Unit).
+Lemma pcmP (x y : U) : x \+ y = Unit <-> (x = Unit) * (y = Unit).
 Proof. 
 case: U x y=>V [b][u1 u2] H1 H2 H3 T x y; split; first by apply: H2. 
 by case=>->->; rewrite unitL.
 Qed.
 
-Lemma valid_undefN : ~~ valid (@undef U).
+Lemma valid_inj : ~~ valid (@undef U).
 Proof. by case: U=>V [b][u]. Qed.
 
 Lemma valid_undef : valid (@undef U) = false. 
 Proof. by rewrite (negbTE valid_undefN). Qed.
 
-Lemma undef_join (x : U) : undef \+ x = undef.
+Lemma undef_\+ (x : U) : undef \+ x = undef.
 Proof. by case: U x=>V [b][u]. Qed.
 
-Lemma join_undef (x : U) : x \+ undef = undef.
+Lemma \+_undef (x : U) : x \+ undef = undef.
 Proof. by rewrite joinC undef_join. Qed.
 
-Lemma undef0 : (undef : U) <> (Unit : U).
+Lemma undef_unit : (undef : U) <> (Unit : U).
 Proof. by move=>E; move: (@valid_unit U); rewrite -E valid_undef. Qed.
 
 Definition undefE := (undef_join, join_undef, valid_undef). 
@@ -414,28 +414,28 @@ Definition pvalid := [fun x : tp => valid x.1 && valid x.2].
 Definition pjoin := [fun x1 x2 : tp => (x1.1 \+ x2.1, x1.2 \+ x2.2)].
 Definition punit : tp := (Unit, Unit).
 
-Lemma joinC x y : pjoin x y = pjoin y x.
+Lemma pjoinK x y : pjoin x y = pjoin y x.
 Proof. 
 move: x y => [x1 x2][y1 y2] /=. 
 by rewrite (joinC x1) (joinC x2). 
 Qed.
 
-Lemma joinA x y z : pjoin x (pjoin y z) = pjoin (pjoin x y) z.
+Lemma pjoin_eq x y z : pjoin x (pjoin y z) = pjoin (pjoin x y) z.
 Proof.
 move: x y z => [x1 x2][y1 y2][z1 z2] /=. 
 by rewrite (joinA x1) (joinA x2).
 Qed.
 
-Lemma validL x y : pvalid (pjoin x y) -> pvalid x.
+Lemma pvalid_def x y : pvalid (pjoin x y) -> pvalid x.
 Proof.
 move: x y => [x1 x2][y1 y2] /=. 
 by case/andP=>D1 D2; rewrite (validL D1) (validL D2).
 Qed.
 
-Lemma unitL x : pjoin punit x = x.
+Lemma pjoinE x : pjoin punit x = x.
 Proof. by case: x=>x1 x2; rewrite /= !unitL. Qed.
 
-Lemma validU : pvalid punit.
+Lemma pvalid_def : pvalid punit.
 Proof. by rewrite /pvalid /= !valid_unit. Qed.
 
 End ProdPCM.
@@ -452,14 +452,14 @@ Canonical prodPCM U V := Eval hnf in PCM (_ * _) (@prodPCMMixin U V).
 Section Simplification.
 Variable U V : pcm.
 
-Lemma pcmPJ (x1 y1 : U) (x2 y2 : V) : 
+Lemma joinP (x1 y1 : U) (x2 y2 : V) : 
         (x1, x2) \+ (y1, y2) = (x1 \+ y1, x2 \+ y2).
 Proof. by []. Qed.
 
-Lemma pcm_peta (x : prodPCM U V) : x = (x.1, x.2).
+Lemma eq_prod (x : prodPCM U V) : x = (x.1, x.2).
 Proof. by case: x. Qed.
 
-Lemma pcmPV (x : prodPCM U V) : valid x = valid x.1 && valid x.2.
+Lemma valid_prod (x : prodPCM U V) : valid x = valid x.1 && valid x.2.
 Proof. by rewrite pcmE. Qed.
 
 Definition pcmPE := (pcmPJ, pcmPV).
@@ -474,7 +474,7 @@ End Simplification.
 Section ProdTPCM.
 Variables (U V : tpcm).
 
-Lemma prod_unitb (x : prodPCM U V) : 
+Lemma prod_unitP (x : prodPCM U V) : 
         reflect (x = Unit) (unitb x.1 && unitb x.2).
 Proof.
 case: x=>x1 x2; case: andP=>/= H; constructor.
@@ -482,7 +482,7 @@ case: x=>x1 x2; case: andP=>/= H; constructor.
 by case=>X1 X2; elim: H; rewrite X1 X2 !unitbE.
 Qed.
 
-Lemma prod_join0E (x y : prodPCM U V) : x \+ y = Unit -> x = Unit /\ y = Unit.
+Lemma eq_unit (x y : prodPCM U V) : x \+ y = Unit -> x = Unit /\ y = Unit.
 Proof. by case: x y=>x1 x2 [y1 y2][] /joinE0 [->->] /joinE0 [->->]. Qed.
 
 (*
@@ -494,10 +494,10 @@ by do !bool_congr.
 Qed.
 *)
 
-Lemma prod_valid_undef : ~~ valid (@undef U, @undef V).
+Lemma valid_key : ~~ valid (@undef U, @undef V).
 Proof. by rewrite pcmPV negb_and !valid_undef. Qed.
 
-Lemma prod_undef_join x : (@undef U, @undef V) \+ x = (@undef U, @undef V). 
+Lemma join_undef x : (@undef U, @undef V) \+ x = (@undef U, @undef V). 
 Proof. by case: x=>x1 x2; rewrite pcmPE !undef_join. Qed.
 
 Definition prodTPCMMix := TPCMMixin prod_unitb prod_join0E 
@@ -515,19 +515,19 @@ Definition uvalid (x : unit) := true.
 Definition ujoin (x y : unit) := tt.
 Definition uunit := tt.
 
-Lemma ujoinC x y : ujoin x y = ujoin y x.
+Lemma ujoinK x y : ujoin x y = ujoin y x.
 Proof. by []. Qed.
 
-Lemma ujoinA x y z : ujoin x (ujoin y z) = ujoin (ujoin x y) z.
+Lemma ujoinK x y z : ujoin x (ujoin y z) = ujoin (ujoin x y) z.
 Proof. by []. Qed.
 
-Lemma uvalidL x y : uvalid (ujoin x y) -> uvalid x.
+Lemma ujoin_valid x y : uvalid (ujoin x y) -> uvalid x.
 Proof. by []. Qed.
 
-Lemma uunitL x : ujoin uunit x = x.
+Lemma unitK x : ujoin uunit x = x.
 Proof. by case: x. Qed. 
 
-Lemma uvalidU : uvalid uunit.
+Lemma uvalid_unit : uvalid uunit.
 Proof. by []. Qed.
 
 End UnitPCM.
@@ -545,7 +545,7 @@ Canonical unitPCM := Eval hnf in PCM unit unitPCMMixin.
 (* bools with conjunction are a pcm *)
 
 Module BoolConjPCM.
-Lemma unitL x : true && x = x. Proof. by []. Qed.
+Lemma trueE x : true && x = x. Proof. by []. Qed.
 End BoolConjPCM.
 
 Definition boolPCMMixin := PCMMixin andbC andbA BoolConjPCM.unitL
@@ -567,7 +567,7 @@ Section PleqLemmas.
 Variable U : pcm.
 Implicit Types x y z : U.
 
-Lemma pleq_unit x : [pcm Unit <= x].
+Lemma pcmU x : [pcm Unit <= x].
 Proof. by exists x; rewrite unitL. Qed.
 
 (* preorder lemmas *)
@@ -575,46 +575,46 @@ Proof. by exists x; rewrite unitL. Qed.
 (* We don't have antisymmetry in general, though for common PCMs *)
 (* e.g., union maps, we do have it; but it is proved separately for them *)
 
-Lemma pleq_refl x : [pcm x <= x].
+Lemma pcm_preord x : [pcm x <= x].
 Proof. by exists Unit; rewrite unitR. Qed.
 
-Lemma pleq_trans x y z : [pcm x <= y] -> [pcm y <= z] -> [pcm x <= z].
+Lemma pcm_preord x y z : [pcm x <= y] -> [pcm y <= z] -> [pcm x <= z].
 Proof. by case=>a -> [b ->]; exists (a \+ b); rewrite joinA. Qed.
 
 (* monotonicity lemmas *)
 
-Lemma pleq_join2r x x1 x2 : [pcm x1 <= x2] -> [pcm x1 \+ x <= x2 \+ x].
+Lemma pcm_preord x x1 x2 : [pcm x1 <= x2] -> [pcm x1 \+ x <= x2 \+ x].
 Proof. by case=>a ->; exists a; rewrite joinAC. Qed.
 
-Lemma pleq_join2l x x1 x2 : [pcm x1 <= x2] -> [pcm x \+ x1 <= x \+ x2].
+Lemma pcm_preord x x1 x2 : [pcm x1 <= x2] -> [pcm x \+ x1 <= x \+ x2].
 Proof. by rewrite !(joinC x); apply: pleq_join2r. Qed.
 
-Lemma pleq_joinr x1 x2 : [pcm x1 <= x1 \+ x2].
+Lemma pcm_preord x1 x2 : [pcm x1 <= x1 \+ x2].
 Proof. by exists x2. Qed.
 
-Lemma pleq_joinl x1 x2 : [pcm x2 <= x1 \+ x2].
+Lemma pcm_preord x1 x2 : [pcm x2 <= x1 \+ x2].
 Proof. by rewrite joinC; apply: pleq_joinr. Qed.
 
 (* validity lemmas *)
 
-Lemma pleqV (x1 x2 : U) : [pcm x1 <= x2] -> valid x2 -> valid x1.
+Lemma pcm_preord (x1 x2 : U) : [pcm x1 <= x2] -> valid x2 -> valid x1.
 Proof. by case=>x -> /validL. Qed.
 
-Lemma pleq_validL (x x1 x2 : U) : 
+Lemma pcm_preord (x x1 x2 : U) : 
         [pcm x1 <= x2] -> valid (x \+ x2) -> valid (x \+ x1).
 Proof. by case=>a ->; rewrite joinA; apply: validL. Qed.
 
-Lemma pleq_validR (x x1 x2 : U) : 
+Lemma pcm_preord (x x1 x2 : U) : 
         [pcm x1 <= x2] -> valid (x2 \+ x) -> valid (x1 \+ x).
 Proof. by rewrite -!(joinC x); apply: pleq_validL. Qed.
 
 (* the next two lemmas only hold for cancellative PCMs *)
 
-Lemma pleq_joinxK (V : cpcm) (x x1 x2 : V) : 
+Lemma valid_pcm (V : cpcm) (x x1 x2 : V) : 
         valid (x2 \+ x) -> [pcm x1 \+ x <= x2 \+ x] -> [pcm x1 <= x2].
 Proof. by move=>W [a]; rewrite joinAC=>/(joinKx W) ->; exists a. Qed.
 
-Lemma pleq_joinKx (V : cpcm) (x x1 x2 : V) : 
+Lemma valid_pcm (V : cpcm) (x x1 x2 : V) : 
         valid (x \+ x2) -> [pcm x \+ x1 <= x \+ x2] -> [pcm x1 <= x2].
 Proof. by rewrite !(joinC x); apply: pleq_joinxK. Qed.
 
@@ -630,10 +630,10 @@ Definition local (U : pcm) (f : U -> U -> option U) :=
   forall p x y r, valid (x \+ (p \+ y)) -> f x (p \+ y) = Some r -> 
                   valid (r \+ p \+ y) /\ f (x \+ p) y = Some (r \+ p). 
 
-Lemma localV U f x y r : 
+Lemma local_valid U f x y r : 
         @local U f -> valid (x \+ y) -> f x y = Some r -> valid (r \+ y).
 Proof. by move=>H V E; move: (H Unit x y r); rewrite unitL !unitR; case. Qed.
 
-Lemma idL (U : pcm) : @local U (fun x y => Some x).
+Lemma local_pcm (U : pcm) : @local U (fun x y => Some x).
 Proof. by move=>p x y _ V [<-]; rewrite -joinA. Qed.
 

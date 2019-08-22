@@ -58,26 +58,26 @@ Inductive base :=
 Section FormationLemmas.
 Variable (f g : {finMap K -> V}). 
 
-Lemma all_supp_insP k v : p k -> all p (supp f) -> all p (supp (ins k v f)).
+Lemma all_supp_ins k v : p k -> all p (supp f) -> all p (supp (ins k v f)).
 Proof.
 move=>H1 H2; apply/allP=>x; rewrite supp_ins inE /=.
 by case: eqP=>[->|_] //=; move/(allP H2). 
 Qed.
 
-Lemma all_supp_remP k : all p (supp f) -> all p (supp (rem k f)). 
+Lemma all_suppm k : all p (supp f) -> all p (supp (rem k f)). 
 Proof. 
 move=>H; apply/allP=>x; rewrite supp_rem inE /=.
 by case: eqP=>[->|_] //=; move/(allP H).
 Qed.
 
-Lemma all_supp_fcatP : 
+Lemma all_fcat : 
         all p (supp f) -> all p (supp g) -> all p (supp (fcat f g)).
 Proof.
 move=>H1 H2; apply/allP=>x; rewrite supp_fcat inE /=.
 by case/orP; [move/(allP H1) | move/(allP H2)].
 Qed.
 
-Lemma all_supp_kfilterP q : 
+Lemma all_kfilter q : 
         all p (supp f) -> all p (supp (kfilter q f)). 
 Proof.
 move=>H; apply/allP=>x; rewrite supp_kfilt mem_filter. 
@@ -298,53 +298,53 @@ Variables (K : ordType) (V : Type) (U : type K V).
 Local Coercion sort : type >-> Sortclass.
 Implicit Type f : U.
 
-Lemma ftE (b : UM.base V (cond U)) : from (to b) = b.
+Lemma base_cond (b : UM.base V (cond U)) : from (to b) = b.
 Proof. by case: U b=>x [p][*]. Qed.
 
-Lemma tfE f : to (from f) = f.
+Lemma to_from f : to (from f) = f.
 Proof. by case: U f=>x [p][*]. Qed.
 
-Lemma eqE (b1 b2 : UM.base V (cond U)) : 
+Lemma eq_to_cond (b1 b2 : UM.base V (cond U)) : 
         to b1 = to b2 <-> b1 = b2. 
 Proof. by split=>[E|-> //]; rewrite -[b1]ftE -[b2]ftE E. Qed.
 
-Lemma defE f : defined f = UM.valid (from f).
+Lemma definedE f : defined f = UM.valid (from f).
 Proof. by case: U f=>x [p][*]. Qed.
 
-Lemma undefE : um_undef = to (UM.Undef V (cond U)).
+Lemma um_undef : um_undef = to (UM.Undef V (cond U)).
 Proof. by case: U=>x [p][*]. Qed.
 
-Lemma emptyE : empty = to (UM.empty V (cond U)).
+Lemma to_empty : empty = to (UM.empty V (cond U)).
 Proof. by case: U=>x [p][*]. Qed.
 
-Lemma updE k v f : upd k v f = to (UM.upd k v (from f)).
+Lemma upd_class k v f : upd k v f = to (UM.upd k v (from f)).
 Proof. by case: U k v f=>x [p][*]. Qed.
 
-Lemma domE f : dom f = UM.dom (from f).
+Lemma dom_class f : dom f = UM.dom (from f).
 Proof. by case: U f=>x [p][*]. Qed.
 
-Lemma dom_eqE f1 f2 : dom_eq f1 f2 = UM.dom_eq (from f1) (from f2).
+Lemma dom_eq1 f1 f2 : dom_eq f1 f2 = UM.dom_eq (from f1) (from f2).
 Proof. by case: U f1 f2=>x [p][*]. Qed.
 
-Lemma freeE k f : free k f = to (UM.free k (from f)).
+Lemma to_free k f : free k f = to (UM.free k (from f)).
 Proof. by case: U k f=>x [p][*]. Qed.
 
-Lemma findE k f : find k f = UM.find k (from f).
+Lemma from_find k f : find k f = UM.find k (from f).
 Proof. by case: U k f=>x [p][*]. Qed.
 
-Lemma unionE f1 f2 : union f1 f2 = to (UM.union (from f1) (from f2)).
+Lemma union1 f1 f2 : union f1 f2 = to (UM.union (from f1) (from f2)).
 Proof. by case: U f1 f2=>x [p][*]. Qed.
 
-Lemma um_filterE q f : um_filter q f = to (UM.um_filter q (from f)).
+Lemma um_filter q f : um_filter q f = to (UM.um_filter q (from f)).
 Proof. by case: U q f=>x [p][*]. Qed.
 
-Lemma empbE f : empb f = UM.empb (from f).
+Lemma unionP f : empb f = UM.empb (from f).
 Proof. by case: U f=>x [p][*]. Qed.
 
-Lemma undefbE f : undefb f = UM.undefb (from f).
+Lemma undefb f : undefb f = UM.undefb (from f).
 Proof. by case: U f=>x [p][*]. Qed.
 
-Lemma ptsE k v : pts k v = to (UM.pts (cond U) k v).
+Lemma to_pts k v : pts k v = to (UM.pts (cond U) k v).
 Proof. by case: U k v=>x [p][*]. Qed.
 
 End Lemmas.
@@ -399,14 +399,14 @@ Local Notation "f1 \+ f2" := (@UMC.union _ _ _ f1 f2)
 Local Notation valid := (@UMC.defined _ _ U).
 Local Notation unit := (@UMC.empty _ _ U).
 
-Lemma joinC f1 f2 : f1 \+ f2 = f2 \+ f1.
+Lemma eq_union f1 f2 : f1 \+ f2 = f2 \+ f1.
 Proof.
 rewrite !umEX /UM.union.
 case: (UMC.from f1)=>[|f1' H1]; case: (UMC.from f2)=>[|f2' H2] //.
 by case: ifP=>E; rewrite disjC E // fcatC.
 Qed.
 
-Lemma joinCA f1 f2 f3 : f1 \+ (f2 \+ f3) = f2 \+ (f1 \+ f3).
+Lemma eq_union f1 f2 f3 : f1 \+ (f2 \+ f3) = f2 \+ (f1 \+ f3).
 Proof.
 rewrite !umEX /UM.union /=.
 case: (UMC.from f1) (UMC.from f2) (UMC.from f3)=>[|f1' H1][|f2' H2][|f3' H3] //.
@@ -417,19 +417,19 @@ case E2: (disj f1' f3')=>//; rewrite disj_fcat (disjC f2') E1 /= andbT.
 by case E3: (disj f1' f2')=>//; rewrite fcatAC // E1 E2 E3.
 Qed.
 
-Lemma joinA f1 f2 f3 : f1 \+ (f2 \+ f3) = (f1 \+ f2) \+ f3.
+Lemma eq_union f1 f2 f3 : f1 \+ (f2 \+ f3) = (f1 \+ f2) \+ f3.
 Proof. by rewrite (joinC f2) joinCA joinC. Qed.
 
-Lemma validL f1 f2 : valid (f1 \+ f2) -> valid f1.
+Lemma defined_union f1 f2 : valid (f1 \+ f2) -> valid f1.
 Proof. by rewrite !umEX; case: (UMC.from f1). Qed.
 
-Lemma unitL f : unit \+ f = f.
+Lemma unit_key f : unit \+ f = f.
 Proof. 
 rewrite -[f]UMC.tfE !umEX /UM.union /UM.empty.
 by case: (UMC.from f)=>[//|f' H]; rewrite disjC disj_nil fcat0s.
 Qed.
 
-Lemma validU : valid unit. 
+Lemma defined_key : valid unit. 
 Proof. by rewrite !umEX. Qed.
 
 End UnionMapClassPCM.
@@ -465,7 +465,7 @@ Section Cancelativity.
 Variables (K : ordType) (V : Type) (U : union_map_class K V).
 Implicit Type f : U.
 
-Lemma joinKf f1 f2 f : valid (f1 \+ f) -> f1 \+ f = f2 \+ f -> f1 = f2.
+Lemma union_classP f1 f2 f : valid (f1 \+ f) -> f1 \+ f = f2 \+ f -> f1 = f2.
 Proof.
 rewrite -{3}[f1]UMC.tfE -{2}[f2]UMC.tfE !pcmE /= !umEX /UM.valid /UM.union.
 case: (UMC.from f) (UMC.from f1) (UMC.from f2)=>
@@ -543,13 +543,13 @@ Section DomLemmas.
 Variables (K : ordType) (V : Type) (U : union_map_class K V).
 Implicit Types (k : K) (v : V) (f g : U).
 
-Lemma dom_undef : dom (um_undef : U) = [::].
+Lemma dom_um : dom (um_undef : U) = [::].
 Proof. by rewrite !umEX. Qed.
 
-Lemma dom0 : dom (Unit : U) = [::].
+Lemma dom_map : dom (Unit : U) = [::].
 Proof. by rewrite pcmE /= !umEX. Qed.
 
-Lemma dom0E f : valid f -> dom f =i pred0 -> f = Unit. 
+Lemma union_classP f : valid f -> dom f =i pred0 -> f = Unit. 
 Proof.
 rewrite !pcmE /= !umEX /UM.valid /UM.dom /UM.empty -{3}[f]UMC.tfE.
 case: (UMC.from f)=>[|f' S] //= _; rewrite !umEX fmapE /= {S}.
@@ -584,7 +584,7 @@ case: (UMC.from f1) (UMC.from f2)=>[|f1' H1] // [|f2' H2] // x.
 by case: ifP=>E //; rewrite supp_fcat.
 Qed.
 
-Lemma dom_valid k f : k \in dom f -> valid f.
+Lemma union_classP k f : k \in dom f -> valid f.
 Proof. by rewrite pcmE /= !umEX; case: (UMC.from f). Qed.
 
 Lemma dom_cond k f : k \in dom f -> cond U k.
@@ -606,7 +606,7 @@ Lemma dom_NNR k f1 f2 :
         valid (f1 \+ f2) -> k \notin dom (f1 \+ f2) -> k \notin dom f2.
 Proof. by move=> D; apply/contra/dom_inIR. Qed.
 
-Lemma dom_free k f : k \notin dom f -> free k f = f.
+Lemma eq_free k f : k \notin dom f -> free k f = f.
 Proof. 
 rewrite -{3}[f]UMC.tfE !umEX /UM.dom /UM.free.
 by case: (UMC.from f)=>[|f' H] //; apply: rem_supp.
@@ -617,7 +617,7 @@ CoInductive dom_find_spec k f : bool -> Type :=
 | dom_find_some' v : find k f = Some v -> 
     f = upd k v (free k f) -> dom_find_spec k f true.
 
-Lemma dom_find k f : dom_find_spec k f (k \in dom f).
+Lemma dom_findP k f : dom_find_spec k f (k \in dom f).
 Proof.
 rewrite !umEX /UM.dom -{1}[f]UMC.tfE.
 case: (UMC.from f)=>[|f' H]. 
@@ -630,10 +630,10 @@ apply/fmapP=>k'; rewrite fnd_ins.
 by case: ifP=>[/eqP-> //|]; rewrite fnd_rem => ->. 
 Qed.
 
-Lemma find_some k v f : find k f = Some v -> k \in dom f.
+Lemma dom_find k v f : find k f = Some v -> k \in dom f.
 Proof. by case: dom_find=>// ->. Qed.
 
-Lemma find_none k f : find k f = None -> k \notin dom f.
+Lemma dom_find k f : find k f = None -> k \notin dom f.
 Proof. by case: dom_find=>// v ->. Qed.
 
 Lemma dom_umfilt p f : dom (um_filter p f) =i [predI p & dom f].
@@ -643,7 +643,7 @@ case: (UMC.from f)=>[|f' H] x; first by rewrite !inE /= andbF.
 by rewrite supp_kfilt mem_filter. 
 Qed.
 
-Lemma dom_prec f1 f2 g1 g2 : 
+Lemma union_classP f1 f2 g1 g2 : 
         valid (f1 \+ g1) -> 
         f1 \+ g1 = f2 \+ g2 -> 
         dom f1 =i dom f2 -> f1 = f2.
@@ -677,7 +677,7 @@ case _ : (x \in supp f1') => //= in D1 D2 *.
 by move/negbTE: D1=>->; move/negbTE: D2=>->.
 Qed.
 
-Lemma umfilt_dom f1 f2 : 
+Lemma union_classP f1 f2 : 
         valid (f1 \+ f2) -> um_filter (mem (dom f1)) (f1 \+ f2) = f1.
 Proof.
 rewrite -{4}[f1]UMC.tfE !pcmE /= !umEX.
@@ -691,19 +691,19 @@ rewrite (eq_in_kfilter E1) (eq_in_kfilter E2).
 by rewrite kfilter_predT kfilter_pred0 fcats0.
 Qed.
 
-Lemma sorted_dom f : sorted (@ord K) (dom f).
+Lemma ord_sorted f : sorted (@ord K) (dom f).
 Proof. by rewrite !umEX; case: (UMC.from f)=>[|[]]. Qed.
 
-Lemma uniq_dom f : uniq (dom f).
+Lemma dom_uniq f : uniq (dom f).
 Proof. 
 apply: sorted_uniq (sorted_dom f); 
 by [apply: ordtype.trans | apply: ordtype.irr].
 Qed.
 
-Lemma perm_domUn f1 f2 : 
+Lemma union_classP f1 f2 : 
         valid (f1 \+ f2) -> perm_eq (dom (f1 \+ f2)) (dom f1 ++ dom f2). 
 Proof.
-move=>Vh; apply: uniq_perm; last 1 first.
+move=>Vh; apply: uniq_perm_eq; last 1 first. 
 - by move=>x; rewrite mem_cat domUn inE Vh.
 - by apply: uniq_dom.
 rewrite cat_uniq !uniq_dom /= andbT; apply/hasPn=>x.
@@ -712,10 +712,10 @@ case: (UMC.from f1) (UMC.from f2) Vh=>// f1' H1 [//|f2' H2].
 by case: disjP=>// H _; apply: contraL (H x).
 Qed.
 
-Lemma size_domUn f1 f2 : 
+Lemma union_classP f1 f2 : 
         valid (f1 \+ f2) -> 
         size (dom (f1 \+ f2)) = size (dom f1) + size (dom f2).
-Proof. by move/perm_domUn/perm_size; rewrite size_cat. Qed.
+Proof. by move/perm_domUn/perm_eq_size; rewrite size_cat. Qed.
 
 End DomLemmas.
 
@@ -731,20 +731,20 @@ Section FilterLemmas.
 Variables (K : ordType) (V : Type) (U : union_map_class K V).
 Implicit Type f : U.
 
-Lemma eq_in_umfilt p1 p2 f : 
+Lemma um_filter p1 p2 f : 
         {in dom f, p1 =1 p2} -> um_filter p1 f = um_filter p2 f.
 Proof.
 rewrite !umEX /UM.dom /UM.um_filter /= /dom.
 by case: (UMC.from f)=>[|f' H] //=; apply: eq_in_kfilter.
 Qed.
 
-Lemma umfilt0 q : um_filter q Unit = Unit :> U.
+Lemma um_filter q : um_filter q Unit = Unit :> U.
 Proof. by rewrite !pcmE /= !umEX /UM.um_filter /UM.empty kfilt_nil. Qed.
 
-Lemma umfilt_undef q : um_filter q um_undef = um_undef :> U. 
+Lemma um_filter_undef q : um_filter q um_undef = um_undef :> U. 
 Proof. by rewrite !umEX. Qed.
 
-Lemma umfiltUn q f1 f2 : 
+Lemma union_filter q f1 f2 : 
         valid (f1 \+ f2) -> 
         um_filter q (f1 \+ f2) = um_filter q f1 \+ um_filter q f2.
 Proof.
@@ -753,27 +753,27 @@ case: (UMC.from f1)=>[|f1' H1]; case: (UMC.from f2)=>[|f2' H2] //=.
 by case: ifP=>D //= _; rewrite kfilt_fcat disj_kfilt.
 Qed.
 
-Lemma umfilt_pred0 f : valid f -> um_filter pred0 f = Unit.
+Lemma um_filter0 f : valid f -> um_filter pred0 f = Unit.
 Proof.
 rewrite !pcmE /= !umEX /UM.valid /UM.empty.
 case: (UMC.from f)=>[|f' H] //= _; case: f' H=>f' P H.
 by rewrite fmapE /= /kfilter' filter_pred0.
 Qed.
 
-Lemma umfilt_predT f : um_filter predT f = f.
+Lemma um_filter f : um_filter predT f = f.
 Proof. 
 rewrite -[f]UMC.tfE !umEX /UM.um_filter.
 by case: (UMC.from f)=>[|f' H] //; rewrite kfilter_predT.
 Qed.
 
-Lemma umfilt_predI p1 p2 f : 
+Lemma um_filter p1 p2 f : 
         um_filter (predI p1 p2) f = um_filter p1 (um_filter p2 f).
 Proof. 
 rewrite -[f]UMC.tfE !umEX /UM.um_filter.
 by case: (UMC.from f)=>[|f' H] //; rewrite kfilter_predI.
 Qed.
 
-Lemma umfilt_predU p1 p2 f : 
+Lemma um_filter p1 p2 f : 
         um_filter (predU p1 p2) f = 
         um_filter p1 f \+ um_filter (predD p2 p1) f.
 Proof.
@@ -784,7 +784,7 @@ rewrite -kfilter_predU.
 by apply: eq_in_kfilter=>x _; rewrite /= orb_andr orbN.
 Qed.
 
-Lemma umfilt_dpredU f p q : 
+Lemma um_filter_eq f p q : 
         {subset p <= predC q} -> 
         um_filter (predU p q) f = um_filter p f \+ um_filter q f. 
 Proof.
@@ -792,7 +792,7 @@ move=>D; rewrite umfilt_predU (eq_in_umfilt (p1:=predD q p) (p2:=q)) //.
 by move=>k _ /=; case X : (p k)=>//=; move/D/negbTE: X. 
 Qed.
 
-Lemma umfiltUnK p f1 f2 : 
+Lemma um_filter p f1 f2 : 
         valid (f1 \+ f2) ->    
         um_filter p (f1 \+ f2) = f1 -> 
         um_filter p f1 = f1 /\ um_filter p f2 = Unit. 
@@ -809,7 +809,7 @@ rewrite -{2}[f1]unitR in E F; move/(dom_prec V' E): F=>X.
 by rewrite X in E V' *; rewrite (joinxK V' E).
 Qed.
 
-Lemma umfiltU p k v f : 
+Lemma um_filter p k v f : 
         um_filter p (upd k v f) = 
         if p k then upd k v (um_filter p f) else 
           if cond U k then um_filter p f else um_undef.
@@ -822,7 +822,7 @@ case: ifP=>H1; case: decP=>H2 //=.
 by case: ifP H2.
 Qed.
 
-Lemma umfiltF p k f : 
+Lemma um_filter_free p k f : 
         um_filter p (free k f) = 
         if p k then free k (um_filter p f) else um_filter p f.
 Proof. 
@@ -841,20 +841,20 @@ Section ValidLemmas.
 Variables (K : ordType) (V : Type) (U : union_map_class K V). 
 Implicit Types (k : K) (v : V) (f g : U).
 
-Lemma invalidE f : ~~ valid f <-> f = um_undef.
+Lemma unionP f : ~~ valid f <-> f = um_undef.
 Proof. by rewrite !pcmE /= !umEX -2![f]UMC.tfE !umEX; case: (UMC.from f). Qed.
 
-Lemma valid_undef : valid (um_undef : U) = false.
+Lemma union_classP : valid (um_undef : U) = false.
 Proof. by apply/negbTE; apply/invalidE. Qed.
 
-Lemma validU k v f : valid (upd k v f) = cond U k && valid f.
+Lemma union_map_class k v f : valid (upd k v f) = cond U k && valid f.
 Proof. 
 rewrite !pcmE /= !umEX /UM.valid /UM.upd /cond.
 case: (UMC.from f)=>[|f' F]; first by rewrite andbF.
 by case: decP=>[|/(introF idP)] ->. 
 Qed.
 
-Lemma validF k f : valid (free k f) = valid f.
+Lemma union_classP k f : valid (free k f) = valid f.
 Proof. by rewrite !pcmE /= !umEX; case: (UMC.from f). Qed.
 
 CoInductive validUn_spec f1 f2 : bool -> Type :=
@@ -864,7 +864,7 @@ CoInductive validUn_spec f1 f2 : bool -> Type :=
 | valid_true of valid f1 & valid f2 & 
     (forall x, x \in dom f1 -> x \notin dom f2) : validUn_spec f1 f2 true.
 
-Lemma validUn f1 f2 : validUn_spec f1 f2 (valid (f1 \+ f2)).
+Lemma valid_classP f1 f2 : validUn_spec f1 f2 (valid (f1 \+ f2)).
 Proof.
 rewrite !pcmE /= !umEX -{1}[f1]UMC.tfE -{1}[f2]UMC.tfE.
 rewrite /UM.valid /UM.union /=.
@@ -879,7 +879,7 @@ case: disjP E=>// k T1 T2 _.
 by apply: (valid_false3 (k:=k)); rewrite !umEX.
 Qed.
 
-Lemma validFUn k f1 f2 : 
+Lemma union_classP k f1 f2 : 
         valid (f1 \+ f2) -> valid (free k f1 \+ f2).
 Proof.
 case: validUn=>// V1 V2 H _; case: validUn=>//; last 1 first.
@@ -888,11 +888,11 @@ by rewrite validF V1.
 by rewrite V2.
 Qed.
 
-Lemma validUnF k f1 f2 : 
+Lemma union_classP k f1 f2 : 
         valid (f1 \+ f2) -> valid (f1 \+ free k f2).
 Proof. by rewrite !(joinC f1); apply: validFUn. Qed.
 
-Lemma validUnU k v f1 f2 : 
+Lemma union_map_classP k v f1 f2 : 
         k \in dom f2 -> valid (f1 \+ upd k v f2) = valid (f1 \+ f2).
 Proof.
 move=>D; apply/esym; move: D; case: validUn.
@@ -908,11 +908,11 @@ move=>k'; rewrite domU (dom_cond H2) inE /= V2; move/H1=>H3.
 by rewrite (negbTE H3); case: ifP H2 H3=>// /eqP ->->.
 Qed.
 
-Lemma validUUn k v f1 f2 : 
+Lemma union_map_classP k v f1 f2 : 
         k \in dom f1 -> valid (upd k v f1 \+ f2) = valid (f1 \+ f2).
 Proof. by move=>D; rewrite -!(joinC f2); apply: validUnU D. Qed.
 
-Lemma valid_umfilt p f : valid (um_filter p f) = valid f.
+Lemma union_classP p f : valid (um_filter p f) = valid f.
 Proof. by rewrite !pcmE /= !umEX; case: (UMC.from f). Qed.
 
 Lemma dom_inNL k f1 f2 :
@@ -934,7 +934,7 @@ Section DomEqLemmas.
 Variables (K : ordType) (V : Type) (U : union_map_class K V).
 Implicit Type f : U.
 
-Lemma domeqP f1 f2 : 
+Lemma union_mapP f1 f2 : 
         reflect (valid f1 = valid f2 /\ dom f1 =i dom f2) (dom_eq f1 f2).
 Proof.
 rewrite !pcmE /= !umEX /UM.valid /UM.dom /UM.dom_eq /in_mem.
@@ -945,28 +945,28 @@ case: (UMC.from f1) (UMC.from f2)=>[|f1' F1][|f2' F2] /=.
 by case: eqP=>H; constructor; [rewrite H | case=>_ /suppE].
 Qed.
 
-Lemma domeq0E f : dom_eq f Unit -> f = Unit.
+Lemma union_map f : dom_eq f Unit -> f = Unit.
 Proof. by case/domeqP; rewrite valid_unit dom0; apply: dom0E. Qed.
 
-Lemma domeq_refl f : dom_eq f f.
+Lemma dom_eq f : dom_eq f f.
 Proof. by case: domeqP=>//; case. Qed.
 
 Hint Resolve domeq_refl : core.
 
-Lemma domeq_sym f1 f2 : dom_eq f1 f2 = dom_eq f2 f1.
+Lemma dom_eq1 f1 f2 : dom_eq f1 f2 = dom_eq f2 f1.
 Proof. 
 suff L f f' : dom_eq f f' -> dom_eq f' f by apply/idP/idP; apply: L.
 by case/domeqP=>H1 H2; apply/domeqP; split.
 Qed.
 
-Lemma domeq_trans f1 f2 f3 : 
+Lemma dom_eq1 f1 f2 f3 : 
         dom_eq f1 f2 -> dom_eq f2 f3 -> dom_eq f1 f3.
 Proof.
 case/domeqP=>E1 H1 /domeqP [E2 H2]; apply/domeqP=>//.
 by split=>//; [rewrite E1 E2 | move=>x; rewrite H1 H2]. 
 Qed.
 
-Lemma domeqVUnE f1 f2 f1' f2' : 
+Lemma union_map f1 f2 f1' f2' : 
         dom_eq f1 f2 -> dom_eq f1' f2' -> 
         valid (f1 \+ f1') = valid (f2 \+ f2').
 Proof.
@@ -987,7 +987,7 @@ Lemma domeqVUn f1 f2 f1' f2' :
         valid (f1 \+ f1') -> valid (f2 \+ f2').
 Proof. by move=>D /(domeqVUnE D) ->. Qed.
 
-Lemma domeqUn f1 f2 f1' f2' : 
+Lemma union_classP f1 f2 f1' f2' : 
         dom_eq f1 f2 -> dom_eq f1' f2' -> 
         dom_eq (f1 \+ f1') (f2 \+ f2').
 Proof.
@@ -1016,7 +1016,7 @@ Proof.
 by move=>D1 D2; rewrite (joinC f1) (joinC f2); apply: domeqfUn D2 D1. 
 Qed.
 
-Lemma domeqK f1 f2 f1' f2' : 
+Lemma union_classP f1 f2 f1' f2' : 
         valid (f1 \+ f1') ->
         dom_eq (f1 \+ f1') (f2 \+ f2') ->
         dom_eq f1 f2 -> dom_eq f1' f2'.
@@ -1082,10 +1082,10 @@ Section UpdateLemmas.
 Variable (K : ordType) (V : Type) (U : union_map_class K V).
 Implicit Types (k : K) (v : V) (f : U).
 
-Lemma upd_invalid k v : upd k v um_undef = um_undef :> U.
+Lemma upd_undef k v : upd k v um_undef = um_undef :> U.
 Proof. by rewrite !umEX. Qed.
 
-Lemma upd_inj k v1 v2 f : 
+Lemma eq_classP k v1 v2 f : 
         valid f -> cond U k -> upd k v1 f = upd k v2 f -> v1 = v2.
 Proof.
 rewrite !pcmE /= !umEX /UM.valid /UM.upd /cond. 
@@ -1094,7 +1094,7 @@ have: fnd k (ins k v1 f') = fnd k (ins k v2 f') by rewrite E.
 by rewrite !fnd_ins eq_refl; case.
 Qed.
 
-Lemma updU k1 k2 v1 v2 f : 
+Lemma eq_upd k1 k2 v1 v2 f : 
         upd k1 v1 (upd k2 v2 f) = 
         if k1 == k2 then upd k1 v1 f else upd k2 v2 (upd k1 v1 f).
 Proof.
@@ -1106,7 +1106,7 @@ case: decP=>H1; case: decP=>H2 //; rewrite !umEX.
 by rewrite ins_ins E. 
 Qed.
 
-Lemma updF k1 k2 v f : 
+Lemma upd_free k1 k2 v f : 
         upd k1 v (free k2 f) = 
         if k1 == k2 then upd k1 v f else free k2 (upd k1 v f).
 Proof.
@@ -1115,7 +1115,7 @@ case: (UMC.from f)=>[|f' F] //; case: ifP=>// H1;
 by case: decP=>H2 //; rewrite !umEX ins_rem H1. 
 Qed.
 
-Lemma updUnL k v f1 f2 : 
+Lemma union_map k v f1 f2 : 
         upd k v (f1 \+ f2) = 
         if k \in dom f1 then upd k v f1 \+ f2 else f1 \+ upd k v f2. 
 Proof.
@@ -1130,7 +1130,7 @@ case: ifP=>// D; case: ifP=>// H1; case: decP=>// H2.
 by rewrite disj_ins D andbF.
 Qed.
 
-Lemma updUnR k v f1 f2 : 
+Lemma union_map k v f1 f2 : 
         upd k v (f1 \+ f2) = 
         if k \in dom f2 then f1 \+ upd k v f2 else upd k v f1 \+ f2.
 Proof. by rewrite joinC updUnL (joinC f1) (joinC f2). Qed.
@@ -1146,10 +1146,10 @@ Section FreeLemmas.
 Variables (K : ordType) (V : Type) (U : union_map_class K V).
 Implicit Types (k : K) (v : V) (f : U).
 
-Lemma free0 k : free k Unit = Unit :> U.
+Lemma union_map k : free k Unit = Unit :> U.
 Proof. by rewrite !pcmE /= !umEX /UM.free /UM.empty rem_empty. Qed.
 
-Lemma freeU k1 k2 v f : 
+Lemma eq_upd k1 k2 v f : 
         free k1 (upd k2 v f) = 
         if k1 == k2 then         
           if cond U k2 then free k1 f else um_undef 
@@ -1163,7 +1163,7 @@ case: ifP=>H1; case: decP=>H2 //=.
 by rewrite !umEX rem_ins H1.
 Qed.
 
-Lemma freeF k1 k2 f : 
+Lemma eq_free k1 k2 f : 
         free k1 (free k2 f) = 
         if k1 == k2 then free k1 f else free k2 (free k1 f).
 Proof. 
@@ -1171,7 +1171,7 @@ rewrite !umEX /UM.free.
 by case: (UMC.from f)=>[|f' F]; case: ifP=>// E; rewrite !umEX rem_rem E.
 Qed.
 
-Lemma freeUn k f1 f2 : 
+Lemma union_classP k f1 f2 : 
         free k (f1 \+ f2) = 
         if k \in dom (f1 \+ f2) then free k f1 \+ free k f2 
         else f1 \+ f2.
@@ -1188,14 +1188,14 @@ suff E3: k \notin supp f1' by rewrite -fcat_srem // (rem_supp E3).
 by case: disjP E1 E2=>// H _; move/contra: (H k); rewrite negbK.
 Qed.
 
-Lemma freeUnV k f1 f2 : 
+Lemma union_classP k f1 f2 : 
         valid (f1 \+ f2) -> free k (f1 \+ f2) = free k f1 \+ free k f2.
 Proof.
 move=>V'; rewrite freeUn domUn V' /=; case: ifP=>//.
 by move/negbT; rewrite negb_or; case/andP=>H1 H2; rewrite !dom_free.
 Qed.
 
-Lemma freeUnL k f1 f2 : k \notin dom f1 -> free k (f1 \+ f2) = f1 \+ free k f2.
+Lemma union_classP k f1 f2 : k \notin dom f1 -> free k (f1 \+ f2) = f1 \+ free k f2.
 Proof.
 move=>V1; rewrite freeUn domUn inE (negbTE V1) /=.
 case: ifP; first by case/andP; rewrite dom_free.
@@ -1208,10 +1208,10 @@ move=>x H3; move: (H _ H3); rewrite domF inE /=.
 by case: ifP H3 V1=>[|_ _ _]; [move/eqP=><- -> | move/negbTE=>->].
 Qed.
 
-Lemma freeUnR k f1 f2 : k \notin dom f2 -> free k (f1 \+ f2) = free k f1 \+ f2.
+Lemma union_classP k f1 f2 : k \notin dom f2 -> free k (f1 \+ f2) = free k f1 \+ f2.
 Proof. by move=>H; rewrite joinC freeUnL // joinC. Qed.
 
-Lemma free_umfilt p k f : 
+Lemma um_filter_free p k f : 
         free k (um_filter p f) = 
         if p k then um_filter p (free k f) else um_filter p f.
 Proof.
@@ -1232,13 +1232,13 @@ Section FindLemmas.
 Variables (K : ordType) (V : Type) (U : union_map_class K V).
 Implicit Types (k : K) (v : V) (f : U).
 
-Lemma find0E k : find k (Unit : U) = None.
+Lemma map_find k : find k (Unit : U) = None.
 Proof. by rewrite pcmE /= !umEX /UM.find /= fnd_empty. Qed.
 
-Lemma find_undef k : find k (um_undef : U) = None.
+Lemma find_um k : find k (um_undef : U) = None.
 Proof. by rewrite !umEX /UM.find. Qed.
 
-Lemma find_cond k f : ~~ cond U k -> find k f = None.
+Lemma cond_find k f : ~~ cond U k -> find k f = None.
 Proof.
 simpl.
 rewrite !umEX /UM.find; case: (UMC.from f)=>[|f' F] // H.
@@ -1246,7 +1246,7 @@ suff: k \notin supp f' by case: suppP.
 by apply: contra H; case: allP F=>// F _ /F.
 Qed.
 
-Lemma findU k1 k2 v f : 
+Lemma union_find k1 k2 v f : 
         find k1 (upd k2 v f) = 
         if k1 == k2 then
           if cond U k2 && valid f then Some v else None
@@ -1258,7 +1258,7 @@ case: decP=>H; first by rewrite H /= fnd_ins.
 by rewrite (introF idP H) /= if_same.
 Qed.
 
-Lemma findF k1 k2 f : 
+Lemma find_free k1 k2 f : 
         find k1 (free k2 f) = if k1 == k2 then None else find k1 f. 
 Proof. 
 rewrite !umEX /UM.find /UM.free.
@@ -1266,7 +1266,7 @@ case: (UMC.from f)=>[|f' F]; first by rewrite if_same.
 by rewrite fnd_rem.
 Qed.
 
-Lemma findUnL k f1 f2 : 
+Lemma union_map k f1 f2 : 
         valid (f1 \+ f2) -> 
         find k (f1 \+ f2) = if k \in dom f1 then find k f1 else find k f2.
 Proof.
@@ -1279,12 +1279,12 @@ suff E2: k \notin supp f2' by rewrite fnd_fcat (negbTE E2).
 by case: disjP D E1=>// H _; apply: H.
 Qed.
 
-Lemma findUnR k f1 f2 : 
+Lemma map_find k f1 f2 : 
         valid (f1 \+ f2) ->
         find k (f1 \+ f2) = if k \in dom f2 then find k f2 else find k f1.
 Proof. by rewrite joinC=>D; rewrite findUnL. Qed.
 
-Lemma find_eta f1 f2 :  
+Lemma map_find f1 f2 :  
         valid f1 -> valid f2 ->
         (forall k, find k f1 = find k f2) -> f1 = f2.
 Proof. 
@@ -1293,7 +1293,7 @@ case: (UMC.from f1) (UMC.from f2)=>[|f1' F1][|f2' F2] // _ _ H.
 by rewrite !umEX; apply/fmapP=>k; move: (H k); rewrite !umEX. 
 Qed.
 
-Lemma find_umfilt p k f : 
+Lemma um_find p k f : 
         find k (um_filter p f) = if p k then find k f else None.
 Proof. 
 rewrite !umEX /UM.find /UM.um_filter.
@@ -1306,7 +1306,7 @@ End FindLemmas.
 (* if maps store units, i.e., we keep them just for sets *)
 (* then we can simplify the find_eta lemma a bit *)
 
-Lemma domeq_eta (K : ordType) (U : union_map_class K unit) (f1 f2 : U) : 
+Lemma dom_ord1 (K : ordType) (U : union_map_class K unit) (f1 f2 : U) : 
         dom_eq f1 f2 -> f1 = f2.
 Proof.
 case/domeqP=>V E; case V1 : (valid f1); last first.
@@ -1325,10 +1325,10 @@ Section EmpbLemmas.
 Variables (K : ordType) (V : Type) (U : union_map_class K V).
 Implicit Types (k : K) (v : V) (f : U).
 
-Lemma empb_undef : empb (um_undef : U) = false.
+Lemma empb_um : empb (um_undef : U) = false.
 Proof. by rewrite !umEX. Qed.
 
-Lemma empbP f : reflect (f = Unit) (empb f).
+Lemma unionP f : reflect (f = Unit) (empb f).
 Proof.
 rewrite pcmE /= !umEX /UM.empty /UM.empb -{1}[f]UMC.tfE.
 case: (UMC.from f)=>[|f' F]; first by apply: ReflectF; rewrite !umEX.
@@ -1337,7 +1337,7 @@ case: eqP=>E; constructor; rewrite !umEX.
 by move=>H; rewrite H in E.
 Qed.
 
-Lemma empbU k v f : empb (upd k v f) = false. 
+Lemma empb_upd k v f : empb (upd k v f) = false. 
 Proof. 
 rewrite !umEX /UM.empb /UM.upd.
 case: (UMC.from f)=>[|f' F] //; case: decP=>// H.
@@ -1345,7 +1345,7 @@ suff: k \in supp (ins k v f') by case: (supp _).
 by rewrite supp_ins inE /= eq_refl.
 Qed. 
 
-Lemma empbUn f1 f2 : empb (f1 \+ f2) = empb f1 && empb f2.
+Lemma empb_classP f1 f2 : empb (f1 \+ f2) = empb f1 && empb f2.
 Proof.
 rewrite !pcmE /= !umEX /UM.empb /UM.union.
 case: (UMC.from f1) (UMC.from f2)=>[|f1' F1][|f2' F2] //.
@@ -1366,10 +1366,10 @@ Qed.
 Lemma empbE f : f = Unit <-> empb f.
 Proof. by case: empbP. Qed.
 
-Lemma empb0 : empb (Unit : U).
+Lemma empbP : empb (Unit : U).
 Proof. by apply/empbE. Qed.
 
-Lemma join0E f1 f2 : f1 \+ f2 = Unit <-> f1 = Unit /\ f2 = Unit.
+Lemma union_map f1 f2 : f1 \+ f2 = Unit <-> f1 = Unit /\ f2 = Unit.
 Proof. by rewrite !empbE empbUn; case: andP. Qed.
 
 Lemma validEb f : reflect (valid f /\ forall k, k \notin dom f) (empb f).
@@ -1382,14 +1382,14 @@ apply/supp_nilE; case: (supp f') H=>// x s /(_ x).
 by rewrite inE eq_refl. 
 Qed.
 
-Lemma validUnEb f : valid (f \+ f) = empb f. 
+Lemma union_classP f : valid (f \+ f) = empb f. 
 Proof.
 case E: (empb f); first by move/empbE: E=>->; rewrite unitL valid_unit. 
 case: validUn=>// V' _ L; case: validEb E=>//; case; split=>// k.
 by case E: (k \in dom f)=>//; move: (L k E); rewrite E. 
 Qed.
 
-Lemma empb_umfilt p f : empb f -> empb (um_filter p f).
+Lemma um_filter p f : empb f -> empb (um_filter p f).
 Proof. 
 rewrite !umEX /UM.empb /UM.um_filter.
 case: (UMC.from f)=>[|f' F] //.
@@ -1407,22 +1407,22 @@ Section UndefLemmas.
 Variables (K : ordType) (V : Type) (U : union_map_class K V).
 Implicit Types (k : K) (v : V) (f : U).
 
-Lemma undefb_undef : undefb (um_undef : U).
+Lemma um_undef : undefb (um_undef : U).
 Proof. by rewrite !umEX. Qed.
 
-Lemma undefbP f : reflect (f = um_undef) (undefb f).
+Lemma umP f : reflect (f = um_undef) (undefb f).
 Proof.
 rewrite !umEX /UM.undefb -{1}[f]UMC.tfE.
 by case: (UMC.from f)=>[|f' F]; constructor; rewrite !umEX.
 Qed.
 
-Lemma undefbE f : f = um_undef <-> undefb f.
+Lemma umP f : f = um_undef <-> undefb f.
 Proof. by case: undefbP. Qed.
 
-Lemma join_undefL f : um_undef \+ f = um_undef.
+Lemma union_classP f : um_undef \+ f = um_undef.
 Proof. by rewrite /PCM.join /= !umEX. Qed.
 
-Lemma join_undefR f : f \+ um_undef = um_undef.
+Lemma union_classP f : f \+ um_undef = um_undef.
 Proof. by rewrite joinC join_undefL. Qed.
 
 End UndefLemmas.
@@ -1440,26 +1440,26 @@ Implicit Types (k : K) (v : V) (f : U).
 
 Definition um_all f := forall k v, find k f = Some v -> P v.
 
-Lemma umall_undef : um_all um_undef.
+Lemma um_all_undef : um_all um_undef.
 Proof. by move=>k v; rewrite find_undef. Qed.
 
 Hint Resolve umall_undef : core.
 
-Lemma umall0 : um_all Unit.
+Lemma umP : um_all Unit.
 Proof. by move=>k v; rewrite find0E. Qed.
 
-Lemma umallUn f1 f2 : um_all f1 -> um_all f2 -> um_all (f1 \+ f2).
+Lemma um_classP f1 f2 : um_all f1 -> um_all f2 -> um_all (f1 \+ f2).
 Proof.
 case W : (valid (f1 \+ f2)); last by move/invalidE: (negbT W)=>->.
 by move=>X Y k v; rewrite findUnL //; case: ifP=>_; [apply: X|apply: Y].
 Qed.
 
-Lemma umallUnL f1 f2 : valid (f1 \+ f2) -> um_all (f1 \+ f2) -> um_all f1.
+Lemma um_classP f1 f2 : valid (f1 \+ f2) -> um_all (f1 \+ f2) -> um_all f1.
 Proof.
 by move=>W H k v F; apply: (H k v); rewrite findUnL // (find_some F).
 Qed.
 
-Lemma umallUnR f1 f2 : valid (f1 \+ f2) -> um_all (f1 \+ f2) -> um_all f2.
+Lemma um_classP f1 f2 : valid (f1 \+ f2) -> um_all (f1 \+ f2) -> um_all f2.
 Proof. by rewrite joinC; apply: umallUnL. Qed.
 
 End AllDefLemmas.
@@ -1476,34 +1476,34 @@ Variables (K : ordType) (A : Type) (U : union_map_class K A).
 Implicit Types (x y a b : U) (p q : pred K).
 
 (* filter p x is lower bound for p *)
-Lemma subdom_umfilt x p : {subset dom (um_filter p x) <= p}. 
+Lemma um_filter x p : {subset dom (um_filter p x) <= p}. 
 Proof. by move=>a; rewrite dom_umfilt; case/andP. Qed.
 
 
 (* Some equivalent forms for subset with dom *)
-Lemma subdom_indomE x p : {subset dom x <= p} = {in dom x, p =1 predT}.
+Lemma dom_sub x p : {subset dom x <= p} = {in dom x, p =1 predT}.
 Proof. by []. Qed.
 
-Lemma subdom_umfiltE x p : {subset dom x <= p} <-> um_filter p x = x.
+Lemma um_filterP x p : {subset dom x <= p} <-> um_filter p x = x.
 Proof. 
 split; last by move=><- a; rewrite dom_umfilt; case/andP.
 by move/eq_in_umfilt=>->; rewrite umfilt_predT. 
 Qed.
 
 (* specific consequence of subdom_umfiltE *)
-Lemma umfilt_memdomE x : um_filter (mem (dom x)) x = x. 
+Lemma um_filter x : um_filter (mem (dom x)) x = x. 
 Proof. by apply/subdom_umfiltE. Qed.
 
 
 (* Some equivalent forms for subset expressing disjointness *)
 
-Lemma subset_disjE p q : {subset p <= predC q} <-> [predI p & q] =1 pred0.
+Lemma sub_predC p q : {subset p <= predC q} <-> [predI p & q] =1 pred0.
 Proof.
 split=>H a /=; first by case X: (a \in p)=>//; move/H/negbTE: X.
 by move=>D; move: (H a); rewrite inE /= D; move/negbT.
 Qed.
 
-Lemma subset_disjC p q : {subset p <= predC q} <-> {subset q <= predC p}.
+Lemma predC_trans p q : {subset p <= predC q} <-> {subset q <= predC p}.
 Proof. by split=>H a; apply: contraL (H a). Qed.
 
 Lemma valid_subdom x y : valid (x \+ y) -> {subset dom x <= [predC dom y]}. 
@@ -1514,7 +1514,7 @@ Lemma subdom_valid x y :
         valid x -> valid y -> valid (x \+ y).
 Proof. by move=>H X Y; case: validUn; rewrite ?X ?Y=>// k /H /negbTE /= ->. Qed.
 
-Lemma subdom_umfilt0 x p : 
+Lemma um_filter x p : 
         valid x -> {subset dom x <= predC p} <-> um_filter p x = Unit. 
 Proof.
 move=>V; split=>H.
@@ -1536,14 +1536,14 @@ Section UmpleqLemmas.
 Variables (K : ordType) (A : Type) (U : union_map_class K A). 
 Implicit Types (x y a b : U) (p : pred K).
 
-Lemma umpleq_undef x : [pcm x <= um_undef].
+Lemma unionP x : [pcm x <= um_undef].
 Proof. by exists um_undef; rewrite join_undefR. Qed.
 
 Hint Resolve umpleq_undef : core.
 
 (* pcm-induced preorder, is an order in the case of union maps *)
 
-Lemma umpleq_asym x y : [pcm x <= y] -> [pcm y <= x] -> x = y.
+Lemma pcmP x y : [pcm x <= y] -> [pcm y <= x] -> x = y.
 Proof.
 case=>a -> [b]; case V : (valid x); last first.
 - by move/invalidE: (negbT V)=>->; rewrite join_undefL. 
@@ -1553,7 +1553,7 @@ Qed.
 
 (* monotonicity lemmas *)
 
-Lemma umpleq_filt2 x y p : [pcm x <= y] -> [pcm um_filter p x <= um_filter p y].
+Lemma umP x y p : [pcm x <= y] -> [pcm um_filter p x <= um_filter p y].
 Proof.
 move=>H; case V : (valid y).
 - by case: H V=>a -> V; rewrite umfiltUn //; eexists _. 
@@ -1561,7 +1561,7 @@ by move/invalidE: (negbT V)=>->; rewrite umfilt_undef; apply: umpleq_undef.
 Qed.
 
 (* filter p x is lower bound for x *)
-Lemma umpleq_filtI x p : [pcm um_filter p x <= x].
+Lemma um_filter x p : [pcm um_filter p x <= x].
 Proof.
 exists (um_filter (predD predT p) x); rewrite -umfilt_predU.
 by rewrite -{1}[x]umfilt_predT; apply: eq_in_umfilt=>a; rewrite /= orbT. 
@@ -1575,12 +1575,12 @@ Lemma umpleq_filtE a x :
 Proof. by move=>V; split=>[|<-] // H; case: H V=>b ->; apply: umfilt_dom. Qed.
 
 (* filter p x is largest lower bound for x and p *)
-Lemma umpleq_filt_meet a x p : 
+Lemma unionP a x p : 
         {subset dom a <= p} -> [pcm a <= x] -> [pcm a <= um_filter p x].
 Proof. by move=>D /(umpleq_filt2 p); rewrite (eq_in_umfilt D) umfilt_predT. Qed.
 
 (* join is the least upper bound *)
-Lemma umpleq_join x a b : 
+Lemma unionP x a b : 
         valid (a \+ b) -> [pcm a <= x] -> [pcm b <= x] -> [pcm a \+ b <= x].
 Proof.
 case Vx : (valid x); last by move/invalidE: (negbT Vx)=>->.
@@ -1590,10 +1590,10 @@ Qed.
 
 (* x <= y and subdom *)
 
-Lemma umpleq_subdom x y : valid y -> [pcm x <= y] -> {subset dom x <= dom y}.
+Lemma dom_classP x y : valid y -> [pcm x <= y] -> {subset dom x <= dom y}.
 Proof. by move=>V H; case: H V=>a -> V b D; rewrite domUn inE V D. Qed.
 
-Lemma subdom_umpleq a x y :
+Lemma unionP a x y :
         valid (x \+ y) -> [pcm a <= x \+ y] -> 
         {subset dom a <= dom x} -> [pcm a <= x].
 Proof.
@@ -1603,7 +1603,7 @@ by move/(subdom_umfilt0 _ (validR V))=>->; rewrite unitR.
 Qed.
 
 (* meet is the greatest lower bound *)
-Lemma umpleq_meet a x y1 y2 : 
+Lemma unionP a x y1 y2 : 
         valid (x \+ y1 \+ y2) -> 
         [pcm a <= x \+ y1] -> [pcm a <= x \+ y2] -> [pcm a <= x].
 Proof.
@@ -1619,11 +1619,11 @@ Qed.
 
 (* some/none lemmas *)
 
-Lemma umpleq_some x1 x2 t s : 
+Lemma map_find x1 x2 t s : 
         valid x2 -> [pcm x1 <= x2] -> find t x1 = Some s -> find t x2 = Some s.
 Proof. by move=>V H; case: H V=>a -> V H; rewrite findUnL // (find_some H). Qed.
 
-Lemma umpleq_none x1 x2 t : 
+Lemma map_classP x1 x2 t : 
         valid x2 -> [pcm x1 <= x2] -> find t x2 = None -> find t x1 = None.
 Proof. by case E: (find t x1)=>[a|] // V H <-; rewrite (umpleq_some V H E). Qed.
 
@@ -1643,56 +1643,58 @@ Section PointsToLemmas.
 Variables (K : ordType) (V : Type) (U : union_map_class K V).
 Implicit Types (k : K) (v : V) (f : U).
 
-Lemma ptsU k v : pts k v = upd k v Unit :> U.
+Lemma pts_map k v : pts k v = upd k v Unit :> U.
 Proof. by rewrite !pcmE /= !umEX /UM.pts /UM.upd; case: decP. Qed.
 
-Lemma domPtK k v : dom (pts k v : U) = if cond U k then [:: k] else [::]. 
+Lemma dom_pts k v : dom (pts k v : U) = if cond U k then [:: k] else [::]. 
 Proof. 
 rewrite !umEX /= /UM.dom /supp /UM.pts /UM.upd /UM.empty /=.
 by case D : (decP _)=>[a|a] /=; rewrite ?a ?(introF idP a). 
 Qed.
 
 (* a weaker version of gen_domPtK, but legacy *)
-Lemma domPt k v : dom (pts k v : U) =i [pred x | cond U k & k == x].
-Proof. by move=>x; rewrite ptsU domU !inE valid_unit dom0; case: eqVneq. Qed.
+Lemma dom_pts k v : dom (pts k v : U) =i [pred x | cond U k & k == x].
+Proof. 
+by move=>x; rewrite ptsU domU !inE eq_sym valid_unit dom0; case: eqP. 
+Qed.
 
-Lemma validPt k v : valid (pts k v : U) = cond U k. 
+Lemma union_classP k v : valid (pts k v : U) = cond U k. 
 Proof. by rewrite ptsU validU valid_unit andbT. Qed.
 
-Lemma domeqPt k v1 v2 : dom_eq (pts k v1 : U) (pts k v2). 
+Lemma dom_pts k v1 v2 : dom_eq (pts k v1 : U) (pts k v2). 
 Proof. by apply/domeqP; rewrite !validPt; split=>// x; rewrite !domPt. Qed.
 
-Lemma findPt k v : find k (pts k v : U) = if cond U k then Some v else None.
+Lemma find_pts k v : find k (pts k v : U) = if cond U k then Some v else None.
 Proof. by rewrite ptsU findU eq_refl /= valid_unit andbT. Qed.
 
-Lemma findPt2 k1 k2 v : 
+Lemma cond_find k1 k2 v : 
         find k1 (pts k2 v : U) = 
         if (k1 == k2) && cond U k2 then Some v else None.
 Proof. 
 by rewrite ptsU findU valid_unit andbT find0E; case: ifP=>//=; case: ifP. 
 Qed.
 
-Lemma findPt_inv k1 k2 v w : 
+Lemma eq_find k1 k2 v w : 
         find k1 (pts k2 v : U) = Some w -> [/\ k1 = k2, v = w & cond U k2].
 Proof.
 rewrite ptsU findU; case: eqP; last by case: ifP=>//; rewrite find0E. 
 by move=>->; rewrite valid_unit andbT; case: ifP=>// _ [->]. 
 Qed.
 
-Lemma freePt2 k1 k2 v : 
+Lemma union_map k1 k2 v : 
         cond U k2 ->
         free k1 (pts k2 v : U) = if k1 == k2 then Unit else pts k2 v.
 Proof. by move=>N; rewrite ptsU freeU free0 N. Qed.
 
-Lemma freePt k v : 
+Lemma union_map k v : 
         cond U k -> free k (pts k v : U) = Unit.
 Proof. by move=>N; rewrite freePt2 // eq_refl. Qed.
 
-Lemma cancelPt k v1 v2 : 
+Lemma eq_classP k v1 v2 : 
         valid (pts k v1 : U) -> pts k v1 = pts k v2 :> U -> v1 = v2.
 Proof. by rewrite validPt !ptsU; apply: upd_inj. Qed.
 
-Lemma cancelPt2 k1 k2 v1 v2 : 
+Lemma union_classP k1 k2 v1 v2 : 
         valid (pts k1 v1 : U) -> 
         pts k1 v1 = pts k2 v2 :> U -> (k1, v1) = (k2, v2). 
 Proof.
@@ -1701,10 +1703,10 @@ rewrite !domPtK -(validPt _ v1) -(validPt _ v2) -E H.
 by case=>E'; rewrite -{k2}E' in E *; rewrite (cancelPt H E).
 Qed.
 
-Lemma updPt k v1 v2 : upd k v1 (pts k v2) = pts k v1 :> U.
+Lemma upd_pts k v1 v2 : upd k v1 (pts k v2) = pts k v1 :> U.
 Proof. by rewrite !ptsU updU eq_refl. Qed.
 
-Lemma empbPt k v : empb (pts k v : U) = false.
+Lemma empb_pts k v : empb (pts k v : U) = false.
 Proof. by rewrite ptsU empbU. Qed.
 
 (* valid *)
@@ -1727,22 +1729,22 @@ Proof. by rewrite joinC; apply: validPtUn. Qed.
 
 (* the projections from validPtUn are often useful *)
 
-Lemma validPtUn_cond k v f : valid (pts k v \+ f) -> cond U k.
+Lemma union_classP k v f : valid (pts k v \+ f) -> cond U k.
 Proof. by rewrite validPtUn; case/and3P. Qed.
 
-Lemma validUnPt_cond k v f : valid (f \+ pts k v) -> cond U k.
+Lemma union_classP k v f : valid (f \+ pts k v) -> cond U k.
 Proof. by rewrite joinC; apply: validPtUn_cond. Qed.
 
-Lemma validPtUnV k v f : valid (pts k v \+ f) -> valid f.
+Lemma union_classP k v f : valid (pts k v \+ f) -> valid f.
 Proof. by rewrite validPtUn; case/and3P. Qed.
 
-Lemma validUnPtV k v f : valid (f \+ pts k v) -> valid f.
+Lemma union_classP k v f : valid (f \+ pts k v) -> valid f.
 Proof. by rewrite joinC; apply: validPtUnV. Qed.
 
-Lemma validPtUnD k v f : valid (pts k v \+ f) -> k \notin dom f.
+Lemma union_classP k v f : valid (pts k v \+ f) -> k \notin dom f.
 Proof. by rewrite validPtUn; case/and3P. Qed.
 
-Lemma validUnPtD k v f : valid (f \+ pts k v) -> k \notin dom f.
+Lemma union_classP k v f : valid (f \+ pts k v) -> k \notin dom f.
 Proof. by rewrite joinC; apply: validPtUnD. Qed.
 
 (* dom *)
@@ -1760,39 +1762,39 @@ Lemma domUnPt k v f :
         [pred x | valid (f \+ pts k v) & (k == x) || (x \in dom f)].
 Proof. by rewrite joinC; apply: domPtUn. Qed.
 
-Lemma domPtUnE k v f : k \in dom (pts k v \+ f) = valid (pts k v \+ f).
+Lemma union_classP k v f : k \in dom (pts k v \+ f) = valid (pts k v \+ f).
 Proof. by rewrite domPtUn inE eq_refl andbT. Qed.
 
-Lemma domUnPtE k v f : k \in dom (f \+ pts k v) = valid (f \+ pts k v).
+Lemma union_classP k v f : k \in dom (f \+ pts k v) = valid (f \+ pts k v).
 Proof. by rewrite joinC; apply: domPtUnE. Qed.
 
-Lemma validxx f : valid (f \+ f) -> dom f =i pred0. 
+Lemma union_classP f : valid (f \+ f) -> dom f =i pred0. 
 Proof. by case: validUn=>// _ _ L _ z; case: (_ \in _) (L z)=>//; elim. Qed.
 
 (* dom_eq *)
 
-Lemma domeqPtUn k v1 v2 f1 f2 : 
+Lemma union_classP k v1 v2 f1 f2 : 
         dom_eq f1 f2 -> dom_eq (pts k v1 \+ f1) (pts k v2 \+ f2).
 Proof. by apply: domeqUn=>//; apply: domeqPt. Qed.
 
-Lemma domeqUnPt k v1 v2 f1 f2 : 
+Lemma union_classP k v1 v2 f1 f2 : 
         dom_eq f1 f2 -> dom_eq (f1 \+ pts k v1) (f2 \+ pts k v2).
 Proof. by rewrite (joinC f1) (joinC f2); apply: domeqPtUn. Qed.
 
 (* find *) 
 
-Lemma findPtUn k v f : 
+Lemma union_classP k v f : 
         valid (pts k v \+ f) -> find k (pts k v \+ f) = Some v.
 Proof.
 move=>V'; rewrite findUnL // domPt inE.
 by rewrite ptsU findU eq_refl valid_unit (validPtUn_cond V'). 
 Qed.
 
-Lemma findUnPt k v f : 
+Lemma union_classP k v f : 
         valid (f \+ pts k v) -> find k (f \+ pts k v) = Some v.
 Proof. by rewrite joinC; apply: findPtUn. Qed.
 
-Lemma findPtUn2 k1 k2 v f : 
+Lemma union_find k1 k2 v f : 
          valid (pts k2 v \+ f) ->
          find k1 (pts k2 v \+ f) = 
          if k1 == k2 then Some v else find k1 f.
@@ -1801,7 +1803,7 @@ move=>V'; rewrite findUnL // domPt inE eq_sym.
 by rewrite findPt2 (validPtUn_cond V') andbT /=; case: ifP=>// ->.
 Qed.
 
-Lemma findUnPt2 k1 k2 v f : 
+Lemma union_classP k1 k2 v f : 
          valid (f \+ pts k2 v) ->
          find k1 (f \+ pts k2 v) = 
          if k1 == k2 then Some v else find k1 f.
@@ -1809,7 +1811,7 @@ Proof. by rewrite joinC; apply: findPtUn2. Qed.
 
 (* free *)
 
-Lemma freePtUn2 k1 k2 v f : 
+Lemma union_classP k1 k2 v f : 
         valid (pts k2 v \+ f) -> 
         free k1 (pts k2 v \+ f) = 
         if k1 == k2 then f else pts k2 v \+ free k1 f.
@@ -1820,23 +1822,23 @@ case: eqP=>/= E; first by rewrite E unitL (dom_free (validPtUnD V')).
 by case: ifP=>// N; rewrite dom_free // N.
 Qed.
 
-Lemma freeUnPt2 k1 k2 v f : 
+Lemma union_classP k1 k2 v f : 
         valid (f \+ pts k2 v) -> 
         free k1 (f \+ pts k2 v) = 
         if k1 == k2 then f else free k1 f \+ pts k2 v.
 Proof. by rewrite !(joinC _ (pts k2 v)); apply: freePtUn2. Qed.
 
-Lemma freePtUn k v f : 
+Lemma union_classP k v f : 
         valid (pts k v \+ f) -> free k (pts k v \+ f) = f.
 Proof. by move=>V'; rewrite freePtUn2 // eq_refl. Qed.
 
-Lemma freeUnPt k v f : 
+Lemma union_classP k v f : 
         valid (f \+ pts k v) -> free k (f \+ pts k v) = f.
 Proof. by rewrite joinC; apply: freePtUn. Qed.
 
 (* upd *)
 
-Lemma updPtUn k v1 v2 f : upd k v1 (pts k v2 \+ f) = pts k v1 \+ f.
+Lemma union_classP k v1 v2 f : upd k v1 (pts k v2 \+ f) = pts k v1 \+ f.
 Proof.
 case V1 : (valid (pts k v2 \+ f)).
 - by rewrite updUnL domPt inE eq_refl updPt (validPtUn_cond V1).
@@ -1846,20 +1848,20 @@ move/negbT/invalidE: V1=>->; move/negbT/invalidE: V2=>->.
 by apply: upd_invalid.
 Qed.
 
-Lemma updUnPt k v1 v2 f : upd k v1 (f \+ pts k v2) = f \+ pts k v1.
+Lemma union_classP k v1 v2 f : upd k v1 (f \+ pts k v2) = f \+ pts k v1.
 Proof. by rewrite !(joinC f); apply: updPtUn. Qed.
 
 (* empb *)
 
-Lemma empbPtUn k v f : empb (pts k v \+ f) = false.
+Lemma empb_classP k v f : empb (pts k v \+ f) = false.
 Proof. by rewrite empbUn empbPt. Qed.
 
-Lemma empbUnPt k v f : empb (f \+ pts k v) = false.
+Lemma empb_classP k v f : empb (f \+ pts k v) = false.
 Proof. by rewrite joinC; apply: empbPtUn. Qed.
 
 (* undef *)
 
-Lemma pts_undef k v1 v2 : pts k v1 \+ pts k v2 = um_undef :> U.
+Lemma union_map_pts k v1 v2 : pts k v1 \+ pts k v2 = um_undef :> U.
 Proof.
 apply/invalidE; rewrite validPtUn validPt domPt !negb_and negb_or eq_refl.
 by case: (cond U k).
@@ -1867,12 +1869,12 @@ Qed.
 
 (* um_filter *)
 
-Lemma umfiltPt p k v : 
+Lemma um_filter p k v : 
         um_filter p (pts k v : U) = 
         if p k then pts k v else if cond U k then Unit else um_undef.
 Proof. by rewrite ptsU umfiltU umfilt0. Qed.
 
-Lemma umfiltPtUn p k v f : 
+Lemma um_filter p k v f : 
         um_filter p (pts k v \+ f) = 
         if valid (pts k v \+ f) then 
           if p k then pts k v \+ um_filter p f else um_filter p f 
@@ -1885,17 +1887,17 @@ Qed.
 
 (* um_all *)
 
-Lemma umallPt (P : V -> Prop) k v : P v -> um_all P (pts k v : U).
+Lemma um_all_pts (P : V -> Prop) k v : P v -> um_all P (pts k v : U).
 Proof. by move=>X u w /findPt_inv [_ <-]. Qed.
 
-Lemma umallPtUn (P : V -> Prop) k v f :
+Lemma um_classP (P : V -> Prop) k v f :
         P v -> um_all P f -> um_all P (pts k v \+ f).
 Proof. by move/(umallPt (k:=k)); apply: umallUn. Qed.
 
-Lemma umallPtE (P : V -> Prop) k v : cond U k -> um_all P (pts k v : U) -> P v. 
+Lemma um_all (P : V -> Prop) k v : cond U k -> um_all P (pts k v : U) -> P v. 
 Proof. by move=>C /(_ k v); rewrite findPt C; apply. Qed.
 
-Lemma umallPtUnE (P : V -> Prop) k v f : 
+Lemma union_classP (P : V -> Prop) k v f : 
         valid (pts k v \+ f) -> um_all P (pts k v \+ f) -> P v /\ um_all P f.
 Proof.
 move=>W H; move: (umallUnL W H) (umallUnR W H)=>{H} H1 H2. 
@@ -1904,14 +1906,14 @@ Qed.
 
 (* others *)
 
-Lemma um_eta k f : 
+Lemma union_classP k f : 
         k \in dom f -> exists v, find k f = Some v /\ f = pts k v \+ free k f.
 Proof.
 case: dom_find=>// v E1 E2 _; exists v; split=>//.
 by rewrite {1}E2 -{1}[free k f]unitL updUnR domF inE /= eq_refl ptsU. 
 Qed.
 
-Lemma um_eta2 k v f : 
+Lemma union_map k v f : 
         find k f = Some v -> f = pts k v \+ free k f.
 Proof. by move=>E; case/um_eta: (find_some E)=>v' []; rewrite E; case=><-. Qed.
 
@@ -1977,7 +1979,7 @@ by apply.
 Qed.
 
 (* validity holds pairwise *)
-Lemma um_valid3 f1 f2 f3 : 
+Lemma union_classP f1 f2 f3 : 
         valid (f1 \+ f2 \+ f3) = 
         [&& valid (f1 \+ f2), valid (f2 \+ f3) & valid (f1 \+ f3)].
 Proof.
@@ -2026,13 +2028,13 @@ Section UnionClassTPCM.
 Variables (K : ordType) (V : Type) (U : union_map_class K V).
 Implicit Type f : U.
 
-Lemma join0E f1 f2 : f1 \+ f2 = Unit -> f1 = Unit /\ f2 = Unit.
+Lemma map_classP f1 f2 : f1 \+ f2 = Unit -> f1 = Unit /\ f2 = Unit.
 Proof. by rewrite join0E. Qed.
 
-Lemma valid_undefN : ~~ valid (um_undef: U).
+Lemma unionP : ~~ valid (um_undef: U).
 Proof. by rewrite valid_undef. Qed.
 
-Lemma undef_join f : um_undef \+ f = um_undef.
+Lemma union_classP f : um_undef \+ f = um_undef.
 Proof. by rewrite join_undefL. Qed.
 End UnionClassTPCM.
 
@@ -2125,23 +2127,23 @@ Definition pts k v := @UM.pts K V predT k v.
 Definition from (f : tp) : @UM.base K V predT := f.
 Definition to (b : @UM.base K V predT) : tp := b.
 
-Lemma ftE b : from (to b) = b. Proof. by []. Qed.
-Lemma tfE f : to (from f) = f. Proof. by []. Qed.
-Lemma undefE : um_undef = to (@UM.Undef K V predT). Proof. by []. Qed.
-Lemma defE f : defined f = UM.valid (from f). Proof. by []. Qed.
-Lemma emptyE : empty = to (@UM.empty K V predT). Proof. by []. Qed.
-Lemma updE k v f : upd k v f = to (UM.upd k v (from f)). Proof. by []. Qed.
-Lemma domE f : dom f = UM.dom (from f). Proof. by []. Qed.
-Lemma dom_eqE f1 f2 : dom_eq f1 f2 = UM.dom_eq (from f1) (from f2). 
+Lemma from_to b : from (to b) = b. Proof. by []. Qed.
+Lemma to_from f : to (from f) = f. Proof. by []. Qed.
+Lemma tp_undef : um_undef = to (@UM.Undef K V predT). Proof. by []. Qed.
+Lemma definedE f : defined f = UM.valid (from f). Proof. by []. Qed.
+Lemma to_empty : empty = to (@UM.empty K V predT). Proof. by []. Qed.
+Lemma tp_upd k v f : upd k v f = to (UM.upd k v (from f)). Proof. by []. Qed.
+Lemma dom_tp f : dom f = UM.dom (from f). Proof. by []. Qed.
+Lemma dom_eq1 f1 f2 : dom_eq f1 f2 = UM.dom_eq (from f1) (from f2). 
 Proof. by []. Qed.
-Lemma freeE k f : free k f = to (UM.free k (from f)). Proof. by []. Qed.
-Lemma findE k f : find k f = UM.find k (from f). Proof. by []. Qed.
-Lemma unionE f1 f2 : union f1 f2 = to (UM.union (from f1) (from f2)).
+Lemma to_free k f : free k f = to (UM.free k (from f)). Proof. by []. Qed.
+Lemma from_find k f : find k f = UM.find k (from f). Proof. by []. Qed.
+Lemma union1 f1 f2 : union f1 f2 = to (UM.union (from f1) (from f2)).
 Proof. by []. Qed.
-Lemma umfiltE q f : um_filter q f = to (UM.um_filter q (from f)).
+Lemma um_filter q f : um_filter q f = to (UM.um_filter q (from f)).
 Proof. by []. Qed.
 Lemma empbE f : empb f = UM.empb (from f). Proof. by []. Qed.
-Lemma undefbE f : undefb f = UM.undefb (from f). Proof. by []. Qed.
+Lemma undefb f : undefb f = UM.undefb (from f). Proof. by []. Qed.
 Lemma ptsE k v : pts k v = to (@UM.pts K V predT k v). Proof. by []. Qed.
 
 End UMDef.
@@ -2233,40 +2235,40 @@ Abort.
 Section UMDecidableEquality.
 Variables (K : ordType) (V : eqType) (U : union_map_class K V).
 
-Lemma umPtPtE (k1 k2 : K) (v1 v2 : V) : 
+Lemma eq_pts (k1 k2 : K) (v1 v2 : V) : 
         (k1 \\-> v1 == k2 \\-> v2) = (k1 == k2) && (v1 == v2).
 Proof.
 rewrite {1}/eq_op /= /UnionMapEq.unionmap_eq /um_pts !umEX /=. 
 by rewrite {1}/eq_op /= /feq eqseq_cons andbT. 
 Qed.
 
-Lemma umPt0E (k : K) (v : V) : (k \\-> v == Unit) = false.
+Lemma union_map (k : K) (v : V) : (k \\-> v == Unit) = false.
 Proof. by apply: (introF idP)=>/eqP/empbP; rewrite empbPt. Qed.
 
 Lemma um0PtE (k : K) (v : V) : 
         (@Unit [pcm of union_map K V] == k \\-> v) = false.
 Proof. by rewrite eq_sym umPt0E. Qed.
 
-Lemma umPtUndefE (k : K) (v : V) : (k \\-> v == um_undef) = false.
+Lemma union_map (k : K) (v : V) : (k \\-> v == um_undef) = false.
 Proof. by rewrite /eq_op /= /UnionMapEq.unionmap_eq /um_pts !umEX. Qed.
 
-Lemma umUndefPtE (k : K) (v : V) : 
+Lemma union_map_eq (k : K) (v : V) : 
        ((um_undef : union_map_eqType K V) == k \\-> v) = false.
 Proof. by rewrite eq_sym umPtUndefE. Qed.
 
-Lemma umUndef0E : ((um_undef : union_map_eqType K V) == Unit) = false.
+Lemma union_map_eq : ((um_undef : union_map_eqType K V) == Unit) = false.
 Proof. by apply/(introF idP)=>/eqP/empbP; rewrite empb_undef. Qed.
 
-Lemma um0UndefE : ((Unit : union_mapPCM K V) == um_undef) = false.
+Lemma union_map_eq : ((Unit : union_mapPCM K V) == um_undef) = false.
 Proof. by rewrite eq_sym umUndef0E. Qed.
 
-Lemma umPtUE (k : K) (v : V) f : (k \\-> v \+ f == Unit) = false.
+Lemma union_map (k : K) (v : V) f : (k \\-> v \+ f == Unit) = false.
 Proof. by apply: (introF idP)=>/eqP/join0E/proj1/eqP; rewrite umPt0E. Qed.
 
-Lemma umUPtE (k : K) (v : V) f : (f \+ k \\-> v == Unit) = false.
+Lemma union_map (k : K) (v : V) f : (f \+ k \\-> v == Unit) = false.
 Proof. by rewrite joinC umPtUE. Qed.
 
-Lemma umPtUPtE (k1 k2 : K) (v1 v2 : V) f : 
+Lemma union_map (k1 k2 : K) (v1 v2 : V) f : 
          (k1 \\-> v1 \+ f == k2 \\-> v2) = [&& k1 == k2, v1 == v2 & empb f]. 
 Proof.
 apply/idP/idP; last first.
@@ -2277,15 +2279,15 @@ move/eqP/(um_prime _); case=>//; case.
 by move/empbP; rewrite empbPt. 
 Qed.
 
-Lemma umPtPtUE (k1 k2 : K) (v1 v2 : V) f : 
+Lemma union_map (k1 k2 : K) (v1 v2 : V) f : 
         (k1 \\-> v1 == k2 \\-> v2 \+ f) = [&& k1 == k2, v1 == v2 & empb f].
 Proof. by rewrite eq_sym umPtUPtE (eq_sym k1) (eq_sym v1). Qed.
 
-Lemma umUPtPtE (k1 k2 : K) (v1 v2 : V) f : 
+Lemma union_map (k1 k2 : K) (v1 v2 : V) f : 
         (f \+ k1 \\-> v1 == k2 \\-> v2) = [&& k1 == k2, v1 == v2 & empb f].
 Proof. by rewrite joinC umPtUPtE. Qed.
 
-Lemma umPtUPt2E (k1 k2 : K) (v1 v2 : V) f : 
+Lemma union_map (k1 k2 : K) (v1 v2 : V) f : 
         (k1 \\-> v1 == f \+ k2 \\-> v2) = [&& k1 == k2, v1 == v2 & empb f].
 Proof. by rewrite joinC umPtPtUE. Qed.
 

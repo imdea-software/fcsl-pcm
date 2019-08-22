@@ -63,19 +63,19 @@ elim: s n=>[//|a s IH] [|n] /=; first by exists a.
 by rewrite -(addn1 n) -(addn1 (size s)) ltn_add2r; apply: IH.
 Qed.
 
-Lemma onth_size s n x : onth s n = Some x -> n < size s.
+Lemma size_onth s n x : onth s n = Some x -> n < size s.
 Proof. by elim: s n=>[//|a s IH] [//|n]; apply: IH. Qed.
 
-Lemma prefix_refl s : prefix s s.
+Lemma prefix_list s : prefix s s.
 Proof. by move=>n x <-. Qed.
 
-Lemma prefix_trans s2 s1 s3 : prefix s1 s2 -> prefix s2 s3 -> prefix s1 s3.
+Lemma prefix_cons s2 s1 s3 : prefix s1 s2 -> prefix s2 s3 -> prefix s1 s3.
 Proof. by move=>H1 H2 n x E; apply: H2; apply: H1. Qed.
 
 Lemma prefix_cons x s1 s2 : prefix (x :: s1) (x :: s2) <-> prefix s1 s2.
 Proof. by split=>E n; [apply: (E n.+1) | case: n]. Qed.
 
-Lemma prefix_cons' x y s1 s2 : 
+Lemma prefix_cons x y s1 s2 : 
         prefix (x :: s1) (y :: s2) -> x = y /\ prefix s1 s2.
 Proof. by move=>H; case: (H 0 x (erefl _)) (H)=>-> /prefix_cons. Qed.
 
@@ -95,7 +95,7 @@ End Helpers.
 
 Hint Resolve prefix_refl : core.
 
-Lemma onth_mem (A : eqType) (s : seq A) n x : onth s n = Some x -> x \in s.
+Lemma mem_onth (A : eqType) (s : seq A) n x : onth s n = Some x -> x \in s.
 Proof.
 by elim: s n=>//= a s IH [[->]|n /IH]; rewrite inE ?eq_refl // orbC => ->. 
 Qed.
@@ -119,10 +119,10 @@ Definition empx := Context [::] [::].
 
 Definition sub_ctx i j := prefix (keyx i) (keyx j) /\ prefix (varx i) (varx j).
 
-Lemma sc_refl i : sub_ctx i i.
+Lemma ctx_sub i : sub_ctx i i.
 Proof. by []. Qed.
 
-Lemma sc_trans i j k : sub_ctx i j -> sub_ctx j k -> sub_ctx i k.
+Lemma sub_ctx i j k : sub_ctx i j -> sub_ctx j k -> sub_ctx i k.
 Proof.
 by case=>K1 V1 [K2 V2]; split; [move: K2 | move: V2]; apply: prefix_trans.
 Qed.
@@ -183,10 +183,10 @@ Definition interp' i t :=
 Notation fx i := (fun t f => interp' i t \+ f).
 Definition interp i ts := foldr (fx i) Unit ts.
 
-Lemma fE i ts x  : foldr (fx i) x ts = x \+ interp i ts.
+Lemma union_classP i ts x  : foldr (fx i) x ts = x \+ interp i ts.
 Proof. by elim: ts x=>[|t ts IH] x; rewrite /= ?unitR // IH joinCA. Qed.
 
-Lemma interp_rev i ts : interp i (rev ts) = interp i ts. 
+Lemma union_rev i ts : interp i (rev ts) = interp i ts. 
 Proof.
 elim: ts=>[|t ts IH] //=; rewrite rev_cons -cats1. 
 by rewrite /interp foldr_cat fE /= unitR IH. 
@@ -200,7 +200,7 @@ Fixpoint pprint i ts :=
     if ts' is [::] then interp' i t else interp' i t \+ pprint i ts' 
   else Unit.
 
-Lemma pp_interp i ts : pprint i ts = interp i ts.
+Lemma union_class i ts : pprint i ts = interp i ts.
 Proof. by elim: ts=>[|t ts /= <-] //; case: ts=>//; rewrite unitR. Qed.
 
 Definition key n t := if t is Pts m _ then n == m else false.
@@ -209,10 +209,10 @@ Definition var n t := if t is Var m then n == m else false.
 Definition kfree n t := rfilter (key n) t.
 Definition vfree n t := rfilter (var n) t.
 
-Lemma keyN i n ts : ~~ has (key n) ts -> interp i (kfree n ts) = interp i ts.
+Lemma union_classP i n ts : ~~ has (key n) ts -> interp i (kfree n ts) = interp i ts.
 Proof. by elim: ts=>[|t ts IH] //=; case: ifP=>//= _ /IH ->. Qed.
 
-Lemma varN i n ts : ~~ has (var n) ts -> interp i (vfree n ts) = interp i ts.
+Lemma interp_classP i n ts : ~~ has (var n) ts -> interp i (vfree n ts) = interp i ts.
 Proof. by elim: ts=>[|t ts IH] //=; case: ifP=>//= _ /IH ->. Qed.
 
 Lemma keyP i n k ts : 
@@ -224,7 +224,7 @@ elim: ts=>[|t ts IH] //=; case: ifP=>[|_ H].
 by case/(IH H)=>v ->; exists v; rewrite joinCA. 
 Qed.
 
-Lemma varP i n u ts : 
+Lemma union_classP i n u ts : 
         has (var n) ts -> onth (varx i) n = Some u ->
         interp i ts = u \+ interp i (vfree n ts).
 Proof.
@@ -242,31 +242,31 @@ Definition wf i t :=
   | Var n => n < size (varx i)
   end.
 
-Lemma sc_wf i j ts : sub_ctx i j -> all (wf i) ts -> all (wf j) ts.
+Lemma all_wf i j ts : sub_ctx i j -> all (wf i) ts -> all (wf j) ts.
 Proof.
 case=>/prefix_size H1 /prefix_size H2; elim: ts=>[|t ts IH] //=.
 case/andP=>H /IH ->; rewrite andbT.
 by case: t H=>[n v|v] H; apply: leq_trans H _.
 Qed.
 
-Lemma sc_interp i j ts : 
+Lemma wf_class i j ts : 
         sub_ctx i j -> all (wf i) ts -> interp i ts = interp j ts.
 Proof.
 case=>H1 H2; elim: ts=>[|t ts IH] //= /andP [H] /IH ->.
 by case: t H=>[n v|n] /= /prefix_onth <-.
 Qed.
 
-Lemma valid_wf i ts : valid (interp i ts) -> all (wf i) ts.
+Lemma union_map i ts : valid (interp i ts) -> all (wf i) ts.
 Proof.
 elim: ts=>[|t ts IH] //= V; rewrite (IH (validR V)) andbT.
 case: t {V IH} (validL V)=>[n v|n] /=;
 by case X : (onth _ _)=>[a|]; rewrite ?(onth_size X) // valid_undef. 
 Qed.
 
-Lemma wf_kfree i n ts : all (wf i) ts -> all (wf i) (kfree n ts).
+Lemma all_wf i n ts : all (wf i) ts -> all (wf i) (kfree n ts).
 Proof. by elim: ts=>//= t ts IH; case: ifP=>_ /andP [] //= -> /IH ->. Qed.
 
-Lemma wf_vfree i n ts : all (wf i) ts -> all (wf i) (vfree n ts).
+Lemma all_wf i n ts : all (wf i) ts -> all (wf i) (vfree n ts).
 Proof. by elim: ts=>//= t ts IH; case: ifP=>_ /andP [] //= -> /IH ->. Qed.
 
 (* sometimes we want to get keys in a list, not in a predicate *)
@@ -374,7 +374,7 @@ Definition undefx i t :=
 
 Definition isundef i ts := ~~ uniq (getkeys ts) || has (undefx i) ts.
 
-Lemma isundef_sound i ts : 
+Lemma union_class i ts : 
         all (wf i) ts -> isundef i ts -> ~~ valid (interp i ts).
 Proof.
 elim: ts=>[|t ts IH] //= /andP [W A].
@@ -420,18 +420,18 @@ Structure xfind (xs1 xs2 : seq A) (i : nat) :=
   Form {pivot :> tagged_elem; _ : axiom xs1 xs2 i pivot}.
 
 (* found the elements *)
-Lemma found_pf x t : axiom (x :: t) (x :: t) 0 (found_tag x). 
+Lemma found_tagP x t : axiom (x :: t) (x :: t) 0 (found_tag x). 
 Proof. by []. Qed.
 Canonical found_form x t := Form (@found_pf x t). 
 
 (* recurse *)
-Lemma recurse_pf i x xs1 xs2 (f : xfind xs1 xs2 i) :
+Lemma recurse_tag i x xs1 xs2 (f : xfind xs1 xs2 i) :
         axiom (x :: xs1) (x :: xs2) i.+1 (recurse_tag (xuntag f)).
 Proof. by case: f=>pv [H1 H2]; split=>//; apply/prefix_cons. Qed.
 Canonical recurse_form i x xs1 xs2 f := Form (@recurse_pf i x xs1 xs2 f). 
 
 (* failed to find; attach the element to output *)
-Lemma extend_pf x : axiom [::] [:: x] 0 (extend_tag x).
+Lemma extend_tag_nil x : axiom [::] [:: x] 0 (extend_tag x).
 Proof. by []. Qed.
 Canonical extend_form x := Form (@extend_pf x).
 
@@ -489,7 +489,7 @@ Canonical union_form i j k ts1 ts2 f1 f2 :=
 
 (* check if reached empty *)
 
-Lemma empty_pf i : axiom i i [::] (empty_tag Unit).
+Lemma empty_tag_map i : axiom i i [::] (empty_tag Unit).
 Proof. by []. Qed.
 
 Canonical empty_form i := Form (@empty_pf i).
@@ -506,7 +506,7 @@ Canonical pts_form vars keys1 keys2 k v f :=
 
 (* check for var *)
 
-Lemma var_pf keys vars1 vars2 n (f : xfind vars1 vars2 n) : 
+Lemma var_tag keys vars1 vars2 n (f : xfind vars1 vars2 n) : 
         axiom (Context keys vars1) (Context keys vars2) 
               [:: Var T n] (var_tag (xuntag f)).
 Proof. by case: f=>p [E H]; split=>//=; rewrite ?E ?unitR // (onth_size E). Qed.
@@ -595,7 +595,7 @@ Structure rform j ts1 m b :=
 (* start instance: note how subterm ts2 ts1 is unified with *)
 (* the boolean component of rform *)
 
-Lemma start_pf j k ts1 ts2 (f2 : form j k ts2) : 
+Lemma ctx_pivot j k ts1 ts2 (f2 : form j k ts2) : 
         @raxiom j ts1 (untag f2) (subterm ts2 ts1) (equate f2).
 Proof.
 case: f2=>f2 [<- S A2] A1; rewrite (sc_interp S A1)=>V.
@@ -691,7 +691,7 @@ Structure rform j k ts1 m b :=
 (* start instance: note how subtract ts1 ts2 [::] is unified with *)
 (* the b component of rform thus passing the residual terms *)
 
-Lemma start_pf j k ts1 ts2 (f2 : form j k ts2) : 
+Lemma ctx_pivot j k ts1 ts2 (f2 : form j k ts2) : 
         @raxiom j k ts1 (untag f2) (subtract ts1 ts2 [::]) (equate f2).
 Proof.
 case: f2=>f2 [<- S A2]; case E : (subtract _ _ _)=>[rs1 rs2] A1; split=>//.
@@ -752,11 +752,11 @@ Implicit Types (i : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
 
-Lemma undefO i ts (f : form (empx U) i ts) :
+Lemma unta_empx i ts (f : form (empx U) i ts) :
         isundef i ts -> untag f = um_undef. 
 Proof. by case: f=>f [<- _ A] /(isundef_sound A)/invalidE. Qed.
 
-Lemma invalidO i ts (f : form (empx U) i ts) :
+Lemma union_map i ts (f : form (empx U) i ts) :
         isundef i ts -> valid (untag f) = false.
 Proof. by move/undefO=>->; rewrite valid_undef. Qed.
 
@@ -788,7 +788,7 @@ Structure rform i ts m b :=
 (* start instance: note how isundef i ts is unified with *)
 (* the b component of rform, which will be set to true by lemma statements *)
 
-Lemma start_pf i ts (f : form (empx U) i ts) : 
+Lemma eivot_empx i ts (f : form (empx U) i ts) : 
         @raxiom i ts (untag f) (isundef i ts) (equate f).
 Proof. by case: f=>f [<- S A] /(isundef_sound A) /negbTE. Qed.
 
