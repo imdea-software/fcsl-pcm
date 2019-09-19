@@ -86,7 +86,7 @@ Definition Preim rT f (d : Pred rT) := SimplPred (xPreim f d).
 
 (* membership predicates *)
 
-CoInductive Mem_Pred : Type := MemProp of Pred T.
+Variant Mem_Pred : Type := MemProp of Pred T.
 Definition isMem pT toPred mem := mem = (fun p : pT => MemProp [eta toPred p]).
 
 (* the general structure for predicates *)

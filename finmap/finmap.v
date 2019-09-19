@@ -184,7 +184,7 @@ Proof.
 by move=>x; case: ifP=>H /=; [|case: eqP=>//->]; rewrite ?(eqP H) ?andbN ?H. 
 Qed.
 
-CoInductive supp_spec x (s : fmap) : bool -> Type :=
+Variant supp_spec x (s : fmap) : bool -> Type :=
 | supp_spec_some v of fnd x s = Some v : supp_spec x s true
 | supp_spec_none of fnd x s = None : supp_spec x s false. 
 
@@ -751,7 +751,7 @@ Notation nil := (nil K V).
 Definition disj (s1 s2 : fmap) := 
   all (predC (fun x => x \in supp s2)) (supp s1). 
 
-CoInductive disj_spec (s1 s2 : fmap) : bool -> Type :=
+Variant disj_spec (s1 s2 : fmap) : bool -> Type :=
 | disj_true of (forall x, x \in supp s1 -> x \notin supp s2) : 
     disj_spec s1 s2 true
 | disj_false x of x \in supp s1 & x \in supp s2 : 

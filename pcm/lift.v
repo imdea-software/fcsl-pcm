@@ -161,7 +161,7 @@ Canonical liftEqType.
 Section Exports.
 (* View for pattern-matching lifted pcm's *)
 
-CoInductive lift_spec A (x : lift A) : lift A -> Type := 
+Variant lift_spec A (x : lift A) : lift A -> Type := 
 | up_spec n of x = up n : lift_spec x (up n)
 | undef_spec of x = down : lift_spec x down.
 
@@ -190,7 +190,7 @@ Proof. by case: x. Qed.
 
 Definition downE := (down_join, join_undef, valid_down).
 
-CoInductive liftjoin_spec (x y : lift A) : _ -> _ -> _ -> Type := 
+Variant liftjoin_spec (x y : lift A) : _ -> _ -> _ -> Type := 
 | upcase1 n1 n2 of x = up n1 & y = up n2 : 
     liftjoin_spec x y (if ojoin n1 n2 is Some u then up u else down) x y 
 | invalid1 of ~~ valid (x \+ y) : liftjoin_spec x y down x y.

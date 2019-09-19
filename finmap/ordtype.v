@@ -119,7 +119,7 @@ Hint Resolve orefl : core.
 Section Totality.
 Variable K : ordType.  
  
-CoInductive total_spec (x y : K) : bool -> bool -> bool -> Type :=
+Variant total_spec (x y : K) : bool -> bool -> bool -> Type :=
 | total_spec_lt of ord x y : total_spec x y true false false
 | total_spec_eq of x == y : total_spec x y false true false
 | total_spec_gt of ord y x : total_spec x y false false true.
