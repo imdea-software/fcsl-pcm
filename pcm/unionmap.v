@@ -612,7 +612,7 @@ rewrite -{3}[f]UMC.tfE !umEX /UM.dom /UM.free.
 by case: (UMC.from f)=>[|f' H] //; apply: rem_supp.
 Qed.
 
-CoInductive dom_find_spec k f : bool -> Type := 
+Variant dom_find_spec k f : bool -> Type := 
 | dom_find_none' : find k f = None -> dom_find_spec k f false
 | dom_find_some' v : find k f = Some v -> 
     f = upd k v (free k f) -> dom_find_spec k f true.
@@ -857,7 +857,7 @@ Qed.
 Lemma validF k f : valid (free k f) = valid f.
 Proof. by rewrite !pcmE /= !umEX; case: (UMC.from f). Qed.
 
-CoInductive validUn_spec f1 f2 : bool -> Type :=
+Variant validUn_spec f1 f2 : bool -> Type :=
 | valid_false1 of ~~ valid f1 : validUn_spec f1 f2 false
 | valid_false2 of ~~ valid f2 : validUn_spec f1 f2 false
 | valid_false3 k of k \in dom f1 & k \in dom f2 : validUn_spec f1 f2 false

@@ -152,7 +152,7 @@ Section MutexLemmas.
 Variable T : Type.
 Implicit Types (t : T) (x y : mutex T). 
 
-CoInductive mutex_spec x : mutex T -> Type := 
+Variant mutex_spec x : mutex T -> Type := 
 | mutex_undef of x = mx_undef : mutex_spec x mx_undef
 | mutex_nown of x = Unit : mutex_spec x Unit
 | mutex_own of x = own : mutex_spec x own
@@ -211,7 +211,7 @@ Proof. by rewrite joinAC=>/mxOx. Qed.
 
 (* inversion principle for join *)
 (* own and mx are prime elements, and unit does not factor *)
-CoInductive mxjoin_spec (x y : mutex T) :
+Variant mxjoin_spec (x y : mutex T) :
               mutex T -> mutex T -> mutex T -> Type :=
 | bothnown of x = nown & y = nown : mxjoin_spec x y nown nown nown
 | leftown of x = own & y = nown : mxjoin_spec x y own own nown
