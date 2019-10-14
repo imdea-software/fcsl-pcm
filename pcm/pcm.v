@@ -40,13 +40,13 @@ Record mixin_of (T : Type) := Mixin {
     _ : associative join_op;
     _ : left_id unit_op join_op;
     (* monotonicity of valid *)
-    _ : forall x y, valid_op (join_op x y) -> valid_op x; 
+    _ : forall x y, valid_op (join_op x y) -> valid_op x;
     (* unit is valid *)
     _ : valid_op unit_op}.
 
 Section ClassDef.
 
-Notation class_of := mixin_of (only parsing). 
+Notation class_of := mixin_of (only parsing).
 
 Structure type : Type := Pack {sort : Type; _ : class_of sort}.
 Local Coercion sort : type >-> Sortclass.
@@ -55,7 +55,7 @@ Variables (T : Type) (cT : type).
 Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
 
 Definition pack c := @Pack T c.
-Definition clone := fun c & cT -> T & phant_id (pack c) cT => pack c. 
+Definition clone := fun c & cT -> T & phant_id (pack c) cT => pack c.
 
 Definition valid := valid_op class.
 Definition join := join_op class.
@@ -78,15 +78,15 @@ Notation "[ 'pcm' 'of' T 'for' C ]" := (@clone T C _ idfun id)
 Notation "[ 'pcm' 'of' T ]" := (@clone T _ _ id id)
   (at level 0, format "[ 'pcm'  'of'  T ]") : pcm_scope.
 
-Notation "x \+ y" := (join x y) 
+Notation "x \+ y" := (join x y)
   (at level 43, left associativity) : pcm_scope.
 Notation valid := valid.
 Notation Unit := unit.
 
 Arguments unit {cT}.
-Prenex Implicits valid join unit. 
+Prenex Implicits valid join unit.
 
-(* Restating the laws, with the notation. *) 
+(* Restating the laws, with the notation. *)
 (* Plus some additional derived lemmas.   *)
 
 Section Laws.
@@ -150,7 +150,7 @@ Definition pcmE := (pcm_joinE, pcm_validE, pcm_unitE).
 (* also a simple rearrangment equation *)
 Definition pull (x y : U) := (joinC y x, joinCA y x).
 
-End UnfoldingRules. 
+End UnfoldingRules.
 
 End Exports.
 
@@ -164,20 +164,20 @@ Export PCM.Exports.
 
 (* definition of precision for an arbitrary PCM U *)
 
-Definition precise (U : pcm) (P : U -> Prop) := 
-  forall s1 s2 t1 t2, 
-    valid (s1 \+ t1) -> P s1 -> P s2 -> 
+Definition precise (U : pcm) (P : U -> Prop) :=
+  forall s1 s2 t1 t2,
+    valid (s1 \+ t1) -> P s1 -> P s2 ->
     s1 \+ t1 = s2 \+ t2 -> s1 = s2.
 
 Module CancellativePCM.
 
-Variant mixin_of (U : pcm) := Mixin of 
+Variant mixin_of (U : pcm) := Mixin of
   forall x1 x2 x : U, valid (x1 \+ x) -> x1 \+ x = x2 \+ x -> x1 = x2.
 
 Section ClassDef.
 
 Record class_of (U : Type) := Class {
-  base : PCM.mixin_of U; 
+  base : PCM.mixin_of U;
   mixin : mixin_of (PCM.Pack base)}.
 
 Local Coercion base : class_of >-> PCM.mixin_of.
@@ -191,10 +191,10 @@ Definition clone c of phant_id class c := @Pack T c.
 
 (* produce a cancellative type out of the mixin *)
 (* equalize m0 and m by means of a phantom *)
-Definition pack b0 (m0 : mixin_of (PCM.Pack b0)) := 
+Definition pack b0 (m0 : mixin_of (PCM.Pack b0)) :=
   fun m & phant_id m0 m => Pack (@Class T b0 m).
 
-Definition pcm := PCM.Pack class. 
+Definition pcm := PCM.Pack class.
 
 End ClassDef.
 
@@ -216,22 +216,22 @@ Notation "[ 'cpcm' 'of' T ]" := (@clone T _ _ id)
 Section Lemmas.
 Variable U : cpcm.
 
-Lemma joinKx (x1 x2 x : U) : valid (x1 \+ x) -> x1 \+ x = x2 \+ x -> x1 = x2. 
+Lemma joinKx (x1 x2 x : U) : valid (x1 \+ x) -> x1 \+ x = x2 \+ x -> x1 = x2.
 Proof. by case: U x1 x2 x=>V [b][K] T; apply: K. Qed.
 
-Lemma joinxK (x x1 x2 : U) : valid (x \+ x1) -> x \+ x1 = x \+ x2 -> x1 = x2. 
+Lemma joinxK (x x1 x2 : U) : valid (x \+ x1) -> x \+ x1 = x \+ x2 -> x1 = x2.
 Proof. by rewrite !(joinC x); apply: joinKx. Qed.
 
-Lemma cancPL (P : U -> Prop) s1 s2 t1 t2 : 
-        precise P -> valid (s1 \+ t1) -> P s1 -> P s2 -> 
+Lemma cancPL (P : U -> Prop) s1 s2 t1 t2 :
+        precise P -> valid (s1 \+ t1) -> P s1 -> P s2 ->
         s1 \+ t1 = s2 \+ t2 -> (s1 = s2) * (t1 = t2).
 Proof.
 move=>H V H1 H2 E; move: (H _ _ _ _ V H1 H2 E)=>X.
 by rewrite -X in E *; rewrite (joinxK V E).
 Qed.
 
-Lemma cancPR (P : U -> Prop) s1 s2 t1 t2 : 
-        precise P -> valid (s1 \+ t1) -> P t1 -> P t2 -> 
+Lemma cancPR (P : U -> Prop) s1 s2 t1 t2 :
+        precise P -> valid (s1 \+ t1) -> P t1 -> P t2 ->
         s1 \+ t1 = s2 \+ t2 -> (s1 = s2) * (t1 = t2).
 Proof.
 move=>H V H1 H2 E. rewrite (joinC s1) (joinC s2) in E V.
@@ -263,7 +263,7 @@ Record mixin_of (U : pcm) := Mixin {
   _ : forall x, reflect (x = Unit) (unitb_op x);
   (* next one doesn't hold of max PCM, so remove eventually *)
   _ : forall x y : U, x \+ y = Unit -> x = Unit /\ y = Unit;
-(* _ : forall x y z : U, valid (x \+ y \+ z) = 
+(* _ : forall x y z : U, valid (x \+ y \+ z) =
         [&& valid (x \+ y), valid (y \+ z) & valid (x \+ z)]; *)
   _ : ~~ valid undef_op;
   _ : forall x, undef_op \+ x = undef_op}.
@@ -271,7 +271,7 @@ Record mixin_of (U : pcm) := Mixin {
 Section ClassDef.
 
 Record class_of (U : Type) := Class {
-  base : PCM.mixin_of U; 
+  base : PCM.mixin_of U;
   mixin : mixin_of (PCM.Pack base)}.
 
 Local Coercion base : class_of >-> PCM.mixin_of.
@@ -285,7 +285,7 @@ Definition clone c of phant_id class c := @Pack T c.
 
 (* produce a topped pcm out of the mixin *)
 (* equalize m0 and m by means of a phantom *)
-Definition pack b0 (m0 : mixin_of (PCM.Pack b0)) := 
+Definition pack b0 (m0 : mixin_of (PCM.Pack b0)) :=
   fun m & phant_id m0 m => Pack (@Class T b0 m).
 
 Definition pcm := PCM.Pack class.
@@ -310,7 +310,7 @@ Notation "[ 'tpcm' 'of' T ]" := (@clone T _ _ id)
 
 Arguments undef {cT}.
 Notation undef := undef.
-Notation unitb := unitb. 
+Notation unitb := unitb.
 
 Section Lemmas.
 Variable U : tpcm.
@@ -322,15 +322,15 @@ Lemma unitbE : unitb (Unit : U).
 Proof. by case: unitbP. Qed.
 
 Lemma joinE0 (x y : U) : x \+ y = Unit <-> (x = Unit) * (y = Unit).
-Proof. 
-case: U x y=>V [b][u1 u2] H1 H2 H3 T x y; split; first by apply: H2. 
+Proof.
+case: U x y=>V [b][u1 u2] H1 H2 H3 T x y; split; first by apply: H2.
 by case=>->->; rewrite unitL.
 Qed.
 
 Lemma valid_undefN : ~~ valid (@undef U).
 Proof. by case: U=>V [b][u]. Qed.
 
-Lemma valid_undef : valid (@undef U) = false. 
+Lemma valid_undef : valid (@undef U) = false.
 Proof. by rewrite (negbTE valid_undefN). Qed.
 
 Lemma undef_join (x : U) : undef \+ x = undef.
@@ -342,7 +342,7 @@ Proof. by rewrite joinC undef_join. Qed.
 Lemma undef0 : (undef : U) <> (Unit : U).
 Proof. by move=>E; move: (@valid_unit U); rewrite -E valid_undef. Qed.
 
-Definition undefE := (undef_join, join_undef, valid_undef). 
+Definition undefE := (undef_join, join_undef, valid_undef).
 
 End Lemmas.
 End Exports.
@@ -357,7 +357,7 @@ Export TPCM.Exports.
 (***************************************)
 
 Canonical pcm_monoid (U : pcm) := Monoid.Law (@joinA U) (@unitL U) (@unitR U).
-Canonical pcm_comoid (U : pcm) := Monoid.ComLaw (@joinC U). 
+Canonical pcm_comoid (U : pcm) := Monoid.ComLaw (@joinC U).
 
 Section BigPartialMorph.
 Variables (R1 : Type) (R2 : pcm) (K : R1 -> R2 -> Type) (f : R2 -> R1).
@@ -368,9 +368,9 @@ Hypotheses
 
 Lemma big_pmorph I r (P : pred I) F :
         valid (\big[PCM.join/Unit]_(i <- r | P i) F i) ->
-        f (\big[PCM.join/Unit]_(i <- r | P i) F i) = 
+        f (\big[PCM.join/Unit]_(i <- r | P i) F i) =
           \big[op1/id1]_(i <- r | P i) f (F i).
-Proof. 
+Proof.
 rewrite unlock; elim: r=>[|x r IH] //=; case: ifP=>// H V.
 by rewrite f_op // IH //; apply: validR V.
 Qed.
@@ -384,22 +384,22 @@ End BigPartialMorph.
 
 
 (* nats with addition are a pcm *)
-Definition natPCMMix := 
+Definition natPCMMix :=
   PCMMixin addnC addnA add0n (fun x y => @id true) (erefl _).
 Canonical natPCM := Eval hnf in PCM nat natPCMMix.
 
 (* also with multiplication, but we don't make that one canonical *)
-Definition multPCMMix := 
+Definition multPCMMix :=
   PCMMixin mulnC mulnA mul1n (fun x y => @id true) (erefl _).
 Definition multPCM := Eval hnf in PCM nat multPCMMix.
 
 (* with max too *)
-Definition maxPCMMix := 
+Definition maxPCMMix :=
   PCMMixin maxnC maxnA max0n (fun x y => @id true) (erefl _).
 Definition maxPCM := Eval hnf in PCM nat maxPCMMix.
 
 (* bools with disjunction are a pcm *)
-Definition bool_orPCMMix := 
+Definition bool_orPCMMix :=
   PCMMixin orbC orbA orFb (fun x y => @id true) (erefl _).
 Definition bool_orPCM := Eval hnf in PCM bool bool_orPCMMix.
 
@@ -415,20 +415,20 @@ Definition pjoin := [fun x1 x2 : tp => (x1.1 \+ x2.1, x1.2 \+ x2.2)].
 Definition punit : tp := (Unit, Unit).
 
 Lemma joinC x y : pjoin x y = pjoin y x.
-Proof. 
-move: x y => [x1 x2][y1 y2] /=. 
-by rewrite (joinC x1) (joinC x2). 
+Proof.
+move: x y => [x1 x2][y1 y2] /=.
+by rewrite (joinC x1) (joinC x2).
 Qed.
 
 Lemma joinA x y z : pjoin x (pjoin y z) = pjoin (pjoin x y) z.
 Proof.
-move: x y z => [x1 x2][y1 y2][z1 z2] /=. 
+move: x y z => [x1 x2][y1 y2][z1 z2] /=.
 by rewrite (joinA x1) (joinA x2).
 Qed.
 
 Lemma validL x y : pvalid (pjoin x y) -> pvalid x.
 Proof.
-move: x y => [x1 x2][y1 y2] /=. 
+move: x y => [x1 x2][y1 y2] /=.
 by case/andP=>D1 D2; rewrite (validL D1) (validL D2).
 Qed.
 
@@ -441,9 +441,9 @@ Proof. by rewrite /pvalid /= !valid_unit. Qed.
 End ProdPCM.
 End ProdPCM.
 
-Definition prodPCMMixin U V := 
+Definition prodPCMMixin U V :=
   PCMMixin (@ProdPCM.joinC U V) (@ProdPCM.joinA U V)
-           (@ProdPCM.unitL U V) (@ProdPCM.validL U V) 
+           (@ProdPCM.unitL U V) (@ProdPCM.validL U V)
            (@ProdPCM.validU U V).
 Canonical prodPCM U V := Eval hnf in PCM (_ * _) (@prodPCMMixin U V).
 
@@ -452,7 +452,7 @@ Canonical prodPCM U V := Eval hnf in PCM (_ * _) (@prodPCMMixin U V).
 Section Simplification.
 Variable U V : pcm.
 
-Lemma pcmPJ (x1 y1 : U) (x2 y2 : V) : 
+Lemma pcmPJ (x1 y1 : U) (x2 y2 : V) :
         (x1, x2) \+ (y1, y2) = (x1 \+ y1, x2 \+ y2).
 Proof. by []. Qed.
 
@@ -474,11 +474,11 @@ End Simplification.
 Section ProdTPCM.
 Variables (U V : tpcm).
 
-Lemma prod_unitb (x : prodPCM U V) : 
+Lemma prod_unitb (x : prodPCM U V) :
         reflect (x = Unit) (unitb x.1 && unitb x.2).
 Proof.
 case: x=>x1 x2; case: andP=>/= H; constructor.
-- by case: H=>/unitbP -> /unitbP ->. 
+- by case: H=>/unitbP -> /unitbP ->.
 by case=>X1 X2; elim: H; rewrite X1 X2 !unitbE.
 Qed.
 
@@ -486,21 +486,21 @@ Lemma prod_join0E (x y : prodPCM U V) : x \+ y = Unit -> x = Unit /\ y = Unit.
 Proof. by case: x y=>x1 x2 [y1 y2][] /joinE0 [->->] /joinE0 [->->]. Qed.
 
 (*
-Lemma prod_valid3 (x y z : prodPCM U V) : valid (x \+ y \+ z) = 
+Lemma prod_valid3 (x y z : prodPCM U V) : valid (x \+ y \+ z) =
         [&& valid (x \+ y), valid (y \+ z) & valid (x \+ z)].
-Proof. 
+Proof.
 case: x y z=>x1 x2 [y1 y2][z1 z2]; rewrite pcmE /= !valid3 -!andbA.
-by do !bool_congr. 
+by do !bool_congr.
 Qed.
 *)
 
 Lemma prod_valid_undef : ~~ valid (@undef U, @undef V).
 Proof. by rewrite pcmPV negb_and !valid_undef. Qed.
 
-Lemma prod_undef_join x : (@undef U, @undef V) \+ x = (@undef U, @undef V). 
+Lemma prod_undef_join x : (@undef U, @undef V) \+ x = (@undef U, @undef V).
 Proof. by case: x=>x1 x2; rewrite pcmPE !undef_join. Qed.
 
-Definition prodTPCMMix := TPCMMixin prod_unitb prod_join0E 
+Definition prodTPCMMix := TPCMMixin prod_unitb prod_join0E
                                     prod_valid_undef prod_undef_join.
 Canonical prodTPCM := Eval hnf in TPCM (U * V) prodTPCMMix.
 
@@ -525,7 +525,7 @@ Lemma uvalidL x y : uvalid (ujoin x y) -> uvalid x.
 Proof. by []. Qed.
 
 Lemma uunitL x : ujoin uunit x = x.
-Proof. by case: x. Qed. 
+Proof. by case: x. Qed.
 
 Lemma uvalidU : uvalid uunit.
 Proof. by []. Qed.
@@ -533,8 +533,8 @@ Proof. by []. Qed.
 End UnitPCM.
 End UnitPCM.
 
-Definition unitPCMMixin := 
-  PCMMixin UnitPCM.ujoinC UnitPCM.ujoinA 
+Definition unitPCMMixin :=
+  PCMMixin UnitPCM.ujoinC UnitPCM.ujoinA
            UnitPCM.uunitL UnitPCM.uvalidL UnitPCM.uvalidU.
 Canonical unitPCM := Eval hnf in PCM unit unitPCMMixin.
 
@@ -560,7 +560,7 @@ Canonical boolConjPCM := Eval hnf in PCM bool boolPCMMixin.
 Definition pcm_preord (U : pcm) (x y : U) := exists z, y = x \+ z.
 
 Notation "[ 'pcm' x '<=' y ]" := (@pcm_preord _ x y)
-  (at level 0, x, y at level 69, 
+  (at level 0, x, y at level 69,
    format "[ '[hv' 'pcm'  x '/   '  <=  y ']' ]") : type_scope.
 
 Section PleqLemmas.
@@ -600,21 +600,21 @@ Proof. by rewrite joinC; apply: pleq_joinr. Qed.
 Lemma pleqV (x1 x2 : U) : [pcm x1 <= x2] -> valid x2 -> valid x1.
 Proof. by case=>x -> /validL. Qed.
 
-Lemma pleq_validL (x x1 x2 : U) : 
+Lemma pleq_validL (x x1 x2 : U) :
         [pcm x1 <= x2] -> valid (x \+ x2) -> valid (x \+ x1).
 Proof. by case=>a ->; rewrite joinA; apply: validL. Qed.
 
-Lemma pleq_validR (x x1 x2 : U) : 
+Lemma pleq_validR (x x1 x2 : U) :
         [pcm x1 <= x2] -> valid (x2 \+ x) -> valid (x1 \+ x).
 Proof. by rewrite -!(joinC x); apply: pleq_validL. Qed.
 
 (* the next two lemmas only hold for cancellative PCMs *)
 
-Lemma pleq_joinxK (V : cpcm) (x x1 x2 : V) : 
+Lemma pleq_joinxK (V : cpcm) (x x1 x2 : V) :
         valid (x2 \+ x) -> [pcm x1 \+ x <= x2 \+ x] -> [pcm x1 <= x2].
 Proof. by move=>W [a]; rewrite joinAC=>/(joinKx W) ->; exists a. Qed.
 
-Lemma pleq_joinKx (V : cpcm) (x x1 x2 : V) : 
+Lemma pleq_joinKx (V : cpcm) (x x1 x2 : V) :
         valid (x \+ x2) -> [pcm x \+ x1 <= x \+ x2] -> [pcm x1 <= x2].
 Proof. by rewrite !(joinC x); apply: pleq_joinxK. Qed.
 
@@ -626,11 +626,11 @@ Hint Resolve pleq_unit pleq_refl pleq_joinr pleq_joinl : core.
 (* Local functions *)
 (*******************)
 
-Definition local (U : pcm) (f : U -> U -> option U) := 
-  forall p x y r, valid (x \+ (p \+ y)) -> f x (p \+ y) = Some r -> 
-                  valid (r \+ p \+ y) /\ f (x \+ p) y = Some (r \+ p). 
+Definition local (U : pcm) (f : U -> U -> option U) :=
+  forall p x y r, valid (x \+ (p \+ y)) -> f x (p \+ y) = Some r ->
+                  valid (r \+ p \+ y) /\ f (x \+ p) y = Some (r \+ p).
 
-Lemma localV U f x y r : 
+Lemma localV U f x y r :
         @local U f -> valid (x \+ y) -> f x y = Some r -> valid (r \+ y).
 Proof. by move=>H V E; move: (H Unit x y r); rewrite unitL !unitR; case. Qed.
 

@@ -30,17 +30,17 @@ Unset Printing Implicit Defensive.
 (* Generalized mutexes *)
 (***********************)
 
-Module GeneralizedMutex. 
+Module GeneralizedMutex.
 Section GeneralizedMutex.
 Variable T : Type. (* the mutex stages, excluding undef and unit *)
 
 Inductive mutex := undef | nown | own | mx of T.
 
-Definition join x y := 
+Definition join x y :=
   match x, y with
-    undef, _ => undef 
+    undef, _ => undef
   | _, undef => undef
-  | nown, x => x 
+  | nown, x => x
   | x, nown => x
   | own, _ => undef
   | _, own => undef
@@ -58,7 +58,7 @@ Proof. by case=>[|||x]; case=>[|||y]; case=>[|||z]. Qed.
 Lemma unitL : left_id nown join.
 Proof. by case. Qed.
 
-Lemma validL x y : valid (join x y) -> valid x. 
+Lemma validL x y : valid (join x y) -> valid x.
 Proof. by case: x. Qed.
 
 Lemma valid_unit : valid nown.
@@ -81,17 +81,17 @@ Lemma unitb (x : mutex) :
         reflect (x = Unit) (if x is nown then true else false).
 Proof. by case: x; constructor. Qed.
 
-Lemma join0E (x y : mutex) : x \+ y = Unit -> x = Unit /\ y = Unit. 
+Lemma join0E (x y : mutex) : x \+ y = Unit -> x = Unit /\ y = Unit.
 Proof. by case: x y=>[|||x][|||y]. Qed.
 
-Lemma valid3 (x y z : mutex) : valid (x \+ y \+ z) = 
+Lemma valid3 (x y z : mutex) : valid (x \+ y \+ z) =
         [&& valid (x \+ y), valid (y \+ z) & valid (x \+ z)].
 Proof. by case: x y z=>[|||x][|||y][|||z]. Qed.
 
-Lemma valid_undef : ~~ valid undef. 
+Lemma valid_undef : ~~ valid undef.
 Proof. by []. Qed.
 
-Lemma undef_join x : undef \+ x = undef. 
+Lemma undef_join x : undef \+ x = undef.
 Proof. by []. Qed.
 
 Definition mutexTPCMMix := TPCMMixin unitb join0E valid_undef undef_join.
@@ -102,19 +102,19 @@ End GeneralizedMutex.
 Section Equality.
 Variable T : eqType.
 
-Definition mutex_eq (x y : mutex T) := 
-  match x, y with 
+Definition mutex_eq (x y : mutex T) :=
+  match x, y with
     undef, undef => true
   | nown, nown => true
   | own, own => true
-  | mx x', mx y' => x' == y' 
+  | mx x', mx y' => x' == y'
   | _, _ => false
   end.
 
 Lemma mutex_eqP : Equality.axiom mutex_eq.
-Proof. 
+Proof.
 case=>[|||x]; case=>[|||y] /=; try by constructor.
-by case: eqP=>[->|H]; constructor=>//; case=>/H. 
+by case: eqP=>[->|H]; constructor=>//; case=>/H.
 Qed.
 
 Definition mutexEqMix := EqMixin mutex_eqP.
@@ -142,26 +142,26 @@ Arguments own {T}.
 Notation mtx := (mutex Empty_set).
 
 End Exports.
-End GeneralizedMutex. 
+End GeneralizedMutex.
 
-Export GeneralizedMutex.Exports. 
+Export GeneralizedMutex.Exports.
 
 (* some lemmas for generalized mutexes *)
 
 Section MutexLemmas.
 Variable T : Type.
-Implicit Types (t : T) (x y : mutex T). 
+Implicit Types (t : T) (x y : mutex T).
 
-Variant mutex_spec x : mutex T -> Type := 
+Variant mutex_spec x : mutex T -> Type :=
 | mutex_undef of x = mx_undef : mutex_spec x mx_undef
 | mutex_nown of x = Unit : mutex_spec x Unit
 | mutex_own of x = own : mutex_spec x own
 | mutex_mx t of x = mx t : mutex_spec x (mx t).
 
-Lemma mxP x : mutex_spec x x. 
+Lemma mxP x : mutex_spec x x.
 Proof. by case: x=>[|||t]; constructor. Qed.
 
-Lemma mxE0 x y : x \+ y = Unit -> (x = Unit) * (y = Unit). 
+Lemma mxE0 x y : x \+ y = Unit -> (x = Unit) * (y = Unit).
 Proof. by case: x=>[|||t1]; case: y=>[|||t2]. Qed.
 
 (* a form of cancelativity, more useful than the usual form *)
@@ -171,22 +171,22 @@ Proof. by case: x=>[|||x] //=; split=>//; case=>->. Qed.
 Lemma cancelxM t1 t2 x : (x \+ mx t1 = mx t2) <-> (t1 = t2) * (x = Unit).
 Proof. by rewrite joinC cancelMx. Qed.
 
-Lemma mxMx t x : valid (mx t \+ x) -> x = Unit. 
+Lemma mxMx t x : valid (mx t \+ x) -> x = Unit.
 Proof. by case: x. Qed.
 
 Lemma mxxM t x : valid (x \+ mx t) -> x = Unit.
 Proof. by rewrite joinC=>/mxMx. Qed.
 
-Lemma mxxyM t x y : valid (x \+ (y \+ mx t)) -> x \+ y = Unit. 
+Lemma mxxyM t x y : valid (x \+ (y \+ mx t)) -> x \+ y = Unit.
 Proof. by rewrite joinC joinAC=>/mxMx; rewrite joinC. Qed.
 
-Lemma mxMxy t x y : valid (mx t \+ x \+ y) -> x \+ y = Unit. 
+Lemma mxMxy t x y : valid (mx t \+ x \+ y) -> x \+ y = Unit.
 Proof. by rewrite -joinA=>/mxMx. Qed.
 
-Lemma mxxMy t x y : valid (x \+ (mx t \+ y)) -> x \+ y = Unit. 
+Lemma mxxMy t x y : valid (x \+ (mx t \+ y)) -> x \+ y = Unit.
 Proof. by rewrite joinCA=>/mxMx. Qed.
 
-Lemma mxyMx t x y : valid (y \+ mx t \+ x) -> y \+ x = Unit. 
+Lemma mxyMx t x y : valid (y \+ mx t \+ x) -> y \+ x = Unit.
 Proof. by rewrite joinAC=>/mxMx. Qed.
 
 (* and the same for own *)
@@ -197,16 +197,16 @@ Proof. by case: x. Qed.
 Lemma mxxO x : valid (x \+ own) -> x = Unit.
 Proof. by rewrite joinC=>/mxOx. Qed.
 
-Lemma mxxyO x y : valid (x \+ (y \+ own)) -> x \+ y = Unit. 
+Lemma mxxyO x y : valid (x \+ (y \+ own)) -> x \+ y = Unit.
 Proof. by rewrite joinC joinAC=>/mxOx; rewrite joinC. Qed.
 
-Lemma mxOxy x y : valid (own \+ x \+ y) -> x \+ y = Unit. 
+Lemma mxOxy x y : valid (own \+ x \+ y) -> x \+ y = Unit.
 Proof. by rewrite -joinA=>/mxOx. Qed.
 
-Lemma mxxOy x y : valid (x \+ (own \+ y)) -> x \+ y = Unit. 
+Lemma mxxOy x y : valid (x \+ (own \+ y)) -> x \+ y = Unit.
 Proof. by rewrite joinCA=>/mxOx. Qed.
 
-Lemma mxyOx x y : valid (y \+ own \+ x) -> y \+ x = Unit. 
+Lemma mxyOx x y : valid (y \+ own \+ x) -> y \+ x = Unit.
 Proof. by rewrite joinAC=>/mxOx. Qed.
 
 (* inversion principle for join *)
@@ -240,9 +240,9 @@ Proof. by case: x. Qed.
 
 Section MutexRewriting.
 Variable T : eqType.
-Implicit Types (t : T) (x : mutex T). 
+Implicit Types (t : T) (x : mutex T).
 
-Lemma mxE1 :  ((@mx_undef T == nown) = false) * 
+Lemma mxE1 :  ((@mx_undef T == nown) = false) *
               ((@nown T == mx_undef) = false) *
               ((@mx_undef T == own) = false) *
               ((@own T == mx_undef) = false) *
@@ -250,35 +250,35 @@ Lemma mxE1 :  ((@mx_undef T == nown) = false) *
               ((@own T == nown) = false).
 Proof. by []. Qed.
 
-Lemma mxE2 t : ((mx t == nown) = false) * 
+Lemma mxE2 t : ((mx t == nown) = false) *
                ((nown == mx t) = false) *
                ((mx t == mx_undef) = false) *
-               ((mx_undef == mx t) = false) * 
-               ((mx t == own) = false) * 
+               ((mx_undef == mx t) = false) *
+               ((mx t == own) = false) *
                ((own == mx t) = false).
 Proof. by []. Qed.
 
 Lemma mxE3 t x : ((mx t \+ x == nown) = false) *
                  ((x \+ mx t == nown) = false) *
                  ((nown == mx t \+ x) = false) *
-                 ((nown == x \+ mx t) = false) * 
+                 ((nown == x \+ mx t) = false) *
                  ((mx t \+ x == own) = false) *
-                 ((x \+ mx t == own) = false) * 
+                 ((x \+ mx t == own) = false) *
                  ((own \+ x == mx t) = false) *
                  ((x \+ own == mx t) = false).
 Proof. by case: x. Qed.
 
-Lemma mxE4 x : 
+Lemma mxE4 x :
        ((own \+ x == nown) = false) *
-       ((x \+ own == nown) = false) * 
-       ((own \+ x == own) = (x == Unit)) * 
+       ((x \+ own == nown) = false) *
+       ((own \+ x == own) = (x == Unit)) *
        ((x \+ own == own) = (x == Unit)).
 Proof. by case: x. Qed.
 
-Lemma mxE5 t1 t2 x : 
-       ((mx t1 \+ x == mx t2) = (t1 == t2) && (x == Unit)) * 
-       ((x \+ mx t1 == mx t2) = (t1 == t2) && (x == Unit)) * 
-       ((mx t1 == mx t2 \+ x) = (t1 == t2) && (x == Unit)) * 
+Lemma mxE5 t1 t2 x :
+       ((mx t1 \+ x == mx t2) = (t1 == t2) && (x == Unit)) *
+       ((x \+ mx t1 == mx t2) = (t1 == t2) && (x == Unit)) *
+       ((mx t1 == mx t2 \+ x) = (t1 == t2) && (x == Unit)) *
        ((mx t1 == x \+ mx t2) = (t1 == t2) && (x == Unit)).
 Proof.
 have L : forall t1 t2 x, (mx t1 \+ x == mx t2) = (t1 == t2) && (x == Unit).
@@ -293,12 +293,12 @@ Lemma mx_valid_own : valid (@own T).
 Proof. by []. Qed.
 
 Lemma mx_injE t1 t2 : (mx t1 == mx t2) = (t1 == t2).
-Proof. by []. Qed. 
+Proof. by []. Qed.
 
 Definition mxE := (mxE1, mxE2, mxE3, mxE4, mxE5, mx_injE,
                    mx_valid, mx_valid_own,
                    (* plus a bunch of safe simplifications *)
-                   unitL, unitR, valid_unit, eq_refl, 
+                   unitL, unitR, valid_unit, eq_refl,
                    valid_undef, undef_join, join_undef).
 
 End MutexRewriting.

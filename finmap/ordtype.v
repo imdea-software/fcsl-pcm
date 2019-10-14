@@ -22,14 +22,14 @@ From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path fintype.
 Set Implicit Arguments.
 Unset Strict Implicit.
-Unset Printing Implicit Defensive. 
+Unset Printing Implicit Defensive.
 
-Module Ordered. 
+Module Ordered.
 
 Section RawMixin.
 
-Structure mixin_of (T : eqType) := 
-  Mixin {ordering : rel T; 
+Structure mixin_of (T : eqType) :=
+  Mixin {ordering : rel T;
          _ : irreflexive ordering;
          _ : transitive ordering;
          _ : forall x y, [|| ordering x y, x == y | ordering y x]}.
@@ -41,7 +41,7 @@ End RawMixin.
 Section ClassDef.
 
 Record class_of (T : Type) := Class {
-   base : Equality.class_of T; 
+   base : Equality.class_of T;
    mixin : mixin_of (EqType T base)}.
 
 Local Coercion base : class_of >-> Equality.class_of.
@@ -56,7 +56,7 @@ Definition clone c of phant_id class c := @Pack T c.
 (* produce an ordered type out of the inherited mixins *)
 (* equalize m0 and m by means of a phantom; will be exploited *)
 (* further down in the definition of OrdType *)
-Definition pack b (m0 : mixin_of (EqType T b)) := 
+Definition pack b (m0 : mixin_of (EqType T b)) :=
   fun m & phant_id m0 m => Pack (@Class T b m).
 
 Definition eqType := Eval hnf in EqType cT class.
@@ -87,17 +87,17 @@ Section Lemmas.
 Variable T : ordType.
 Implicit Types x y : T.
 
-Lemma irr : irreflexive (@ord T). 
+Lemma irr : irreflexive (@ord T).
 Proof. by case: T=>s [b [m]]. Qed.
 
-Lemma trans : transitive (@ord T). 
+Lemma trans : transitive (@ord T).
 Proof. by case: T=>s [b [m]]. Qed.
 
 Lemma total x y : [|| ord x y, x == y | ord y x].
-Proof. by case: T x y=>s [b [m]]. Qed. 
+Proof. by case: T x y=>s [b [m]]. Qed.
 
 Lemma nsym x y : ord x y -> ord y x -> False.
-Proof. by move=>E1 E2; move: (trans E1 E2); rewrite irr. Qed. 
+Proof. by move=>E1 E2; move: (trans E1 E2); rewrite irr. Qed.
 
 Lemma orefl x : oleq x x.
 Proof. by rewrite /oleq eq_refl orbT. Qed.
@@ -106,19 +106,19 @@ Lemma otrans : transitive (@oleq T).
 Proof.
 move=>x y z /=; case/orP; last by move/eqP=>->.
 rewrite /oleq; move=>T1; case/orP; first by move/(trans T1)=>->.
-by move/eqP=><-; rewrite T1. 
+by move/eqP=><-; rewrite T1.
 Qed.
 
 Lemma sorted_oleq s : sorted (@ord T) s -> sorted (@oleq T) s.
 Proof. by elim: s=>[|x s IH] //=; apply: sub_path=>z y; rewrite /oleq=>->. Qed.
 
-End Lemmas. 
+End Lemmas.
 
 Hint Resolve orefl : core.
 
 Section Totality.
-Variable K : ordType.  
- 
+Variable K : ordType.
+
 Variant total_spec (x y : K) : bool -> bool -> bool -> Type :=
 | total_spec_lt of ord x y : total_spec x y true false false
 | total_spec_eq of x == y : total_spec x y false true false
@@ -128,13 +128,13 @@ Lemma totalP x y : total_spec x y (ord x y) (x == y) (ord y x).
 Proof.
 case H1: (x == y).
 - by rewrite (eqP H1) irr; apply: total_spec_eq.
-case H2: (ord x y); case H3: (ord y x). 
-- by case: (nsym H2 H3). 
+case H2: (ord x y); case H3: (ord y x).
+- by case: (nsym H2 H3).
 - by apply: total_spec_lt H2.
 - by apply: total_spec_gt H3.
 by move: (total x y); rewrite H1 H2 H3.
 Qed.
-End Totality. 
+End Totality.
 
 
 (* Monotone (i.e. strictly increasing) functions for Ord Types *)
@@ -143,7 +143,7 @@ Variables (A B :ordType).
 
 Definition strictly_increasing f x y := @ord A x y -> @ord B (f x) (f y).
 
-Structure mono : Type := Mono 
+Structure mono : Type := Mono
            {fun_of: A -> B; _: forall x y, strictly_increasing fun_of x y}.
 
 End Mono.
@@ -164,7 +164,7 @@ Section ProdOrd.
 Variables K T : ordType.
 
 (* lexicographic ordering *)
-Definition lex : rel (K * T) := 
+Definition lex : rel (K * T) :=
   fun x y => if x.1 == y.1 then ord x.2 y.2 else ord x.1 y.1.
 
 Lemma irr_lex : irreflexive lex.
@@ -175,7 +175,7 @@ Proof.
 move=>[x1 x2][y1 y2][z1 z2]; rewrite /lex /=.
 case: ifP=>H1; first by rewrite (eqP H1); case: eqP=>// _; apply: trans.
 case: ifP=>H2; first by rewrite (eqP H2) in H1 *; rewrite H1.
-case: ifP=>H3; last by apply: trans. 
+case: ifP=>H3; last by apply: trans.
 by rewrite (eqP H3)=>R1; move/(nsym R1).
 Qed.
 
@@ -196,7 +196,7 @@ Section FinTypeOrd.
 Variable T : finType.
 
 Definition ordf : rel T :=
-  fun x y => index x (enum T) < index y (enum T). 
+  fun x y => index x (enum T) < index y (enum T).
 
 Lemma irr_ordf : irreflexive ordf.
 Proof. by move=>x; rewrite /ordf ltnn. Qed.
@@ -228,9 +228,9 @@ Fixpoint ords x  : pred (seq T) :=
   fun y => match x , y with
                  | [::] , [::] => false
                  | [::] ,  t :: ts => true
-                 | x :: xs , y :: ys => if x == y then ords xs ys 
+                 | x :: xs , y :: ys => if x == y then ords xs ys
                                         else ord x y
-                 | _ :: _ , [::] => false  
+                 | _ :: _ , [::] => false
              end.
 
 Lemma irr_ords : irreflexive ords.
@@ -244,14 +244,14 @@ case:eqP=>//[->|H0];case:eqP=>//H; first by move/IHy; apply.
 case:eqP=>//[->|H1] H2; first by move/(nsym H2).
 by move/(trans H2).
 Qed.
- 
+
 Lemma total_ords : forall x y, [|| ords x y, x == y | ords y x].
 Proof.
-elim=>[|x xs IH][|y ys]//=; case:eqP=>//[->|H1]; 
- (case:eqP=>//= H; first (by rewrite orbT //=)). 
+elim=>[|x xs IH][|y ys]//=; case:eqP=>//[->|H1];
+ (case:eqP=>//= H; first (by rewrite orbT //=)).
 - by case:eqP=>//H3 ; case: (or3P (IH ys))=> [-> | /eqP H0 | ->];
  [ rewrite orTb // | apply: False_ind; apply: H; rewrite H0 | rewrite orbT //].
-case:eqP; first by move/(esym)/H1. 
+case:eqP; first by move/(esym)/H1.
 by move=>_ ;case: (or3P (total x y))=>[-> //| /eqP /H1 //| -> //]; rewrite orbT.
 Qed.
 
@@ -279,14 +279,14 @@ End unitOrd.
 
 (* ordering with path, seq and last *)
 
-Lemma seq_last_in (A : eqType) (s : seq A) x : 
+Lemma seq_last_in (A : eqType) (s : seq A) x :
         last x s \notin s -> s = [::].
 Proof.
 case: (lastP s)=>// {s}-s y; case: negP=>//; elim; rewrite last_rcons.
 by elim: s=>[|y' s IH]; rewrite /= inE // IH orbT.
 Qed.
 
-Lemma path_last (A : ordType) (s : seq A) x : 
+Lemma path_last (A : ordType) (s : seq A) x :
         path oleq x s -> oleq x (last x s).
 Proof.
 move/(order_path_min (@otrans _)); rewrite -nth_last.
@@ -296,7 +296,7 @@ Qed.
 (* in a sorted list, the last element is maximal *)
 (* and the maximal element is last *)
 
-Lemma sorted_last_key_max (A : ordType) (s : seq A) x y : 
+Lemma sorted_last_key_max (A : ordType) (s : seq A) x y :
         sorted oleq s -> x \in s -> oleq x (last y s).
 Proof.
 elim: s x y=>[|z s IH] //= x y H; rewrite inE /=.
@@ -304,7 +304,7 @@ case: eqP=>[->|] /= _; first by apply: path_last.
 by apply: IH (path_sorted H).
 Qed.
 
-Lemma sorted_max_key_last (A : ordType) (s : seq A) x y : 
+Lemma sorted_max_key_last (A : ordType) (s : seq A) x y :
         sorted oleq s -> x \in s ->
         (forall z, z \in s -> oleq z x) -> last y s = x.
 Proof.
@@ -313,19 +313,19 @@ case: eqP=>[<- /= H1 _ H2 | _ H /= H1 H2]; last first.
 - apply: IH (path_sorted H) H1 _ => z H3; apply: H2.
   by rewrite inE /= H3 orbT.
 apply/eqP; move: (H2 (last x s)) (path_last H1); rewrite inE /= /oleq eq_sym.
-case: totalP=>//=; case E: (last x s \in s)=>//. 
-by move/negbT/seq_last_in: E=>->; rewrite irr. 
+case: totalP=>//=; case E: (last x s \in s)=>//.
+by move/negbT/seq_last_in: E=>->; rewrite irr.
 Qed.
 
-Lemma seq_last_mono (A : ordType) (s1 s2 : seq A) x : 
+Lemma seq_last_mono (A : ordType) (s1 s2 : seq A) x :
         path oleq x s1 -> path oleq x s2 ->
-        {subset s1 <= s2} -> 
+        {subset s1 <= s2} ->
         oleq (last x s1) (last x s2).
 Proof.
 case: s1=>/= [_ H1 _|a s]; first by apply: path_last H1.
 case/andP=>H1 H2 H3 H; apply: sorted_last_key_max (path_sorted H3) _.
 apply: {x s2 H1 H3} H; rewrite inE orbC -implyNb.
-by case E: (_ \notin _) (@seq_last_in _ s a)=>//= ->. 
+by case E: (_ \notin _) (@seq_last_in _ s a)=>//= ->.
 Qed.
 
 

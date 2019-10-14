@@ -25,25 +25,25 @@ From Coq Require Import ssreflect ssrfun Eqdep ClassicalFacts.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
-  
+
 (*****************************)
 (* Axioms and extensionality *)
 (*****************************)
 
 (* extensionality is needed for domains *)
 Axiom pext : forall p1 p2 : Prop, (p1 <-> p2) -> p1 = p2.
-Axiom fext : forall A (B : A -> Type) (f1 f2 : forall x, B x), 
+Axiom fext : forall A (B : A -> Type) (f1 f2 : forall x, B x),
                (forall x, f1 x = f2 x) -> f1 = f2.
 
 Lemma pf_irr (P : Prop) (p1 p2 : P) : p1 = p2.
 Proof. by apply/ext_prop_dep_proof_irrel_cic/pext. Qed.
 
 Lemma eta A (B : A -> Type) (f : forall x, B x) : f = [eta f].
-Proof. by apply: fext. Qed.   
+Proof. by apply: fext. Qed.
 
 Lemma sval_inj A P : injective (@sval A P).
 Proof.
-move=>[x Hx][y Hy] /= H; move: Hx Hy; rewrite H=>*. 
+move=>[x Hx][y Hy] /= H; move: Hx Hy; rewrite H=>*.
 congr exist; apply: pf_irr.
 Qed.
 

@@ -30,7 +30,7 @@ Record mixin_of (T : Type) := Mixin {
   ounit_op : T;
   ojoin_op : T -> T -> option T;
   ojoinC_op : forall x y, ojoin_op x y = ojoin_op y x;
-  ojoinA_op : forall x y z, 
+  ojoinA_op : forall x y z,
     obind (ojoin_op x) (ojoin_op y z) = obind (ojoin_op^~ z) (ojoin_op x y);
   ounitL_op : forall x, ojoin_op ounit_op x = Some x}.
 
@@ -64,7 +64,7 @@ Notation "[ 'unlifted' 'of' T 'for' C ]" := (@clone T C _ idfun id)
 Notation "[ 'unlifted' 'of' T ]" := (@clone T _ _ id id)
   (at level 0, format "[ 'unlifted'  'of'  T ]") : form_scope.
 
-Notation ounit := ounit. 
+Notation ounit := ounit.
 Notation ojoin := ojoin.
 
 Arguments ounit {cT}.
@@ -72,7 +72,7 @@ Arguments ounit {cT}.
 Lemma ojoinC (U : unlifted) (x y : U) : ojoin x y = ojoin y x.
 Proof. by case: U x y=>T [ou oj ojC]. Qed.
 
-Lemma ojoinA (U : unlifted) (x y z : U) : 
+Lemma ojoinA (U : unlifted) (x y z : U) :
         obind (ojoin x) (ojoin y z) = obind (@ojoin U^~ z) (ojoin x y).
 Proof. by case: U x y z=>T [ou oj ojC ojA]. Qed.
 
@@ -91,34 +91,34 @@ Export Unlifted.Exports.
 
 Inductive lift A := down | up of A.
 
-Module Lift.  
-Section Lift.  
-Variable A : unlifted. 
+Module Lift.
+Section Lift.
+Variable A : unlifted.
 
 Let unit := up (@ounit A).
 
-Let valid := 
+Let valid :=
   [fun x : lift A => if x is up _ then true else false].
 
-Let join := 
-  [fun x y : lift A => 
-     if (x, y) is (up v, up w) then 
+Let join :=
+  [fun x y : lift A =>
+     if (x, y) is (up v, up w) then
        if ojoin v w is Some u then up u
-       else @down A 
+       else @down A
      else @down A].
 
 Lemma joinC (x y : lift A) : join x y = join y x.
 Proof. by case: x y=>[|x][|y] //=; rewrite ojoinC. Qed.
 
 Lemma joinA (x y z : lift A) : join x (join y z) = join (join x y) z.
-Proof. 
+Proof.
 case: x y z =>[|x][|y][|z] //=; first by case: (ojoin x y).
 case E1: (ojoin y z)=>[v1|].
 - case E2: (ojoin x y)=>[v2|];
   by move: (ojoinA x y z); rewrite E1 E2 /=; move=>->.
 case E2: (ojoin x y)=>[v2|] //.
 by move: (ojoinA x y z); rewrite E1 E2 /= =><-.
-Qed. 
+Qed.
 
 Lemma unitL x : join unit x = x.
 Proof. by case: x=>[|x] //=; rewrite ounitL. Qed.
@@ -135,7 +135,7 @@ End Lift.
 Section LiftEqType.
 Variable A : eqType.
 
-Definition lift_eq (u v : lift A) := 
+Definition lift_eq (u v : lift A) :=
   match u, v with
     up a, up b => a == b
   | down, down => true
@@ -161,7 +161,7 @@ Canonical liftEqType.
 Section Exports.
 (* View for pattern-matching lifted pcm's *)
 
-Variant lift_spec A (x : lift A) : lift A -> Type := 
+Variant lift_spec A (x : lift A) : lift A -> Type :=
 | up_spec n of x = up n : lift_spec x (up n)
 | undef_spec of x = down : lift_spec x down.
 
@@ -170,13 +170,13 @@ Proof. by case: x=>[|a]; [apply: undef_spec | apply: up_spec]. Qed.
 
 Variable A : unlifted.
 
-Definition liftPCMMixin := 
-  PCMMixin (@Lift.joinC A) (@Lift.joinA A) 
+Definition liftPCMMixin :=
+  PCMMixin (@Lift.joinC A) (@Lift.joinA A)
            (@Lift.unitL A) (@Lift.validL A) (@Lift.validU A).
 Canonical liftPCM := Eval hnf in PCM (lift A) liftPCMMixin.
 
-Lemma upE (a1 a2 : A) : 
-        up a1 \+ up a2 = if ojoin a1 a2 is Some a then up a else down. 
+Lemma upE (a1 a2 : A) :
+        up a1 \+ up a2 = if ojoin a1 a2 is Some a then up a else down.
 Proof. by []. Qed.
 
 Lemma valid_down : valid (@down A) = false.
@@ -190,9 +190,9 @@ Proof. by case: x. Qed.
 
 Definition downE := (down_join, join_undef, valid_down).
 
-Variant liftjoin_spec (x y : lift A) : _ -> _ -> _ -> Type := 
-| upcase1 n1 n2 of x = up n1 & y = up n2 : 
-    liftjoin_spec x y (if ojoin n1 n2 is Some u then up u else down) x y 
+Variant liftjoin_spec (x y : lift A) : _ -> _ -> _ -> Type :=
+| upcase1 n1 n2 of x = up n1 & y = up n2 :
+    liftjoin_spec x y (if ojoin n1 n2 is Some u then up u else down) x y
 | invalid1 of ~~ valid (x \+ y) : liftjoin_spec x y down x y.
 
 Lemma liftPJ (x y : lift A) : liftjoin_spec x y (x \+ y) x y.
@@ -213,7 +213,7 @@ Local Definition ounit := 0.
 Lemma ojoinC x y : ojoin x y = ojoin y x.
 Proof. by rewrite /ojoin addnC. Qed.
 
-Lemma ojoinA x y z : 
+Lemma ojoinA x y z :
         obind (ojoin x) (ojoin y z) = obind (ojoin^~ z) (ojoin x y).
 Proof. by rewrite /obind/ojoin /= addnA. Qed.
 
@@ -222,20 +222,20 @@ Proof. by case: x. Qed.
 
 End NatUnlift.
 
-Definition natUnliftedMix := 
+Definition natUnliftedMix :=
   UnliftedMixin NatUnlift.ojoinC NatUnlift.ojoinA NatUnlift.ounitL.
 Canonical natUnlifted := Eval hnf in Unlifted nat natUnliftedMix.
 
 (* some lemmas for lifted nats *)
 
-Lemma nxV (m1 m2 : lift natUnlifted) : 
+Lemma nxV (m1 m2 : lift natUnlifted) :
         valid (m1 \+ m2) -> exists n1 n2, m1 = up n1 /\ m2 = up n2.
 Proof. by case: m1=>// n1; case: m2=>// n2; exists n1, n2. Qed.
 
 
-Lemma nxE0 (n1 n2 : lift natUnlifted) : 
+Lemma nxE0 (n1 n2 : lift natUnlifted) :
         n1 \+ n2 = up 0 -> (n1 = up 0) * (n2 = up 0).
 Proof.
-case: n1 n2=>[|n1][|n2] //; rewrite upE /ojoin /=. 
+case: n1 n2=>[|n1][|n2] //; rewrite upE /ojoin /=.
 by case=>/eqP; rewrite addn_eq0=>/andP [/eqP -> /eqP ->].
 Qed.
