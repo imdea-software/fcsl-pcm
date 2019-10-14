@@ -31,6 +31,7 @@ Lemma orpT p : p \/ True <-> True.    Proof. by intuition. Qed.
 Lemma orFp p : False \/ p <-> p.      Proof. by intuition. Qed.
 Lemma orpF p : p \/ False <-> p.      Proof. by intuition. Qed.
 
+Declare Scope rel_scope.
 Delimit Scope rel_scope with rel.
 Open Scope rel_scope.
 

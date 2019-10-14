@@ -23,6 +23,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
+Declare Scope pcm_scope.
 Delimit Scope pcm_scope with pcm.
 Open Scope pcm_scope.
 
