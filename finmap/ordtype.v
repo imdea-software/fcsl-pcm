@@ -281,10 +281,7 @@ End unitOrd.
 
 Lemma seq_last_in (A : eqType) (s : seq A) x :
         last x s \notin s -> s = [::].
-Proof.
-case: (lastP s)=>// {s}-s y; case: negP=>//; elim; rewrite last_rcons.
-by elim: s=>[|y' s IH]; rewrite /= inE // IH orbT.
-Qed.
+Proof. by case: s=> // h s; rewrite last_cons mem_last. Qed.
 
 Lemma path_last (A : ordType) (s : seq A) x :
         path oleq x s -> oleq x (last x s).
