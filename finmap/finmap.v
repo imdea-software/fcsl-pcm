@@ -852,11 +852,10 @@ Lemma fcatsK (s s1 s2 : fmap) :
         disj s1 s && disj s2 s -> fcat s1 s = fcat s2 s -> s1 = s2.
 Proof.
 elim/fmap_ind': s s1 s2=>// k v s.
-move/notin_path=>H IH s1 s2; rewrite !disj_ins.
-case/andP; case/andP=>H1 H2; case/andP=>H3 H4.
-rewrite !fcat_sins // => H5.
+move/notin_path=>H IH s1 s2; rewrite !disj_ins -!andbA.
+case/and4P=> H1 H2 H3 H4; rewrite !fcat_sins => H5.
 apply: IH; first by rewrite H2 H4.
-by apply: cancel_ins H5; rewrite supp_fcat negb_or /= ?H1?H3 H.
+by apply: cancel_ins H5; rewrite supp_fcat negb_or /= ?H1 ?H3 H.
 Qed.
 
 Lemma fcatKs (s s1 s2 : fmap) :
