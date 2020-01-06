@@ -293,7 +293,7 @@ have H k1 k2 : valid (k1 \+ k2) ->
   by apply: leq_trans T (ltnW H).
 case V : (valid _); last first. 
 - by move/invalidE: (negbT V)=>->; rewrite lastkey_undef.
-rewrite /maxn; case: ltngtP. 
+rewrite /maxn; case: (ltngtP (last_key h2) (last_key h1)).
 - by rewrite joinC in V *; apply: H.
 - by apply: H.
 by move/esym/(lastkeyUn0 V)=>E; rewrite !E unitL.
@@ -427,7 +427,7 @@ case V : (valid h); last first.
 - by move/invalidE: (negbT V)=>->; rewrite join_undefR.
 split=>H k; move: (V); rewrite -(valid_fresh _ u)=>V'; last first. 
 - rewrite lastkey_fresh // domPtUn inE V' /= (leq_eqVlt k) eq_sym.
-  by move: (H k); rewrite -(ltnS k); case: ltngtP.
+  by move: (H k); rewrite -(ltnS k); case: (ltngtP k (last_key h).+1).
 rewrite -(ltnS k) -/(fresh h); case/andP=>Z N.
 move: (H k); rewrite lastkey_fresh // domPtUn inE V' Z /= leq_eqVlt eq_sym.
 by case: ltngtP N=>//= _ _; apply. 
@@ -499,7 +499,7 @@ Lemma lastvalUn v h1 h2 :
 Proof.
 rewrite /last_val /atval lastkeyUn maxnC /maxn.
 case: ifP; last by move/negbT/invalidE=>->; rewrite find_undef. 
-case: ltngtP=>N V.
+case: (ltngtP (last_key h1) (last_key h2)) => N V.
 - by rewrite findUnR // (dom_lastkeyE N).
 - by rewrite findUnL // (dom_lastkeyE N).
 by rewrite !(lastkeyUn0 V N) unitL lastkey0 find0E.

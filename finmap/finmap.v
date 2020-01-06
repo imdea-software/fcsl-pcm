@@ -927,8 +927,8 @@ Lemma sorted_map (m : seq (K * U)) :
 Proof.
 elim: m=>[|[k v] m IH] //= H. 
 rewrite path_min_sorted; first by apply: IH; apply: path_sorted H. 
-move=>y; rewrite map_key_mapf. 
-by apply/allP; apply: order_path_min H; apply: trans.
+rewrite map_key_mapf.
+by apply: order_path_min H; apply: trans.
 Qed.
 
 Definition mapf (m : finMap K U) : finMap K V := 
