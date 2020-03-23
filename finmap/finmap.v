@@ -19,6 +19,8 @@ limitations under the License.
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path.
 From fcsl Require Import ordtype.
+From Coq Require Setoid.
+
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
