@@ -22,9 +22,7 @@ limitations under the License.
 (******************************************************************************)
 
 From Coq Require Import ssreflect ssrfun Eqdep ClassicalFacts.
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
+From fcsl Require Import options.
 
 (*****************************)
 (* Axioms and extensionality *)
@@ -37,9 +35,6 @@ Axiom fext : forall A (B : A -> Type) (f1 f2 : forall x, B x),
 
 Lemma pf_irr (P : Prop) (p1 p2 : P) : p1 = p2.
 Proof. by apply/ext_prop_dep_proof_irrel_cic/pext. Qed.
-
-Lemma eta A (B : A -> Type) (f : forall x, B x) : f = [eta f].
-Proof. by apply: fext. Qed.
 
 Lemma sval_inj A P : injective (@sval A P).
 Proof.
@@ -60,8 +55,10 @@ Proof. by apply: fext. Qed.
 (* Cast and John Major Equality via cast *)
 (*****************************************)
 
+(* depends on StreicherK axiom *)
+
 Section Cast.
-Variable (C : Type) (interp : C -> Type).
+Variable (T : Type) (interp : T -> Type).
 
 Definition cast A B (pf : A = B) (v : interp B) : interp A :=
   ecast _ _ (esym pf) v.
@@ -69,29 +66,30 @@ Definition cast A B (pf : A = B) (v : interp B) : interp A :=
 Lemma eqc A (pf : A = A) (v : interp A) : cast pf v = v.
 Proof. by move: pf; apply: Streicher_K. Qed.
 
-Definition jmeq A B (v : interp A) (w : interp B) := forall pf, v = cast pf w.
+Definition jmeq A B (v : interp A) (w : interp B) := exists pf, v = cast pf w.
 
-Lemma jmrefl A (v : interp A) : jmeq v v.
-Proof. by move=>pf; rewrite eqc. Qed.
+Lemma jm_refl A (v : interp A) : jmeq v v.
+Proof. by exists (erefl _); rewrite eqc. Qed.
 
-Lemma jmsym A B (v : interp A) (w : interp B) : jmeq v w -> jmeq w v.
-Proof.
-move=> H pf; rewrite (H (esym pf)).
-by move: (pf); rewrite pf in w H * => {pf}-pf; rewrite !eqc.
-Qed.
+Lemma jm_sym A B (v : interp A) (w : interp B) : jmeq v w -> jmeq w v.
+Proof. by case=>? ->; subst B; rewrite eqc; apply: jm_refl. Qed.
+
+Lemma jm_trans A B C (u : interp A) (v : interp B) (w : interp C) :
+        jmeq u v -> jmeq v w -> jmeq u w.
+Proof. by case=>? -> [? ->]; subst B C; rewrite !eqc; apply: jm_refl. Qed.
 
 Lemma jmE A (v w : interp A) : jmeq v w <-> v = w.
-Proof. by split=>[/(_ erefl) //|->]; apply: jmrefl. Qed.
+Proof. by split=>[[?]|] ->; [rewrite eqc | apply: jm_refl]. Qed.
 
 Lemma castE A B (pf1 pf2 : A = B) (v1 v2 : interp B) :
         v1 = v2 <-> cast pf1 v1 = cast pf2 v2.
-Proof. by move: (pf1) pf2; rewrite pf1 =>*; rewrite !eqc. Qed.
+Proof. by subst B; rewrite !eqc. Qed.
 
 End Cast.
 
-Arguments cast {C} interp [A][B] pf v.
-Arguments jmeq {C} interp [A][B] v w.
-Hint Resolve jmrefl : core.
+Arguments cast {T} interp [A][B] pf v.
+Arguments jmeq {T} interp [A][B] v w.
+Hint Resolve jm_refl : core.
 (* special notation for the common case when interp = id *)
 Notation icast pf v := (@cast _ id _ _ pf v).
 Notation ijmeq v w := (@jmeq _ id _ _ v w).
@@ -115,10 +113,9 @@ Definition dyn_inj := @inj_pair2 _ P.
 End Dynamic.
 
 Prenex Implicits dyn_tp dyn_val dyn_injT dyn_inj.
-Arguments dyn {C} interp {A} _ : rename.
+Arguments dyn {T} interp {A} _ : rename.
 Notation idyn v := (@dyn _ id _ v).
 
-Lemma dynE (A B : Type) interp (pf : A = B) (v : interp A) (w : interp B) :
+Lemma dynE (A B : Type) interp (v : interp A) (w : interp B) :
         jmeq interp v w <-> dyn interp v = dyn interp w.
-Proof. by rewrite -pf in w *; rewrite jmE; split => [->|/dyn_inj]. Qed.
-
+Proof. by split=>[[pf ->]|[pf]]; subst B; [rewrite !eqc | move/dyn_inj=>->]. Qed.

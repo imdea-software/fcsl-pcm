@@ -19,10 +19,8 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun Eqdep.
 From mathcomp Require Import ssrnat eqtype seq path.
-From fcsl Require Import axioms ordtype pcm finmap unionmap.
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
+From fcsl Require Import axioms pcm finmap unionmap.
+From fcsl Require Import options.
 
 (*************)
 (* Locations *)
@@ -41,14 +39,14 @@ Lemma eq_ptrP : Equality.axiom eq_ptr.
 Proof. by case=>x [y] /=; case: eqP=>[->|*]; constructor=>//; case. Qed.
 
 Definition ptr_eqMixin := EqMixin eq_ptrP.
-Canonical ptr_eqType := EqType ptr ptr_eqMixin.
+Canonical ptr_eqType := Eval hnf in EqType ptr ptr_eqMixin.
 
 (* some pointer arithmetic: offsetting from a base *)
 
 Definition ptr_offset x i := ptr_nat (nat_ptr x + i).
 
 Notation "x .+ i" := (ptr_offset x i)
-  (at level 3, format "x .+ i").
+  (at level 5, format "x .+ i").
 
 Lemma ptrE x y : (x == y) = (nat_ptr x == nat_ptr y).
 Proof. by move: x y=>[x][y]. Qed.
@@ -81,11 +79,11 @@ Proof. by case=>x /=; rewrite ltnn. Qed.
 Lemma ltn_ptr_trans : transitive ltn_ptr.
 Proof. by case=>x [y][z]; apply: ltn_trans. Qed.
 
-Lemma ltn_ptr_total : forall x y : ptr, [|| ltn_ptr x y, x == y | ltn_ptr y x].
+Lemma ltn_ptr_semiconn : forall x y : ptr, x != y -> ltn_ptr x y || ltn_ptr y x.
 Proof. by case=>x [y]; rewrite ptrE /=; case: ltngtP. Qed.
 
-Definition ptr_ordMixin := OrdMixin ltn_ptr_irr ltn_ptr_trans ltn_ptr_total.
-Canonical ptr_ordType := OrdType ptr ptr_ordMixin.
+Definition ptr_ordMixin := OrdMixin ltn_ptr_irr ltn_ptr_trans ltn_ptr_semiconn.
+Canonical ptr_ordType := Eval hnf in OrdType ptr ptr_ordMixin.
 
 (*********)
 (* Heaps *)
@@ -133,7 +131,7 @@ Proof.
 split; first by move=>->; case: h2.
 case: h1; case: h2=>// f1 pf1 f2 pf2 E.
 rewrite {f2}E in pf1 pf2 *.
-by congr Def; apply: bool_irrelevance.
+by congr Def; apply: eq_irrelevance.
 Qed.
 
 End NullLemmas.
@@ -162,7 +160,10 @@ Definition dom_eq h1 h2 :=
   | _, _ => false
   end.
 
-Definition free x h :=
+Definition assocs h : seq (ptr_ordType * dynamic id) :=
+  if h is Def f _ then seq_of f else [::].
+
+Definition free h x :=
   if h is Def hs ns then Def (free_nullP x ns) else Undef.
 
 Definition find (x : ptr) h :=
@@ -175,9 +176,6 @@ Definition union h1 h2 :=
     else Undef
   else Undef.
 
-Definition um_filter q f :=
-  if f is Def fs pf then Def (@filt_nullP fs q pf) else Undef.
-
 Definition pts (x : ptr) v := upd x v empty.
 
 Definition empb h := if h is Def hs _ then supp hs == [::] else false.
@@ -188,7 +186,7 @@ Definition keys_of h : seq ptr :=
   if h is Def f _ then supp f else [::].
 
 Local Notation base :=
-  (@UM.base ptr_ordType (dynamic id) (fun k => k != null)).
+  (@UM.base ptr_ordType (fun k => k != null) (dynamic id)).
 
 Definition from (f : heap) : base :=
   if f is Def hs ns then UM.Def (heap_base ns) else UM.Undef _ _.
@@ -220,7 +218,10 @@ Proof. by case: f. Qed.
 Lemma dom_eqE f1 f2 : dom_eq f1 f2 = UM.dom_eq (from f1) (from f2).
 Proof. by case: f1 f2=>[|f1 H1][|f2 H2]. Qed.
 
-Lemma freeE k f : free k f = to (UM.free k (from f)).
+Lemma assocsE f : assocs f = UM.assocs (from f).
+Proof. by case: f. Qed.
+
+Lemma freeE f k : free f k = to (UM.free (from f) k).
 Proof. by case: f=>[|f H] //; rewrite heapE. Qed.
 
 Lemma findE k f : find k f = UM.find k (from f).
@@ -231,9 +232,6 @@ Proof.
 case: f1 f2=>[|f1 H1][|f2 H2] //; rewrite /union /UM.union /=.
 by case: ifP=>D //; rewrite heapE.
 Qed.
-
-Lemma umfiltE q f : um_filter q f = to (UM.um_filter q (from f)).
-Proof. by case: f=>[|f H] //; rewrite heapE. Qed.
 
 Lemma empbE f : empb f = UM.empb (from f).
 Proof. by case: f. Qed.
@@ -251,8 +249,8 @@ Module Exports.
 (* the inheritance from PCMs *)
 
 Definition heapUMCMix :=
-  UMCMixin ftE tfE defE undefE emptyE updE domE dom_eqE freeE
-           findE unionE umfiltE empbE undefbE ptsE.
+  UMCMixin ftE tfE defE undefE emptyE updE domE dom_eqE assocsE freeE
+           findE unionE empbE undefbE ptsE.
 Canonical heapUMC := Eval hnf in UMC heap heapUMCMix.
 
 Definition heapPCMMix := union_map_classPCMMix heapUMC.
@@ -273,7 +271,7 @@ Export Heap.Exports.
 Notation heap := Heap.heap.
 
 Definition heap_pts A (x : ptr) (v : A) :=
-  @UMC.pts _ _ heapUMC x (idyn v).
+  @UMC.pts _ _ _ heapUMC x (idyn v).
 
 Notation "x :-> v" := (@heap_pts _ x v) (at level 30).
 
@@ -302,11 +300,11 @@ Proof. by move=>V /(cancelPt2 V) [->] /dyn_inj ->. Qed.
 
 Lemma heap_eta x h :
         x \in dom h -> exists A (v : A),
-        find x h = Some (idyn v) /\ h = x :-> v \+ free x h.
+        find x h = Some (idyn v) /\ h = x :-> v \+ free h x.
 Proof. by case/um_eta; case=>A v H; exists A, v. Qed.
 
 Lemma heap_eta2 A x h (v : A) :
-        find x h = Some (idyn v) -> h = x :-> v \+ free x h.
+        find x h = Some (idyn v) -> h = x :-> v \+ free h x.
 Proof.
 move=>E; case: (heap_eta (find_some E))=>B [w][].
 rewrite {}E; case=>E; rewrite -E in w *.
@@ -327,10 +325,19 @@ Lemma hcancel2V A x1 x2 (v1 v2 : A) h1 h2 :
         valid (x1 :-> v1 \+ h1) ->
         x1 :-> v1 \+ h1 = x2 :-> v2 \+ h2 ->
         if x1 == x2 then v1 = v2 /\ h1 = h2
-        else [/\ free x1 h2 = free x2 h1,
-                 h1 = x2 :-> v2 \+ free x1 h2 &
-                 h2 = x1 :-> v1 \+ free x2 h1].
+        else [/\ free h2 x1 = free h1 x2,
+                 h1 = x2 :-> v2 \+ free h2 x1 &
+                 h2 = x1 :-> v1 \+ free h1 x2].
 Proof. by move=>V /(cancel2 V); case: ifP=>// _ [/dyn_inj]. Qed.
+
+Lemma heap_ind' (P : heap -> Prop) :
+         P undef -> P Unit ->
+         (forall A x (v : A) f, P f -> valid (x :-> v \+ f) -> P (x :-> v \+ f)) ->
+         forall f, P f.
+Proof.
+move=>H1 H2 H3; apply: um_ind' H1 H2 _.
+by move=>/= k [A v] f; apply: H3.
+Qed.
 
 End HeapPointsToLemmas.
 
@@ -338,8 +345,6 @@ Prenex Implicits heap_eta2.
 
 (******************************************)
 (* additional stuff, on top of union maps *)
-(* mostly random stuff, kept for legacy   *)
-(* should be removed/redone eventually    *)
 (******************************************)
 
 Definition fresh (h : heap) :=
@@ -362,19 +367,9 @@ elim=>[|y s IH x] /=; first by case=>x; rewrite /ord /= addn1.
 by case/andP=>H1; move/IH; apply: trans H1.
 Qed.
 
-Lemma path_filter (A : ordType) (s : seq A) (p : pred A) x :
-        path ord x s -> path ord x (filter p s).
-Proof.
-elim: s x=>[|y s IH] x //=.
-case/andP=>H1 H2.
-case: ifP=>E; first by rewrite /= H1 IH.
-apply: IH; elim: s H2=>[|z s IH] //=.
-by case/andP=>H2 H3; rewrite (@trans _ y).
-Qed.
-
 Lemma dom_fresh h n : (fresh h).+n \notin dom h.
 Proof.
-suff L2: forall h x, x \in dom h -> ord x (fresh h).
+suff L2: forall (h : heap) x, x \in dom h -> ord x (fresh h).
 - by apply: (contra (L2 _ _)); rewrite -leqNgt leq_addr.
 case=>[|[s H1]] //; rewrite /supp => /= H2 x.
 rewrite /dom /fresh /supp /=.
@@ -395,15 +390,15 @@ Hint Resolve dom_fresh fresh_null : core.
 (* pick *)
 (********)
 
-Lemma emp_pick (h : heap) : (pick h == null) = (~~ valid h || empb h).
+Lemma unit_pick (h : heap) : (pick h == null) = (~~ valid h || unitb h).
 Proof.
-rewrite /empb; case: h=>[|h] //=; case: (supp h)=>[|x xs] //=.
+rewrite /unitb /= /empb !pcmE; case: h=>[|h] //=; case: (supp h)=>[|x xs] //=.
 by rewrite inE negb_or eq_sym; case/andP; move/negbTE=>->.
 Qed.
 
-Lemma pickP h : valid h && ~~ empb h = (pick h \in dom h).
+Lemma pickP h : valid h && ~~ unitb h = (pick h \in dom h).
 Proof.
-rewrite /dom /empb; case: h=>[|h] //=.
+rewrite /dom /unitb /= /empb pcmE; case: h=>[|h] //=.
 by case: (supp h)=>// *; rewrite inE eq_refl.
 Qed.
 
@@ -455,14 +450,14 @@ Proof. by move=>->; rewrite updi_cat. Qed.
 (* helper lemma *)
 Lemma updiVm' x m xs : m > 0 -> x \notin dom (updi x.+m xs).
 Proof.
-elim: xs x m=>[|v vs IH] x m //= H.
-rewrite ptrA domPtUn inE /= negb_and negb_or -{4}(ptr0 x) ptrK -lt0n H /=.
+elim: xs x m=>[|v vs IH] x m H; first by rewrite dom0.
+rewrite /= ptrA domPtUn inE /= negb_and negb_or -{4}(ptr0 x) ptrK -lt0n H /=.
 by rewrite orbC IH // addn1.
 Qed.
 
 Lemma updiD x xs : valid (updi x xs) = (x != null) || (size xs == 0).
 Proof.
-elim: xs x=>[|v xs IH] x //=; first by rewrite orbC.
+elim: xs x=>[|v xs IH] x; first by rewrite valid_unit orbC.
 by rewrite validPtUn updiVm' // orbF IH ptr_null andbF andbC.
 Qed.
 
@@ -471,7 +466,7 @@ Lemma updiVm x m xs :
 Proof.
 case: m=>[|m] /=; last first.
 - by rewrite andbF; apply/negbTE/updiVm'.
-case: xs=>[|v xs]; rewrite ptr0 ?andbF ?andbT //=.
+case: xs=>[|v xs]; rewrite ptr0 ?andbF ?andbT ?dom0 //=.
 by rewrite domPtUn inE /= eq_refl -updiS updiD orbF andbT /=.
 Qed.
 
@@ -479,9 +474,10 @@ Lemma updimV x m xs :
         x.+m \in dom (updi x xs) = (x != null) && (m < size xs).
 Proof.
 case H: (x == null)=>/=.
-- by case: xs=>// a s; rewrite (eqP H).
-elim: xs x m H=>[|v vs IH] x m H //; case: m=>[|m].
-- by rewrite ptr0 /= domPtUn inE /= eq_refl andbT -updiS updiD H.
+- case: xs=>[|a s]; first by rewrite dom0.
+  by rewrite domPtUn inE validPtUn /= H.
+elim: xs x m H=>[|v vs IH] x m H //; case: m=>[|m]; try by rewrite /= dom0.
+-by rewrite ptr0 domPtUn inE /= eq_refl andbT -updiS updiD H.
 rewrite -addn1 addnC -ptrA updiS domPtUn inE /= IH; last first.
 - by rewrite ptrE /= addn1.
 by rewrite -updiS updiD H /= -{1}(ptr0 x) ptrA ptrK.
@@ -492,7 +488,9 @@ Lemma updiP x y xs :
                 (x \in dom (updi y xs)).
 Proof.
 case H: (y == null)=>/=.
-- by rewrite (eqP H); elim: xs=>[|z xs IH] //=; constructor; case.
+- rewrite (eqP H); elim: xs=>[|z xs IH].
+  - by rewrite dom0; constructor; case.
+  by rewrite domPtUn inE validPtUn; constructor; case.
 case E: (x \in _); constructor; last first.
 - by move=>[_][m][H1] H2; rewrite H1 updimV H2 H in E.
 case: (ptrT x y) E=>m; case/orP; move/eqP=>->.
@@ -506,8 +504,8 @@ Lemma updi_inv x xs1 xs2 :
         valid (updi x xs1) -> updi x xs1 = updi x xs2 -> xs1 = xs2.
 Proof.
 elim: xs1 x xs2 =>[|v1 xs1 IH] x /=; case=>[|v2 xs2] //= D;
-[move/esym| |]; try by rewrite empbE empbUn empbPt.
-by move=> {D}/(hcancelV D) [<- D /(IH _ _ D) <-].
+[move/esym| |]; try by rewrite unitbE um_unitbUn um_unitbPt.
+by case/(hcancelV D)=><- {}D /(IH _ _ D) <-.
 Qed.
 
 Lemma updi_iinv x xs1 xs2 h1 h2 :
@@ -516,7 +514,7 @@ Lemma updi_iinv x xs1 xs2 h1 h2 :
 Proof.
 elim: xs1 x xs2 h1 h2=>[|v1 xs1 IH] x /=; case=>[|v2 xs2] //= h1 h2.
 - by rewrite !unitL.
-move=>[E]; rewrite -!joinA=> D {D}/(hcancelV D)[<- D].
+move=>[E]; rewrite -!joinA=>D; case/(hcancelV D)=><-{}D.
 by case/(IH _ _ _ _ E D)=>->->.
 Qed.
 
@@ -577,7 +575,7 @@ Lemma defPtUnO A h x (v : A) (f : partition (x :-> v) h) :
         valid (untag f) = [&& x != null, valid h & x \notin dom h].
 Proof. by rewrite partitionE validPtUn. Qed.
 
-Arguments defPtUnO [A][h] x {v f}.
+Arguments defPtUnO [A h] x {v f}.
 
 Lemma defPt_nullO A h x (v : A) (f : partition (x :-> v) h) :
         valid (untag f) -> x != null.
@@ -587,7 +585,7 @@ Arguments defPt_nullO [A h x v f] _.
 
 Lemma defPt_defO A h x (v : A) (f : partition (x :-> v) h) :
         valid (untag f) -> valid h.
-Proof. by rewrite partitionE; apply: validPtUnV. Qed.
+Proof. by rewrite partitionE => /validR. Qed.
 
 Arguments defPt_defO [A][h] x [v][f] _.
 
@@ -611,7 +609,7 @@ Proof. by rewrite partitionE; apply: findPtUn. Qed.
 Arguments lookPtUnO [A h x v f] _.
 
 Lemma freePtUnO A h x (v : A) (f : partition (x :-> v) h) :
-        valid (untag f) -> free x (untag f) = h.
+        valid (untag f) -> free (untag f) x = h.
 Proof. by rewrite partitionE; apply: freePtUn. Qed.
 
 Arguments freePtUnO [A h x v f] _.
@@ -763,4 +761,3 @@ by move=> eq_r12; apply/ffunP=> x; rewrite -[x]enum_rankK -!tnth_fgraph eq_r12.
 Qed.
 
 End Array.
-
