@@ -11,18 +11,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 *)
 
-From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import ssrnat eqtype.
-From fcsl Require Import prelude pcm.
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
-
 (******************************************************************************)
 (* This file contains an implementation of lift type adding an undef element  *)
 (* a structure.                                                               *)
 (* Lifting turns an unlifted structure into a PCM and preserves equality.     *)
 (******************************************************************************)
+
+From Coq Require Import ssreflect ssrbool ssrfun.
+From mathcomp Require Import ssrnat eqtype.
+From fcsl Require Import prelude pcm morphism.
+From fcsl Require Import options.
 
 Module Unlifted.
 
@@ -204,7 +202,6 @@ End Lift.
 
 Export Lift.Exports.
 
-
 Module NatUnlift.
 
 Local Definition ojoin (x y : nat) := Some (x + y).
@@ -226,16 +223,43 @@ Definition natUnliftedMix :=
   UnliftedMixin NatUnlift.ojoinC NatUnlift.ojoinA NatUnlift.ounitL.
 Canonical natUnlifted := Eval hnf in Unlifted nat natUnliftedMix.
 
+Definition lnat := lift nat.
+Canonical lnatPCM := Eval hnf in [pcm of lnat].
+
+Section LNatTPCM.
+
+Lemma lnat_unitb (x : lnat) : reflect (x = Unit) (x == up 0).
+Proof. by case: eqP=>H; constructor. Qed.
+
+Lemma lnat_valid_undef : ~~ valid (down : lnat).
+Proof. by []. Qed.
+
+Lemma lnat_undef_join x : down \+ x = down :> lnat.
+Proof. by []. Qed.
+
+Definition lnatTPCMMix := TPCMMixin lnat_unitb lnat_valid_undef lnat_undef_join.
+Canonical lnatTPCM := Eval hnf in TPCM lnat lnatTPCMMix.
+End LNatTPCM.
+
 (* some lemmas for lifted nats *)
 
-Lemma nxV (m1 m2 : lift natUnlifted) :
+Lemma nxV (m1 m2 : lnat) :
         valid (m1 \+ m2) -> exists n1 n2, m1 = up n1 /\ m2 = up n2.
 Proof. by case: m1=>// n1; case: m2=>// n2; exists n1, n2. Qed.
 
-
-Lemma nxE0 (n1 n2 : lift natUnlifted) :
+Lemma nxE0 (n1 n2 : lnat) :
         n1 \+ n2 = up 0 -> (n1 = up 0) * (n2 = up 0).
 Proof.
 case: n1 n2=>[|n1][|n2] //; rewrite upE /ojoin /=.
 by case=>/eqP; rewrite addn_eq0=>/andP [/eqP -> /eqP ->].
 Qed.
+
+(* a morphism over lifted nat to get the underlying nat *)
+
+Definition nat_unlift (n : lift nat) : nat := if n is up m then m else 0.
+
+Lemma natunlift_morph_ax : morph_axiom (@sepT _) nat_unlift.
+Proof. by rewrite /nat_unlift; split=>//; case=>// x; case. Qed.
+
+Canonical natunlift_morph :=
+  Morphism' nat_unlift natunlift_morph_ax.

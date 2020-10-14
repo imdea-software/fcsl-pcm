@@ -13,38 +13,33 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq.
-From fcsl Require Import pred ordtype pcm unionmap.
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
+From fcsl Require Import pred pcm unionmap.
+From fcsl Require Import options.
 
-(******************************************************************************)
-(* This file implementations of Canonical structure lemmas (a.k.a. overloaded *)
-(* lemmas) for automating three tasks:                                        *)
-(*                                                                            *)
-(* 1. checking if implications of the form valid e1 -> valid e2 hold by       *)
-(* deciding if the terms in e2 are all contained in e1                        *)
-(*                                                                            *)
-(* 2. checking if dom_eq e1 e2 holds by cancelling the common terms, to       *)
-(*    obtain residuals rs1 and rs2, and then issuing a subgoal dom_eq rs1     *)
-(*    rs2.                                                                    *)
-(*                                                                            *)
-(* 3. checking if the union e is undef, because it contains duplicate         *)
-(*    pointers or an undef                                                    *)
-(******************************************************************************)
+(**************************************************************************)
+(**************************************************************************)
+(* Canonical structure lemmas for automating three tasks:                 *)
+(*                                                                        *)
+(* 1. checking if implications of the form valid e1 -> valid e2 hold by   *)
+(*    deciding if the terms in e2 are all contained in e1                 *)
+(*                                                                        *)
+(* 2. checking if dom_eq e1 e2 holds by cancelling the common terms, to   *)
+(*    obtain residuals rs1 and rs2, and then issuing a subgoal dom_eq rs1 *)
+(*    rs2.                                                                *)
+(*                                                                        *)
+(* 3. checking if the union e is undef, because it contains duplicate     *)
+(*    pointers or an undef                                                *)
+(*                                                                        *)
+(**************************************************************************)
+(**************************************************************************)
 
-(* For each task, we have two implementations: a naive and a                  *)
-(* sophisticated one. The lemmas validO, domeqO, invalidO are the naive       *)
-(* ones, and validX, domeqX, invalidX are the sophisticated ones. I keep      *)
-(* both O/X versions for now, for experimentation purposes, but               *)
-(* eventually should retain only validX and domeqX.                           *)
 
-(* First, two general helper concepts for searching in sequences. They will   *)
-(* be useful in syntactifying the expressions e1 and e2 for both tasks.       *)
-(* The concepts are:                                                          *)
-(*                                                                            *)
-(* - onth: returns None to signal that an element is not found prefix:        *)
-(* - will be used for growing interpretation contexts                         *)
+(* First, two general helper concepts for searching in sequences. They will be *)
+(* useful in syntactifying the expressions e1 and e2 for both tasks. The       *)
+(* contepts are:                                                               *)
+(*                                                                             *)
+(* - onth: returns None to signal that an element is not found                 *)
+(* - prefix: will be used for growing interpretation contexts                  *)
 
 Section Helpers.
 Variable A : Type.
@@ -100,15 +95,15 @@ Proof.
 by elim: s n=>//= a s IH [[->]|n /IH]; rewrite inE ?eq_refl // orbC => ->.
 Qed.
 
-(* Context structure for reflection of unionmap expressions.  We         *)
-(* reflect the keys and the variables of the map expression.  (The       *)
+(* Context structure for reflection of unionmap expressions. We          *)
+(* reflect the keys and the variables of the map expression. (The        *)
 (* variables are all expressions that are not recognized as a key, or as *)
-(* a disjoint union).  We reflect disjoint union as a sequence.          *)
+(* a disjoint union). We reflect disjoint union as a sequence.           *)
 (*                                                                       *)
 (* The context of keys is thus seq K. The context of vars is seq U.      *)
 
 Section ReflectionContexts.
-Variables (K : ordType) (T : Type) (U : union_map_class K T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
 
 Structure ctx := Context {keyx : seq K; varx : seq U}.
 
@@ -167,7 +162,7 @@ End OneShotFilter.
 (* now for reflection *)
 
 Section Reflection.
-Variables (K : ordType) (T : Type) (U : union_map_class K T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
 Implicit Type i : ctx U.
 
 Inductive term := Pts of nat & T | Var of nat.
@@ -175,8 +170,8 @@ Inductive term := Pts of nat & T | Var of nat.
 (* interpretation function for elements *)
 Definition interp' i t :=
   match t with
-    Pts n v => if onth (keyx i) n is Some k then pts k v else um_undef
-  | Var n => if onth (varx i) n is Some f then f else um_undef
+    Pts n v => if onth (keyx i) n is Some k then pts k v else undef
+  | Var n => if onth (varx i) n is Some f then f else undef
   end.
 
 (* main interpretation function *)
@@ -280,18 +275,18 @@ Proof. by elim: ts=>//= t ts IH; case: t=>[m v|m] //; rewrite inE IH. Qed.
 End Reflection.
 
 
-(**************************************************************************)
-(**************************************************************************)
-(* Purely functional decision procedures for the three tasks. Further     *)
-(* below, they will be embedded into the canonical programs validO/validX *)
-(* and domeqO/domeqX and invalidO/invalidX respectively.                  *)
-(**************************************************************************)
-(**************************************************************************)
+(**********************************************************************)
+(**********************************************************************)
+(* Purely functional decision procedures for the three tasks. Further *)
+(* below, they will be embedded into the canonical programs validX    *)
+(* and domeqX and invalidX respectively.                              *)
+(**********************************************************************)
+(**********************************************************************)
 
-(* subterm is purely functional version of validO/validX *)
+(* subterm is purely functional version of validX *)
 
 Section Subterm.
-Variables (K : ordType) (T : Type) (U : union_map_class K T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
 Implicit Types (i : ctx U) (ts : seq (term T)).
 
 Fixpoint subterm ts1 ts2 :=
@@ -320,10 +315,10 @@ Qed.
 
 End Subterm.
 
-(* subtract is purely functional version of domeqO/domeqX *)
+(* subtract is purely functional version of domeqX *)
 
 Section Subtract.
-Variables (K : ordType) (T : Type) (U : union_map_class K T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
 Implicit Types (i : ctx U) (ts : seq (term T)).
 
 (* We need a subterm lemma that returns the uncancelled stuff from *)
@@ -361,10 +356,10 @@ Qed.
 
 End Subtract.
 
-(* invalid is a purely functional test of invalidO/invalidX *)
+(* invalid is a purely functional test of invalidX *)
 
 Section Invalid.
-Variables (K : ordType) (T : Type) (U : union_map_class K T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
 Implicit Types (i : ctx U) (t : term T) (ts : seq (term T)).
 
 Definition undefx i t :=
@@ -383,7 +378,7 @@ case: t W=>[n v|n] /= /size_onth [k] X; rewrite /isundef /= X; last first.
   by case/orP: H V=>// /undefbE ->; rewrite valid_undef.
 rewrite negb_and negbK has_getkeys -orbA /=.
 case/orP=>// V; last by rewrite validPtUn andbCA (negbTE (IH A _)).
-by case: (keyP V X)=>u ->; rewrite joinA pts_undef join_undefL valid_undef.
+by case: (keyP V X)=>u ->; rewrite joinA pts_undef2 undef_join valid_undef.
 Qed.
 
 End Invalid.
@@ -401,8 +396,6 @@ Section XFind.
 Variable A : Type.
 
 Structure tagged_elem := XTag {xuntag :> A}.
-
-(* Local Coercion untag : tagged_elem >-> A. *)
 
 Definition extend_tag := XTag.
 Definition recurse_tag := extend_tag.
@@ -437,18 +430,18 @@ Canonical extend_form x := Form (@extend_pf x).
 
 End XFind.
 
-(* Next, we syntactify a unionmap into a seq term as follows.                 *)
-(*                                                                            *)
-(* - if the map is f1 \+ f2, then recurse over both and concat. the results   *)
-(* - if the map is the empty map, return [::]                                 *)
-(* - if the map is k \-> v then add k to the context, and return [Pts x v],   *)
-(*      where x is the index for l in the context                             *)
-(*  if the map is whatever else, add the map to the context and return        *)
-(*      [Var n], where n is the index for the map in the context              *)
+(* Next, we syntactify a unionmap into a seq term as follows.                   *)
+(*                                                                              *)
+(* - if the map is f1 \+ f2, then recurse over both and concatenate the results *)
+(* - if the map is the empty map, return [::]                                   *)
+(* - if the map is k \-> v then add k to the context, and return [Pts x v],     *)
+(*      where x is the index for l in the context                               *)
+(*  if the map is whatever else, add the map to the context and return          *)
+(*      [Var n], where n is the index for the map in the context                *)
 
 Module Syntactify.
 Section Syntactify.
-Variables (K : ordType) (T : Type) (U : union_map_class K T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
 Implicit Types (i : ctx U) (ts : seq (term T)).
 
 (* a tagging structure to control the flow of computation *)
@@ -528,45 +521,16 @@ End Syntactify.
 
 Export Syntactify.Exports.
 
-(****************************)
-(* Automating validO/validX *)
-(****************************)
+(*********************)
+(* Automating validX *)
+(*********************)
 
-(* validO is a naive lemma that automates subterm checking *)
-(* it leaves a goal of the form subterm ts2 ts1 *)
-(* this one evaluates to a boolean, so it's easy to discharge *)
-(* but it takes the space for the lemma's argument *)
-(* which, thus, can't be picked from the goal *)
-
-Section ValidO.
-Variables (K : ordType) (T : Type) (U : union_map_class K T).
-Implicit Types (i : ctx U) (ts : seq (term T)).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
-
-Lemma validO j k ts1 ts2 (f1 : form (@empx K T U) j ts1)
-                               (f2 : form j k ts2) :
-        valid (untag f1) -> subterm ts2 ts1 -> valid (untag f2).
-Proof.
-case: f1 f2=>f1 [<- _ A1][f2][<- S2 A2] /= V; rewrite (sc_interp S2 A1) in V.
-by case/(subterm_sound A2 (sc_wf S2 A1))=>xs /domeqP []; rewrite V=>/validL ->.
-Qed.
-
-End ValidO.
-
-Arguments validO [K T U j k ts1 ts2 f1 f2] _ _.
-
-Example ex0 (x y z : nat) (v1 v2 : nat) h:
-          valid (Unit \+ y \\-> v1 \+ h \+ x \\-> v1) ->
-          valid (x \\-> v2 \+ Unit).
-Proof. by move=>V; rewrite (validO V). Abort.
-
-(* validX is a more refined lemma for subterm checking which *)
+(* validX is a refined lemma for subterm checking which *)
 (* automatically discharges the spurious argument from above *)
 
 Module ValidX.
 Section ValidX.
-Variables (K : ordType) (T : Type) (U : union_map_class K T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
 Implicit Types (j : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
@@ -607,12 +571,33 @@ Canonical start j k ts1 ts2 f2 := RForm (@start_pf j k ts1 ts2 f2).
 
 End ValidX.
 
+(* Wrappers for automated versions of joinKx(xK), cancPL(PR) lemmas *)
+Section WrappersForCancellationLemmas.
+Variable U : cpcm.
+
+Lemma joinKx' (x1 x2 x : U) : x1 \+ x = x2 \+ x -> valid (x1 \+ x) -> x1 = x2.
+Proof. by move=>E V; apply: joinKx V E. Qed.
+
+Lemma joinxK' (x x1 x2 : U) : x \+ x1 = x \+ x2 -> valid (x \+ x1) -> x1 = x2.
+Proof. by move=>E V; apply: joinxK V E. Qed.
+
+Lemma cancPL' (P : U -> Prop) (s1 s2 t1 t2 : U) :
+       precise P -> s1 \+ t1 = s2 \+ t2 -> P s1 -> P s2 -> valid (s1 \+ t1) ->
+       (s1 = s2) * (t1 = t2).
+Proof. by move=>H E H1 H2 V; apply: cancPL H V H1 H2 E. Qed.
+
+Lemma cancPR' (P : U -> Prop) (s1 s2 t1 t2 : U) :
+       precise P -> s1 \+ t1 = s2 \+ t2 -> P t1 -> P t2 -> valid (s1 \+ t1) ->
+       (s1 = s2) * (t1 = t2).
+Proof. by move=>H E H1 H2 V; apply: cancPR H V H1 H2 E. Qed.
+End WrappersForCancellationLemmas.
+
 Module Exports.
 Canonical equate.
 Canonical start.
 
 Section Exports.
-Variables (K : ordType) (T : Type) (U : union_map_class K T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
 Implicit Types (j : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
@@ -625,53 +610,31 @@ Proof. by case: g f1; case=>pivot H [f1][<- Sc A] /(H A); apply. Qed.
 
 End Exports.
 
-Arguments validX [K T U m j ts1 f1 g] _.
+Arguments validX [K C T U m j ts1 f1 g] _.
 
 Example ex0 (x y z : nat) (v1 v2 : nat) h:
           valid (Unit \+ y \\-> v1 \+ h \+ x \\-> v1) ->
           valid (x \\-> v2 \+ Unit).
 Proof. apply: validX. Abort.
 
+(* Automated versions of joinKx(xK), cancPL(PR) lemmas *)
+Notation joinKX V E := (joinKx' E (validX V)).
+Notation joinXK V E := (joinxK' E (validX V)).
+Notation cancPLX pf V H1 H2 E := (cancPL' pf E H1 H2 (validX V)).
+Notation cancPRX pf V H1 H2 E := (cancPR' pf E H1 H2 (validX V)).
+
 End Exports.
 End ValidX.
 
 Export ValidX.Exports.
 
-(****************************)
-(* Automating domeqO/domeqX *)
-(****************************)
-
-(* naive lemma first *)
-
-Section DomeqO.
-Variables (K : ordType) (T : Type) (U : union_map_class K T).
-Implicit Types (j : ctx U) (ts : seq (term T)).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
-
-Lemma domeqO j k rs1 rs2 ts1 ts2
-         (f1 : form (empx U) j ts1) (f2 : form j k ts2) :
-         subtract ts1 ts2 [::] = (rs1, rs2) ->
-         dom_eq (pprint k (rev rs1)) (pprint k rs2) ->
-         dom_eq (untag f1) (untag f2).
-Proof.
-case: f1 f2=>f1 [<- _ A1][f2][<- S A2].
-case/(subtract_sound (sc_wf S A1) A2)=>// ys [/= D1 D2].
-rewrite unitR in D1; rewrite (sc_interp S A1).
-rewrite !pp_interp interp_rev => D; apply: domeq_trans D1 _.
-rewrite domeq_sym; apply: domeq_trans D2 _.
-by rewrite domeq_sym; apply: domeqUn.
-Qed.
-
-End DomeqO.
-
-Example ex0 (x y z : nat) (v1 v2 : nat) h:
-          dom_eq (Unit \+ y \\-> v1 \+ h \+ x \\-> v1) (x \\-> v2 \+ Unit).
-Proof. apply: domeqO=>//=. Abort.
+(*********************)
+(* Automating domeqX *)
+(*********************)
 
 Module DomeqX.
 Section DomeqX.
-Variables (K : ordType) (T : Type) (U : union_map_class K T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
 Implicit Types (j : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
@@ -710,7 +673,7 @@ Canonical equate.
 Canonical start.
 
 Section Exports.
-Variables (K : ordType) (T : Type) (U : union_map_class K T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
 Implicit Types (j : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
@@ -728,7 +691,7 @@ Qed.
 
 End Exports.
 
-Arguments domeqX [K T U m j k rs1 rs2 ts1 f1 g] _.
+Arguments domeqX [K C T U m j k rs1 rs2 ts1 f1 g] _.
 
 Example ex0 (x y z : nat) (v1 v2 : nat) h:
           dom_eq (Unit \+ y \\-> v1 \+ h \+ x \\-> v1) (x \\-> v2 \+ Unit).
@@ -740,37 +703,13 @@ End DomeqX.
 Export DomeqX.Exports.
 
 
-(********************************)
-(* Automating invalidO/invalidX *)
-(********************************)
-
-(* naive lemma first *)
-
-Section InvalidO.
-Variables (K : ordType) (T : Type) (U : union_map_class K T).
-Implicit Types (i : ctx U) (ts : seq (term T)).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
-
-Lemma undefO i ts (f : form (empx U) i ts) :
-        isundef i ts -> untag f = um_undef.
-Proof. by case: f=>f [<- _ A] /(isundef_sound A)/invalidE. Qed.
-
-Lemma invalidO i ts (f : form (empx U) i ts) :
-        isundef i ts -> valid (untag f) = false.
-Proof. by move/undefO=>->; rewrite valid_undef. Qed.
-
-End InvalidO.
-
-Example ex0 (x y z : nat) (v1 v2 : nat) h:
-          (Unit \+ y \\-> v1 \+ h \+ y \\-> v1) = um_undef.
-Proof. by apply: undefO. Abort.
-
-(* now the sophisticated one *)
+(***********************)
+(* Automating invalidX *)
+(***********************)
 
 Module InvalidX.
 Section InvalidX.
-Variables (K : ordType) (T : Type) (U : union_map_class K T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
 Implicit Types (i : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
@@ -801,14 +740,14 @@ Canonical equate.
 Canonical start.
 
 Section Exports.
-Variables (K : ordType) (T : Type) (U : union_map_class K T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
 Implicit Types (i : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
 
 (* the main lemmas *)
 
-Lemma undefX m i ts (g : rform i ts m true) : unpack (pivot g) = um_undef.
+Lemma undefX m i ts (g : rform i ts m true) : unpack (pivot g) = undef.
 Proof. by case: g; case=>pivot /= /(_ (erefl _))/negbT/invalidE. Qed.
 
 Lemma invalidX m i ts (g : rform i ts m true) :
@@ -817,7 +756,7 @@ Proof. by rewrite undefX valid_undef. Qed.
 
 End Exports.
 
-Arguments invalidX {K T U m i ts g}.
+Arguments invalidX {K C T U m i ts g}.
 
 Example ex0 (x y z : nat) (v1 v2 : nat) h:
           valid (Unit \+ y \\-> v1 \+ h \+ y \\-> v1).
@@ -827,8 +766,3 @@ End Exports.
 End InvalidX.
 
 Export InvalidX.Exports.
-
-
-
-
-
