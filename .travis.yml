@@ -9,7 +9,7 @@ env:
   - NJOBS="2"
   - CONTRIB_NAME="demo"
   matrix:
-  - COQ_IMAGE="mathcomp/mathcomp:1.11.0-coq-8.11"
+  - COQ_IMAGE="mathcomp/mathcomp:1.10.0-coq-8.11"
   - COQ_IMAGE="mathcomp/mathcomp:1.11.0-coq-8.12"
   - COQ_IMAGE="coqorg/coq:dev"
   # "default" switch: $COMPILER
