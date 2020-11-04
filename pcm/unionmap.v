@@ -3570,7 +3570,7 @@ Implicit Type p q : pred K.
 
 Lemma dom_umfiltk_filter p f : dom (um_filterk p f) = filter p (dom f).
 Proof.
-apply: (eq_sorted_irr (leT:=ord)).
+apply: (@eq_sorted_irr _ ord).
 - by apply: trans.
 - by apply: irr.
 - by apply: sorted_dom.
