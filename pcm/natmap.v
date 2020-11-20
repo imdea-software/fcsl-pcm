@@ -2052,7 +2052,7 @@ case: eqP=>E.
 - congr cons; rewrite /seq_le -{4}(filter_predT ks).
   apply: eq_in_filter=>x Kx.
   by rewrite E -/(seq_le _ _ _) oleL orbC; case: eqP Kx H2=>// ->->.
-rewrite -IH ?H2 ?H4 //; apply: eq_in_filter=>x Kx.
+rewrite -[RHS]IH ?H2 ?H4 //; apply: eq_in_filter=>x Kx.
 apply/idP/idP.
 - by apply: ole_consL; case: eqP E.
 by apply: ole_consR; case: eqP Kx H3=>// ->->.
