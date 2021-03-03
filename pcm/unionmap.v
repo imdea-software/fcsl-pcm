@@ -2938,7 +2938,7 @@ split=>[H|[w1][C' V1 H E]].
 - move: (dom_valid (In_dom H)); rewrite omapPtUn W in H *.
   case E: (a (x, w)) H=>[z|] H W1; last first.
   - by case/IH: H=>w1 []; exists w1; split=>//; apply/InR.
-  revert H;rewrite InPtUnE //.
+  move: H; rewrite InPtUnE //.
   case; first by case=>->->; exists w; rewrite (validPtUn_cond W1).
   by case/IH=>w1 []; exists w1; split=>//; apply/InR.
 rewrite omapPtUn W in V1 *; move/(InPtUnE _ W): H=>H.
