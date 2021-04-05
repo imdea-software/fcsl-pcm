@@ -82,6 +82,12 @@ Definition oleq (T : ordType) (t1 t2 : T) := ord t1 t2 || (t1 == t2).
 
 Prenex Implicits ord oleq.
 
+(* Remove when dropping the compatibility with MathComp 1.11.0: *)
+Local Lemma irr_sorted_eq (T : eqType) (leT : rel T) :
+  transitive leT -> irreflexive leT ->
+  forall s1 s2 : seq T, sorted leT s1 -> sorted leT s2 -> s1 =i s2 -> s1 = s2.
+Proof. by [exact: irr_sorted_eq | exact: eq_sorted_irr]. Qed.
+
 Section Lemmas.
 Variable T : ordType.
 Implicit Types x y : T.
@@ -131,9 +137,9 @@ Lemma path_filter (r : rel T) (tr : transitive r) s (p : pred T) x :
         path r x s -> path r x (filter p s).
 Proof. exact: (subseq_order_path tr (filter_subseq p s)). Qed.
 
-Lemma eq_sorted_ord (s1 s2 : seq T) :
+Lemma ord_sorted_eq (s1 s2 : seq T) :
         sorted ord s1 -> sorted ord s2 -> s1 =i s2 -> s1 = s2.
-Proof. by apply: eq_sorted_irr; [apply: trans | apply: irr]. Qed.
+Proof. exact/irr_sorted_eq/irr/trans. Qed.
 
 End Lemmas.
 
@@ -442,7 +448,7 @@ Lemma sorted_subset_subseq (A : eqType) (s1 s2 : seq A) leT :
 Proof.
 move=>R T S1 S2 H.
 suff -> : s1 = filter (fun x => x \in s1) s2 by apply: filter_subseq.
-apply: eq_sorted_irr S1 _ _=>//; first by rewrite sorted_filter.
+apply: irr_sorted_eq S1 _ _=>//; first by rewrite sorted_filter.
 by move=>k; rewrite mem_filter; case S : (_ \in _)=>//; rewrite (H _ S).
 Qed.
 
@@ -566,3 +572,6 @@ rewrite (path_min_sorted P); apply: IH=>[|a b Xa Xb N]; first by case/andP: U.
 apply: H; rewrite ?(inE,Xa,Xb,orbT) //.
 by case: eqP U=>[->|]; case: eqP=>[->|]; rewrite ?(Xa,Xb).
 Qed.
+
+#[deprecated(note="Use ord_sorted_eq instead.")]
+Notation eq_sorted_ord := ord_sorted_eq (only parsing).

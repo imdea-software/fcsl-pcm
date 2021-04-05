@@ -844,11 +844,7 @@ Prenex Implicits find_some find_none.
 Lemma domE K C V1 V2 (U1 : @union_map_class K C V1) (U2 : @union_map_class K C V2)
            (f1 : U1) (f2 : U2) :
         dom f1 =i dom f2 <-> dom f1 = dom f2.
-Proof.
-split=>[|->] //.
-apply: (@eq_sorted_irr _ ord);
-by [apply: trans|apply: irr|apply: sorted_dom|apply: sorted_dom].
-Qed.
+Proof. by split=>[|->] //; apply/ord_sorted_eq/sorted_dom/sorted_dom. Qed.
 
 (*********)
 (* valid *)
@@ -1792,7 +1788,7 @@ Lemma domPtUnK k v f :
         all (ord k) (dom f) ->
         dom (pts k v \+ f) = k :: dom f.
 Proof.
-move=>W H; apply: (@eq_sorted_irr K ord) =>//=.
+move=>W H; apply: ord_sorted_eq => //=.
 - by rewrite path_min_sorted //; apply: sorted_dom.
 by move=>x; rewrite domPtUn !inE W eq_sym.
 Qed.
@@ -1802,7 +1798,7 @@ Lemma domUnPtK k v f :
         all (ord^~k) (dom f) ->
         dom (f \+ pts k v) = rcons (dom f) k.
 Proof.
-move=>W H; apply: (@eq_sorted_irr K ord)=>//=.
+move=>W H; apply: ord_sorted_eq => //=.
 - rewrite -(rev_sorted (fun x=>ord^~x)) rev_rcons /=.
   by rewrite path_min_sorted ?rev_sorted // all_rev.
 by move=>x; rewrite domUnPt inE W mem_rcons inE eq_sym.
@@ -3359,7 +3355,7 @@ Lemma dom_umfiltE p f :
         filter (fun k => if find k f is Some v then p (k, v) else false)
                (dom f).
 Proof.
-apply: (@eq_sorted_irr _ ord); [apply: trans|apply: irr|apply: sorted_dom| | ].
+apply: ord_sorted_eq => //=.
 - by apply: sorted_filter; [apply: trans | apply: sorted_dom].
 move=>k; rewrite mem_filter; apply/idP/idP.
 - by case/dom_umfilt=>w [H1 H2]; move/In_find: H2 (H2) H1=>-> /In_dom ->->.
@@ -3570,10 +3566,7 @@ Implicit Type p q : pred K.
 
 Lemma dom_umfiltk_filter p f : dom (um_filterk p f) = filter p (dom f).
 Proof.
-apply: (@eq_sorted_irr _ ord).
-- by apply: trans.
-- by apply: irr.
-- by apply: sorted_dom.
+apply: ord_sorted_eq => //=.
 - by apply: sorted_filter; [apply: trans | apply: sorted_dom].
 move=>k; rewrite mem_filter; apply/idP/idP.
 - by case/dom_umfilt=>v [/= -> /In_dom].
