@@ -573,5 +573,5 @@ apply: H; rewrite ?(inE,Xa,Xb,orbT) //.
 by case: eqP U=>[->|]; case: eqP=>[->|]; rewrite ?(Xa,Xb).
 Qed.
 
-#[deprecated(note="Use ord_sorted_eq instead.")]
+#[deprecated(since="fcsl-pcm 1.4.0", note="Use ord_sorted_eq instead.")]
 Notation eq_sorted_ord := ord_sorted_eq (only parsing).
