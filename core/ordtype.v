@@ -47,17 +47,18 @@ Local Coercion base : class_of >-> Equality.class_of.
 Polymorphic Cumulative Structure type : Type := Pack {sort : Type; _ : class_of sort}.
 Local Coercion sort : type >-> Sortclass.
 
-Variables (T : Type) (cT : type).
-Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
-Definition clone c of phant_id class c := @Pack T c.
+Polymorphic Universe om.
+Polymorphic Variables (T : Type@{om}) (cT : type@{om}).
+Polymorphic Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
+Polymorphic Definition clone c of phant_id class c := @Pack T c.
 
 (* produce an ordered type out of the inherited mixins *)
 (* equalize m0 and m by means of a phantom; will be exploited *)
 (* further down in the definition of OrdType *)
-Definition pack b (m0 : mixin_of (EqType T b)) :=
+Polymorphic Definition pack b (m0 : mixin_of (EqType T b)) :=
   fun m & phant_id m0 m => Pack (@Class T b m).
 
-Definition eqType := Eval hnf in EqType cT class.
+Polymorphic Definition eqType := Eval hnf in EqType cT class.
 
 End ClassDef.
 
