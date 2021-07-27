@@ -44,7 +44,7 @@ Record class_of (T : Type) := Class {
 
 Local Coercion base : class_of >-> Equality.class_of.
 
-Structure type : Type := Pack {sort : Type; _ : class_of sort}.
+Polymorphic Cumulative Structure type : Type := Pack {sort : Type; _ : class_of sort}.
 Local Coercion sort : type >-> Sortclass.
 
 Variables (T : Type) (cT : type).
