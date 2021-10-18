@@ -292,7 +292,7 @@ Hint Resolve EqPredType_refl SubPredType_refl : core.
 (* to reprove the lemmas on refl, sym and trans.                          *)
 
 Add Parametric Relation T (pT : PredType T) : pT (@EqPredType _ pT)
-   reflexivity proved by (@EqPredType_refl _ _)
+  reflexivity proved by (@EqPredType_refl _ _)
   symmetry proved by (@EqPredType_sym _ _)
   transitivity proved by (@EqPredType_trans' _ _) as EqPredType_rel.
 
