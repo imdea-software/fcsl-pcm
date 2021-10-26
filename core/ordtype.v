@@ -44,11 +44,14 @@ Record class_of (T : Type) := Class {
 
 Local Coercion base : class_of >-> Equality.class_of.
 
+(* Tthe polymorphism annotations here and below are needed for storing *)
+(* ordType instances in finMaps which have an ordType constraint of *)
+(* their own. An example of this is KVMap from HTT. *)
 Polymorphic Cumulative Structure type : Type := Pack {sort : Type; _ : class_of sort}.
 Local Coercion sort : type >-> Sortclass.
 
-Polymorphic Universe om.
-Polymorphic Variables (T : Type@{om}) (cT : type@{om}).
+Polymorphic Universe ou.
+Polymorphic Variables (T : Type@{ou}) (cT : type@{ou}).
 Polymorphic Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
 Polymorphic Definition clone c of phant_id class c := @Pack T c.
 
