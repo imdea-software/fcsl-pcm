@@ -99,10 +99,10 @@ Proof. by move=>H; rewrite -filter_map sorted_filter //; apply: trans. Qed.
 
 Definition rem k s := let: FinMap s' p' := s in FinMap (sorted_filter' k p').
 
-Lemma sorted_beh s : sorted ord (map key s) -> sorted ord (map key (behead s)).
+Lemma sorted_behd s : sorted ord (map key s) -> sorted ord (map key (behead s)).
 Proof. by case: s=>//= [[??]] ?; apply: path_sorted. Qed.
 
-Definition behd s := let: FinMap s' p' := s in FinMap (sorted_beh p').
+Definition behd s := let: FinMap s' p' := s in FinMap (sorted_behd p').
 
 Definition supp s := map key (seq_of s).
 
