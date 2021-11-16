@@ -24,10 +24,10 @@ opam install coq-fcsl-pcm
 ## Getting help
 
 If you need assistance or would like to report a bug, drop us an email:
-<fcsl@software.imdea.org>
-or open an [issue](https://github.com/imdea-software/fcsl-pcm/issues).
+<fcsl@software.imdea.org> or open an [issue](https://github.com/imdea-software/fcsl-pcm/issues).
 
-## More Information
+## History and context
 
 More information can be obtained via the [FCSL web page](https://software.imdea.org/fcsl/).
-An earlier version of this library was developed as part of [Hoare type theory](https://software.imdea.org/~aleks/htt/).
+
+An earlier version of this library was developed as a part of [Hoare type theory](https://github.com/imdea-software/htt), which is now rebased on FCSL-PCM. The original version of HTT can be found [here](https://software.imdea.org/~aleks/htt/).
