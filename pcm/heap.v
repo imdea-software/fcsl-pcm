@@ -19,8 +19,8 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun Eqdep.
 From mathcomp Require Import ssrnat eqtype seq path.
-From fcsl Require Import axioms pcm finmap unionmap.
-From fcsl Require Import options.
+From fcsl Require Import options axioms finmap.
+From fcsl Require Import pcm unionmap.
 
 (*************)
 (* Locations *)
@@ -384,6 +384,7 @@ Proof. by rewrite -lt0n addn1. Qed.
 
 Opaque fresh.
 
+#[export]
 Hint Resolve dom_fresh fresh_null : core.
 
 (********)

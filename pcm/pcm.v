@@ -110,7 +110,8 @@ Proof. by rewrite joinA (joinC x) -joinA. Qed.
 
 Lemma validL (x y : U) : valid (x \+ y) -> valid x.
 Proof.
-by rewrite /valid/join; case: U x y=>tp [v j z Cj Aj Uj /= Mj inv f ?]; apply: Mj.
+rewrite /valid/join.
+by case: U x y=>tp [v j z Cj Aj Uj /= Mj inv f ?]; apply: Mj.
 Qed.
 
 Lemma validR (x y : U) : valid (x \+ y) -> valid y.
@@ -122,7 +123,8 @@ Proof. by move=>X; rewrite (validL X) (validR X) X joinC X. Qed.
 
 Lemma unitL (x : U) : Unit \+ x = x.
 Proof.
-by rewrite /Unit/join; case: U x=>tp [v j z Cj Aj Uj *]; apply: Uj.
+rewrite /Unit/join.
+by case: U x=>tp [v j z Cj Aj Uj *]; apply: Uj.
 Qed.
 
 Lemma unitR (x : U) : x \+ Unit = x.
@@ -130,7 +132,8 @@ Proof. by rewrite joinC unitL. Qed.
 
 Lemma valid_unit : valid (@Unit U).
 Proof.
-by rewrite /valid/Unit; case: U=>tp [v j z Cj Aj Uj Vm Vu *].
+rewrite /valid/Unit.
+by case: U=>tp [v j z Cj Aj Uj Vm Vu *].
 Qed.
 
 (* some helper lemmas for easier extraction of validity claims *)
@@ -181,6 +184,7 @@ Proof. by rewrite {1}joinA; apply: validLE3. Qed.
 
 End Laws.
 
+#[export]
 Hint Resolve valid_unit : core.
 
 Section UnfoldingRules.
@@ -349,6 +353,8 @@ Notation tpcm := type.
 Notation TPCMMixin := Mixin.
 Notation TPCM T m := (@pack T _ _ m id).
 
+Notation "[ 'tpcmMixin' 'of' T ]" := (mixin (class (@clone T _ _ id)))
+  (at level 0, format "[ 'tpcmMixin'  'of'  T ]") : pcm_scope.
 Notation "[ 'tpcm' 'of' T 'for' cT ]" := (@clone T cT _ idfun)
   (at level 0, format "[ 'tpcm'  'of'  T  'for' cT ]") : pcm_scope.
 Notation "[ 'tpcm' 'of' T ]" := (@clone T _ _ id)
@@ -738,6 +744,7 @@ Proof. by rewrite !(joinC x); apply: pleq_joinxK. Qed.
 
 End PleqLemmas.
 
+#[export]
 Hint Resolve pleq_unit pleq_refl pleq_joinr pleq_joinl : core.
 Prenex Implicits pleq_refl.
 

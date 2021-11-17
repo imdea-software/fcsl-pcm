@@ -18,12 +18,15 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype.
-From fcsl Require Import axioms prelude pcm morphism.
-From fcsl Require Import options.
+From fcsl Require Import options axioms prelude.
+From fcsl Require Import pcm morphism.
 
 Section Invertible.
   Variables (U V : pcm) (D : rel U).
 
+(* in the POPL21 paper, we use the following notation
+   x D y D z =def= x D y /\ (x \+ y) D z
+*)
 Definition inv_rel :=
   forall a1 a2 a',
     valid (a1 \+ a2 \+ a') ->

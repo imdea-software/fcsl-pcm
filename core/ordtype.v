@@ -44,7 +44,7 @@ Record class_of (T : Type) := Class {
 
 Local Coercion base : class_of >-> Equality.class_of.
 
-(* Tthe polymorphism annotations here and below are needed for storing *)
+(* The polymorphism annotations here and below are needed for storing *)
 (* ordType instances in finMaps which have an ordType constraint of *)
 (* their own. An example of this is KVMap from HTT. *)
 Polymorphic Cumulative Structure type : Type := Pack {sort : Type; _ : class_of sort}.
@@ -139,15 +139,24 @@ Proof. by case: s=>//= x s; apply/sub_path/subrel_ord. Qed.
 
 Lemma path_filter (r : rel T) (tr : transitive r) s (p : pred T) x :
         path r x s -> path r x (filter p s).
-Proof. exact: (subseq_order_path tr (filter_subseq p s)). Qed.
+Proof. exact: (subseq_path tr (filter_subseq p s)). Qed.
 
 Lemma ord_sorted_eq (s1 s2 : seq T) :
         sorted ord s1 -> sorted ord s2 -> s1 =i s2 -> s1 = s2.
-Proof. exact/irr_sorted_eq/irr/trans. Qed.
+Proof. by exact/irr_sorted_eq/irr/trans. Qed.
+
+Lemma oleq_ord_trans (n m p : T) :
+        oleq m n -> ord n p -> ord m p.
+Proof. by case/orP; [apply: trans | move/eqP=>->]. Qed.
+
+Lemma ord_oleq_trans (n m p : T) :
+        ord m n -> oleq n p -> ord m p.
+Proof. by move=>H /orP [|/eqP <- //]; apply: trans. Qed.
 
 End Lemmas.
 
-Hint Resolve orefl irr trans otrans oantisym : core.
+#[export]
+Hint Resolve orefl irr trans otrans oantisym oleq_ord_trans : core.
 
 Section Totality.
 Variable K : ordType.
@@ -437,6 +446,14 @@ rewrite inE; case/orP=>[/eqP -> //|].
 by apply: IH; apply: ord_path O P.
 Qed.
 
+Lemma path_mem_irr (A : eqType) (s : seq A) leT x :
+        irreflexive leT -> transitive leT ->
+        path leT x s -> x \notin s.
+Proof.
+move=>I T P; apply: contraFT (I x).
+by rewrite negbK; apply: path_mem T P.
+Qed.
+
 Lemma sorted_rcons (A : eqType) (s : seq A) leT (y : A) :
         sorted leT s -> (forall x, x \in s -> leT x y) ->
         sorted leT (rcons s y).
@@ -467,14 +484,134 @@ case: eqP H P=>[<-{z} H|_ H]; last first.
 by move/(path_mem T)/(_ X)=>/(T _ _ _ H); rewrite I.
 Qed.
 
-Lemma sorted_index_ord (A : eqType) (s : seq A) leT x y :
-        irreflexive leT -> transitive leT ->
-        sorted leT s -> y \in s -> index x s < index y s -> leT x y.
+Lemma path_ord_index_leq (A : eqType) (s : seq A) leT x y :
+        transitive leT -> antisymmetric leT ->
+        leT x y -> path leT y s -> x \in s -> x = y.
 Proof.
-move=>I T; elim: s=>[|z s IH] //= P; rewrite !inE !(eq_sym z).
+move=>T; elim: s x y=>[|a l IH] //= x y As Lxy.
+case/andP=>Lya Pal; rewrite inE.
+case: eqP Lya Pal As=>[<-{a} Lyx _ As _|Nxa Lya Pal /= As' X].
+- by apply: As=>//; rewrite Lxy Lyx.
+by move/Nxa: (IH x a As' (T _ _ _ Lxy Lya) Pal X).
+Qed.
+
+Lemma sorted_ord_index_leq (A : eqType) (s : seq A) leT x y :
+        transitive leT -> antisymmetric leT ->
+        sorted leT s ->
+        x \in s -> leT x y -> x != y -> index x s < index y s.
+Proof.
+move=>T As S P H N; elim: s S As P=>[|z s IH] //= P As; rewrite inE !(eq_sym z).
+case: eqP H P As=>[<-{z} H P As _|Nxz H P As /= X]; first by rewrite eq_sym (negbTE N).
+case: eqP Nxz P=>[<-{z} Nxy P|Nyz Nxz P].
+- by move/Nxy: (path_ord_index_leq T As H P X).
+by apply: IH X=>//; apply: path_sorted P.
+Qed.
+
+Lemma sorted_index_ord (A : eqType) (s : seq A) leT x y :
+        transitive leT -> sorted leT s -> y \in s ->
+        index x s < index y s -> leT x y.
+Proof.
+move=>T; elim: s=>[|z s IH] //= P; rewrite inE !(eq_sym z).
 case: eqP=>//= /eqP N; case: eqP P=>[-> P /(path_mem T P)|_ P] //.
 by rewrite ltnS; apply: IH; apply: path_sorted P.
 Qed.
+
+(* sorted, uniq, filter *)
+
+Lemma lt_sorted_uniq_le (A : eqType) (s : seq A) ltT :
+        irreflexive ltT ->
+        antisymmetric ltT ->
+        transitive ltT ->
+        sorted ltT s = uniq s && (sorted (fun k t => (k == t) || ltT k t) s).
+Proof.
+move=>I As T; case: s=>// n s; elim: s n=>//= m s IHs n.
+rewrite inE negb_or IHs -!andbA /=.
+case: (n =P m)=>[->|/eqP Nm /=]; first by rewrite I.
+case lTnm : (ltT n m)=>/=; last by rewrite !andbF.
+case Ns: (n \in s)=>//=; do !bool_congr.
+have T' : transitive (fun k t => (k == t) || ltT k t).
+- move=>x y z /orP [/eqP -> //|H].
+  case/orP=>[/eqP <-|]; first by rewrite H orbT.
+  by move/(T _ _ _ H)=>->; rewrite orbT.
+apply/negP=>/(order_path_min T')/allP/(_ n Ns).
+rewrite eq_sym (negbTE Nm) /= =>lTmn.
+by rewrite (As m n) ?eq_refl // lTnm lTmn in Nm.
+Qed.
+
+Lemma sort_sorted_in_lt (A : eqType) (s : seq A) ltT :
+        irreflexive ltT ->
+        antisymmetric ltT ->
+        transitive ltT ->
+        uniq s ->
+        {in s &, total (fun k t => (k == t) || ltT k t)} ->
+        sorted ltT (sort (fun k t => (k == t) || ltT k t) s).
+Proof.
+move=>I S T U Tot; rewrite lt_sorted_uniq_le //.
+by rewrite sort_uniq U (sort_sorted_in Tot _).
+Qed.
+
+(* filtering and consecutive elements in an order *)
+Lemma filterCN (A : eqType) (ltT : rel A) f t1 t2 :
+       t1 \notin f ->
+       {in f, forall z, ltT z t2 = (z == t1) || ltT z t1} ->
+       filter (ltT^~ t2) f = filter (ltT^~ t1) f.
+Proof.
+move=>N C; apply: eq_in_filter=>x T; rewrite C ?inE ?orbT //.
+by case: eqP N T=>// -> /negbTE ->.
+Qed.
+
+Lemma filterCE (A : eqType) (ltT : rel A) f t1 t2 :
+        irreflexive ltT ->
+        transitive ltT ->
+        sorted ltT f ->
+        {in f, forall z, ltT z t2 = (z == t1) || ltT z t1} ->
+        t1 \in f ->
+        filter (ltT^~ t2) f = filter (ltT^~ t1) f ++ [:: t1].
+Proof.
+move=>I T S Z F; have U : uniq f by apply: sorted_uniq T I _ S.
+rewrite -(filter_pred1_uniq U F); apply: irr_sorted_eq (T) I _ _ _ _ _.
+- by apply: sorted_filter T _ _ S.
+- rewrite -[filter (ltT^~ t1) _]revK -[filter (pred1 t1) _]revK -rev_cat.
+  rewrite rev_sorted -filter_rev filter_pred1_uniq ?(mem_rev,rev_uniq) //.
+  rewrite /= path_min_sorted ?(rev_sorted, sorted_filter T _ S) //.
+  by apply/allP=>x; rewrite mem_rev mem_filter=>/andP [].
+move=>x; rewrite mem_cat !mem_filter /=.
+case X: (x \in f); last by rewrite !andbF.
+by rewrite Z // orbC !andbT.
+Qed.
+
+(* frequently we have nested filtering and sorting *)
+(* for which the following forms of the lemmas is more effective *)
+
+Lemma filter2CN (A : eqType) (ltT : rel A) p f t1 t2 :
+       t1 \notin p ->
+       {in p, forall z, ltT z t2 = (z == t1) || ltT z t1} ->
+       filter (ltT^~ t2) (filter p f) = filter (ltT^~ t1) (filter p f).
+Proof.
+move=>N C; apply: filterCN; first by rewrite mem_filter negb_and N.
+by move=>z; rewrite mem_filter=>/andP [D _]; apply: C.
+Qed.
+
+Lemma filter2CE (A : eqType) (ltT : rel A) (p : pred A) f t1 t2 :
+       irreflexive ltT ->
+       antisymmetric ltT ->
+       transitive ltT ->
+       {in f &, total (fun k t => (k == t) || ltT k t)} ->
+       {in p, forall z, ltT z t2 = (z == t1) || ltT z t1} ->
+       uniq f ->
+       p t1 -> t1 \in f ->
+       filter (ltT^~ t2)
+         (filter p (sort (fun k t => (k == t) || ltT k t) f)) =
+       filter (ltT^~ t1)
+         (filter p (sort (fun k t => (k == t) || ltT k t) f)) ++ [:: t1].
+Proof.
+move=>I Asym T Tot Z U P F; apply: filterCE (I) (T) _ _ _.
+- by rewrite (sorted_filter T _ _) //; apply: sort_sorted_in_lt.
+- by move=>z; rewrite mem_filter=>/andP [Pz _]; apply: Z.
+by rewrite mem_filter mem_sort P F.
+Qed.
+
+(* nth *)
 
 Lemma nth_cons A (a x : A) (s : seq A) (n : nat) :
         nth a (x :: s) n = if n == 0 then x else nth a s n.-1.
@@ -575,6 +712,98 @@ elim: s=>[|x xs IH] //= U H; have P : all (leT x) xs.
 rewrite (path_min_sorted P); apply: IH=>[|a b Xa Xb N]; first by case/andP: U.
 apply: H; rewrite ?(inE,Xa,Xb,orbT) //.
 by case: eqP U=>[->|]; case: eqP=>[->|]; rewrite ?(Xa,Xb).
+Qed.
+
+(* index and masking and mapping *)
+
+Lemma index_sizeE (A : eqType) (s : seq A) x :
+        reflect (index x s = size s) (x \notin s).
+Proof.
+by rewrite -index_mem ltn_neqAle negb_and negbK index_size orbF; apply: eqP.
+Qed.
+
+Lemma index_mask (A : eqType) (s : seq A) m a b  :
+         uniq s ->
+         a \in mask m s -> b \in mask m s ->
+         index a (mask m s) < index b (mask m s) <->
+         index a s < index b s.
+Proof.
+elim: m s=>[|x m IH][|k s] //= /andP [K U]; case: x=>[|Ma Mb] /=.
+- rewrite !inE; case/orP=>[/eqP <-|Ma].
+  - by case/orP=>[/eqP ->|]; rewrite eq_refl //; case: eqP.
+  case/orP=>[/eqP ->|Mb]; first by rewrite eq_refl.
+  by case: eqP; case: eqP=>//; rewrite ltnS IH.
+case: eqP Ma K=>[-> /mem_mask -> //|Ka].
+case: eqP Mb=>[-> /mem_mask -> //|Kb Mb Ma].
+by rewrite ltnS IH.
+Qed.
+
+Lemma index_subseq (A : eqType) (s1 s2 : seq A) a b :
+         subseq s1 s2 -> uniq s2 -> a \in s1 -> b \in s1 ->
+         index a s1 < index b s1 <-> index a s2 < index b s2.
+Proof. by case/subseqP=>m _ ->; apply: index_mask. Qed.
+
+Lemma index_pmap_inj (A B : eqType) (s : seq A) (f : A -> option B) a1 a2 b1 b2 :
+        injective f -> f a1 = Some b1 -> f a2 = Some b2 ->
+        index b1 (pmap f s) < index b2 (pmap f s) <-> index a1 s < index a2 s.
+Proof.
+move=>Inj E1 E2; elim: s=>[|k s IH] //=; rewrite /oapp.
+case: eqP=>[->{k}|].
+- rewrite E1 /= eq_refl.
+  case: (a1 =P a2) E1 E2=>[-> -> [/eqP ->] //|].
+  by case: (b1 =P b2)=>[-> Na <- /Inj /esym/Na|].
+case: eqP=>[->{k} Na|N2 N1]; first by rewrite E2 /= eq_refl !ltn0.
+case E : (f k)=>[b|] //=.
+case: eqP E1 E=>[-><- /Inj/N1 //|_ _].
+by case: eqP E2=>[-><- /Inj/N2 //|_ _ _]; rewrite IH.
+Qed.
+
+Lemma index_pmap_inj_mem (A B : eqType) (s : seq A) (f : A -> option B) a1 a2 b1 b2 :
+        {in s &, injective f} ->
+        a1 \in s -> a2 \in s ->
+        f a1 = Some b1 -> f a2 = Some b2 ->
+        index b1 (pmap f s) < index b2 (pmap f s) <-> index a1 s < index a2 s.
+Proof.
+move=>Inj A1 A2 E1 E2.
+elim: s Inj A1 A2=>[|k s IH] //= Inj; rewrite /oapp !inE !(eq_sym k).
+case: eqP Inj=>[<-{k} /= Inj _|].
+- rewrite E1 /= !eq_refl eq_sym.
+  case: eqP E1 E2=>[->-> [->]|]; first by rewrite eq_refl.
+  case: eqP=>[-> Na <- E /= A2|//].
+  by move/Inj: E Na=>-> //; rewrite inE ?(eq_refl,A2,orbT).
+case eqP=>[<-{k} Na Inj /= A1 _|]; first by rewrite E2 /= eq_refl !ltn0.
+move=>N2 N1 Inj /= A1 A2.
+have Inj1 : {in s &, injective f}.
+- by move=>x y X Y; apply: Inj; rewrite inE ?X ?Y ?orbT.
+case E : (f k)=>[b|] /=; last by rewrite IH.
+case: eqP E1 E=>[-> <- E|_ _].
+- by move/Inj: E N1=>-> //; rewrite inE ?(eq_refl,A1,orbT).
+case: eqP E2=>[-><- E|_ _ _]; last by rewrite IH.
+by move/Inj: E N2=>-> //; rewrite inE ?(eq_refl,A2,orbT).
+Qed.
+
+(* we can relax the previous lemma a bit *)
+(* the relaxation will be more commonly used than the previous lemma *)
+(* because the option type gives us the implication that the second *)
+(* element is in the map *)
+Lemma index_pmap_inj_in (A B : eqType) (s : seq A) (f : A -> option B) a1 a2 b1 b2 :
+        {in s & predT, injective f} ->
+        f a1 = Some b1 -> f a2 = Some b2 ->
+        index b1 (pmap f s) < index b2 (pmap f s) <-> index a1 s < index a2 s.
+Proof.
+move=>Inj E1 E2.
+case A1 : (a1 \in s); last first.
+- move/negbT/index_sizeE: (A1)=>->.
+  suff /index_sizeE -> : b1 \notin pmap f s by rewrite !ltnNge !index_size.
+  rewrite mem_pmap; apply/mapP; case=>x X /esym; rewrite -E1=>E.
+  by move/(Inj _ _ X): E A1=><- //; rewrite X.
+case A2 : (a2 \in s).
+- by apply: index_pmap_inj_mem=>// x y X _; apply: Inj.
+move/negbT/index_sizeE: (A2)=>->.
+suff /index_sizeE -> : b2 \notin pmap f s.
+- by rewrite !index_mem /= A1 mem_pmap; split=>// _; apply/mapP; exists a1.
+rewrite mem_pmap; apply/mapP; case=>x X /esym; rewrite -E2=>E.
+by move/(Inj _ _ X): E A2=><- //; rewrite X.
 Qed.
 
 #[deprecated(since="fcsl-pcm 1.4.0", note="Use ord_sorted_eq instead.")]

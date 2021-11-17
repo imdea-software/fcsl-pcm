@@ -13,8 +13,8 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq.
-From fcsl Require Import pred pcm unionmap.
-From fcsl Require Import options.
+From fcsl Require Import options pred.
+From fcsl Require Import pcm unionmap natmap.
 
 (**************************************************************************)
 (**************************************************************************)
@@ -88,6 +88,7 @@ Qed.
 
 End Helpers.
 
+#[export]
 Hint Resolve prefix_refl : core.
 
 Lemma onth_mem (A : eqType) (s : seq A) n x : onth s n = Some x -> x \in s.
@@ -766,3 +767,113 @@ End Exports.
 End InvalidX.
 
 Export InvalidX.Exports.
+
+(************************************************)
+(* Pushing an omap-like function inside a union *)
+(************************************************)
+
+Module OmfX.
+Section OmfX.
+
+Inductive syntx (A : Type) :=
+  | UnitOmf
+  | PtOmf of stamp & A
+  | UnOmf of syntx A & syntx A
+  | OtherOmf of natmap A.
+
+Fixpoint omf_interp A B (f : omap_fun (nat_mapUMC A) (nat_mapUMC B)) e : natmap B :=
+  match e with
+    UnitOmf => Unit
+  | PtOmf k v => if map_fun f (k, v) is Some w then pts k w else Unit
+  | UnOmf h1 h2 => omf_interp f h1 \+ omf_interp f h2
+  | OtherOmf h => f h
+  end.
+
+Structure tagged_natmap A := Tag {untag : natmap A}.
+Definition unit_tag := Tag.
+Definition pt_tag := unit_tag.
+Definition union_tag := pt_tag.
+Definition recurse_unguard_tag := union_tag.
+Canonical recurse_guard_tag A f := @recurse_unguard_tag A f.
+
+Definition guard_ax A B ts e (f : omap_fun (nat_mapUMC A) (nat_mapUMC B)) :=
+  untag e = f (omf_interp id_omap_fun ts).
+
+Structure guarded_form A B ts := GForm {
+  gpivot :> tagged_natmap B;
+  guard_of : omap_fun (nat_mapUMC A) (nat_mapUMC B);
+  _ : guard_ax ts gpivot guard_of}.
+
+Definition unguard_ax A (ts : syntx A) e :=
+  untag e = omf_interp id_omap_fun ts.
+
+Structure unguarded_form A (ts : syntx A) := UForm {
+  upivot :> tagged_natmap A;
+  _ : unguard_ax ts upivot}.
+
+(* we first try to see if there's more function guards *)
+Lemma recurse_guard_pf A B C ts (f : omap_fun (nat_mapUMC B) (nat_mapUMC C))
+                       (g : @guarded_form A B ts) :
+        guard_ax ts (recurse_guard_tag (f (untag g)))
+                    (comp_omap_fun (guard_of g) f).
+Proof. by case: g=>e g pf /=; rewrite pf. Qed.
+Canonical recurse_guard A B C ts f g := GForm (@recurse_guard_pf A B C ts f g).
+
+(* if not, we descend to unguarded form to syntactify the underlying expression *)
+Lemma recurse_unguard_pf A ts (u : @unguarded_form A ts) :
+        guard_ax ts (recurse_unguard_tag (untag u)) id_omap_fun.
+Proof. by case: u. Qed.
+Canonical recurse_unguard A ts u := GForm (@recurse_unguard_pf A ts u).
+
+(* syntactifying union recursively descends to both sides *)
+Lemma unguard_union_pf A ts1 ts2 (u1 : @unguarded_form A ts1) (u2 : @unguarded_form A ts2) :
+        unguard_ax (UnOmf ts1 ts2) (union_tag (untag u1 \+ untag u2)).
+Proof. by case: u1 u2=>u1 pf1 [u2 pf2]; rewrite /= pf1 pf2. Qed.
+Canonical unguard_union A ts1 ts2 u1 u2 := UForm (@unguard_union_pf A ts1 ts2 u1 u2).
+
+(* base case for syntactifying points-to *)
+Lemma unguard_pts_pf A k (v : A) : unguard_ax (PtOmf k v) (pt_tag (pts k v)).
+Proof. by []. Qed.
+Canonical unguard_pts A k v := UForm (@unguard_pts_pf A k v).
+
+(* base case for syntactifying empty map Unit *)
+Lemma unguard_unit_pf A : unguard_ax (UnitOmf A) (unit_tag Unit).
+Proof. by []. Qed.
+Canonical unguard_unit A := UForm (@unguard_unit_pf A).
+
+(* base case for syntactifying all other expressions *)
+Lemma unguard_other_pf A (e : natmap A) : unguard_ax (OtherOmf e) (Tag e).
+Proof. by []. Qed.
+Canonical unguard_other A e := UForm (@unguard_other_pf A e).
+
+End OmfX.
+
+Module Exports.
+Canonical recurse_guard_tag.
+Canonical recurse_guard.
+Canonical recurse_unguard.
+Canonical unguard_union.
+Canonical unguard_pts.
+Canonical unguard_unit.
+Canonical unguard_other.
+
+(* main lemma *)
+
+Lemma omfX A B C ts (f : omap_fun (nat_mapUMC B) (nat_mapUMC C))
+                    (g : @guarded_form A B ts) :
+        valid (omf_interp id_omap_fun ts) ->
+        f (untag g) =
+        omf_interp (comp_omap_fun (guard_of g) f) ts.
+Proof.
+case: g=>eq g /=; elim: ts eq=>[|s a|ts1 IH1 ts2 IH2|t] /= eq pf V.
+- by rewrite pf !omf_unit.
+- rewrite validPt in V; rewrite pf omfPt // /obind /oapp /=.
+  by case: (OmapFun.mfunc _ _)=>[x|] //; rewrite ?omfPt ?omf_unit.
+- rewrite pf /= !omfUn //; last by rewrite -omfUn ?valid_omf.
+  by rewrite IH1 ?(validL V) // IH2 ?(validR V).
+by rewrite pf.
+Qed.
+End Exports.
+End OmfX.
+
+Export OmfX.Exports.

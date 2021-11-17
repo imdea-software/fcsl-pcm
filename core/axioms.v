@@ -28,6 +28,9 @@ From fcsl Require Import options.
 (* Axioms and extensionality *)
 (*****************************)
 
+(* We're additionally using the eq_rect_eq axiom (equivalent to UIP) from
+   Coq.Logic.Eqdep for its two consequences: inj_pair2 and StreicherK *)
+
 (* extensionality is needed for domains *)
 Axiom pext : forall p1 p2 : Prop, (p1 <-> p2) -> p1 = p2.
 Axiom fext : forall A (B : A -> Type) (f1 f2 : forall x, B x),
@@ -89,7 +92,10 @@ End Cast.
 
 Arguments cast {T} interp [A][B] pf v.
 Arguments jmeq {T} interp [A][B] v w.
+
+#[export]
 Hint Resolve jm_refl : core.
+
 (* special notation for the common case when interp = id *)
 Notation icast pf v := (@cast _ id _ _ pf v).
 Notation ijmeq v w := (@jmeq _ id _ _ v w).

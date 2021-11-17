@@ -180,6 +180,7 @@ Qed.
 
 End Permutations.
 
+#[export]
 Hint Resolve pperm_refl pperm_catC pperm_cons_catCA
              pperm_cons_catAC pperm_catAC pperm_catCA : core.
 
