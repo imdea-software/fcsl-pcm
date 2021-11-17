@@ -86,12 +86,6 @@ Definition oleq (T : ordType) (t1 t2 : T) := ord t1 t2 || (t1 == t2).
 
 Prenex Implicits ord oleq.
 
-(* Remove when dropping the compatibility with MathComp 1.11.0: *)
-Local Lemma irr_sorted_eq (T : eqType) (leT : rel T) :
-  transitive leT -> irreflexive leT ->
-  forall s1 s2 : seq T, sorted leT s1 -> sorted leT s2 -> s1 =i s2 -> s1 = s2.
-Proof. by [exact: irr_sorted_eq | exact: eq_sorted_irr]. Qed.
-
 Section Lemmas.
 Variable T : ordType.
 Implicit Types x y : T.
