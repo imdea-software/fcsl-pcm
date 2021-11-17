@@ -7,6 +7,7 @@ core/axioms.v
 core/prelude.v
 core/pred.v
 core/ordtype.v
+core/interval.v
 core/seqperm.v
 core/finmap.v
 core/rtc.v

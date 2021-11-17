@@ -127,14 +127,14 @@ Notation "r1 *p r2" := (xPredI r1 r2 : Pred _)
 Notation "[ 'Pred' : T | E ]" := (SimplPred (fun _ : T => E))
   (at level 0, format "[ 'Pred' :  T  |  E ]") : fun_scope.
 Notation "[ 'Pred' x | E ]" := (SimplPred (fun x => E))
-  (at level 0, x ident, format "[ 'Pred'  x  |  E ]") : fun_scope.
+  (at level 0, x name, format "[ 'Pred'  x  |  E ]") : fun_scope.
 Notation "[ 'Pred' x : T | E ]" := (SimplPred (fun x : T => E))
-  (at level 0, x ident, only parsing) : fun_scope.
+  (at level 0, x name, only parsing) : fun_scope.
 Notation "[ 'Pred' x y | E ]" := (SimplPred (fun t => let: (x, y) := t in E))
-  (at level 0, x ident, y ident, format "[ 'Pred'  x  y  |  E ]") : fun_scope.
+  (at level 0, x name, y name, format "[ 'Pred'  x  y  |  E ]") : fun_scope.
 Notation "[ 'Pred' x y : T | E ]" :=
   (SimplPred (fun t : (T*T) => let: (x, y) := t in E))
-  (at level 0, x ident, y ident, only parsing) : fun_scope.
+  (at level 0, x name, y name, only parsing) : fun_scope.
 
 Definition repack_Pred T pT :=
   let: PropPredType _ a mP := pT return {type of @PropPredType T for pT} -> _ in
@@ -215,21 +215,21 @@ Notation "[ 'Preim' f 'of' A ]" := (Preim f [Mem A])
   (at level 0, format "[ 'Preim'  f  'of'  A ]") : fun_scope.
 
 Notation "[ 'Pred' x \In A ]" := [Pred x | x \In A]
-  (at level 0, x ident, format "[ 'Pred'  x  \In  A ]") : fun_scope.
+  (at level 0, x name, format "[ 'Pred'  x  \In  A ]") : fun_scope.
 Notation "[ 'Pred' x \In A | E ]" := [Pred x | (x \In A) /\ E]
-  (at level 0, x ident, format "[ 'Pred'  x  \In  A  |  E ]") : fun_scope.
+  (at level 0, x name, format "[ 'Pred'  x  \In  A  |  E ]") : fun_scope.
 Notation "[ 'Pred' x y \In A & B | E ]" :=
   [Pred x y | (x \In A) /\ (y \In B) /\ E]
-  (at level 0, x ident, y ident,
+  (at level 0, x name, y name,
    format "[ 'Pred'  x  y  \In  A  &  B  |  E ]") : fun_scope.
 Notation "[ 'Pred' x y \In A & B ]" := [Pred x y | (x \In A) /\ (y \In B)]
-  (at level 0, x ident, y ident,
+  (at level 0, x name, y name,
    format "[ 'Pred'  x  y  \In  A  &  B ]") : fun_scope.
 Notation "[ 'Pred' x y \In A | E ]" := [Pred x y \In A & A | E]
-  (at level 0, x ident, y ident,
+  (at level 0, x name, y name,
    format "[ 'Pred'  x  y  \In  A  |  E ]") : fun_scope.
 Notation "[ 'Pred' x y \In A ]" := [Pred x y \In A & A]
-  (at level 0, x ident, y ident,
+  (at level 0, x name, y name,
    format "[ 'Pred'  x  y  \In  A ]") : fun_scope.
 
 Section Simplifications.
@@ -282,6 +282,7 @@ Definition EqPredType_trans r2 r1 r3 := @EqPredType_trans' r1 r2 r3.
 Definition SubPredType_trans r2 r1 r3 := @SubPredType_trans' r1 r2 r3.
 End RelProperties.
 
+#[export]
 Hint Resolve EqPredType_refl SubPredType_refl : core.
 
 (* Declaration of relations *)
@@ -292,7 +293,7 @@ Hint Resolve EqPredType_refl SubPredType_refl : core.
 (* to reprove the lemmas on refl, sym and trans.                          *)
 
 Add Parametric Relation T (pT : PredType T) : pT (@EqPredType _ pT)
-  reflexivity proved by (@EqPredType_refl _ _)
+   reflexivity proved by (@EqPredType_refl _ _)
   symmetry proved by (@EqPredType_sym _ _)
   transitivity proved by (@EqPredType_trans' _ _) as EqPredType_rel.
 
@@ -431,6 +432,7 @@ Proof. by move=>H x [H1 H2]; split; [|apply: H]. Qed.
 
 End SubMemLaws.
 
+#[export]
 Hint Resolve subp_refl : core.
 
 Section ListMembership.
@@ -504,11 +506,6 @@ rewrite inE; case: eqP=>[<-|H /=]; first by constructor; left.
 by apply: equivP IH _; rewrite InE; split; [right | case].
 Qed.
 
-(* Setoids for extensional equality of functions *)
-Add Parametric Relation A B : (A -> B) (@eqfun _ _)
-  reflexivity proved by (@frefl B A)
-  symmetry proved by (@fsym B A)
-  transitivity proved by (@ftrans B A) as eqfun_morph.
 
 (***********************************)
 (* Image of a collective predicate *)
@@ -527,19 +524,19 @@ End Image.
 Notation Image f P := (Image' P f).
 
 Notation "[ 'Image' E | i <- s ]" := (Image (fun i => E) s)
-  (at level 0, E at level 99, i ident,
+  (at level 0, E at level 99, i name,
    format "[ '[hv' 'Image'  E '/ '  |  i  <-  s ] ']'") : rel_scope.
 
 Notation "[ 'Image' E | i <- s & C ]" := [Image E | i <- [PredI s & C]]
-  (at level 0, E at level 99, i ident,
+  (at level 0, E at level 99, i name,
    format "[ '[hv' 'Image'  E '/ '  |  i  <-  s '/ '  &  C ] ']'") : rel_scope.
 
 Notation "[ 'Image' E | i : T <- s ]" := (Image (fun i : T => E) s)
-  (at level 0, E at level 99, i ident, only parsing) : rel_scope.
+  (at level 0, E at level 99, i name, only parsing) : rel_scope.
 
 Notation "[ 'Image' E | i : T <- s & C ]" :=
   [Image E | i : T <- [PredI s & C]]
-  (at level 0, E at level 99, i ident, only parsing) : rel_scope.
+  (at level 0, E at level 99, i name, only parsing) : rel_scope.
 
 Lemma Image_mem A B (f : A -> B) (P : Pred A) x : x \In P -> f x \In Image f P.
 Proof. by apply: Im_mem. Qed.
@@ -736,6 +733,7 @@ Lemma rev_Trans : Transitive R -> Transitive (fun x y => R y x).
 Proof. by move=> trR x y z Ryx Rzy; apply: trR Rzy Ryx. Qed.
 End Transitivity.
 
+#[export]
 Hint Resolve trans_imp trans_eq : core.
 
 (**********************************************)
@@ -815,6 +813,7 @@ Proof. by move=>pres x y [n] /(iter_pres' pres). Qed.
 
 Prenex Implicits iter1 iter2.
 Arguments iter_refl {T g s}.
+#[export]
 Hint Resolve iter_refl : core.
 
 (*****************************************************)

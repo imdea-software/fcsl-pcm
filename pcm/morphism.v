@@ -13,8 +13,8 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype.
-From fcsl Require Import axioms prelude pcm.
-From fcsl Require Import options.
+From fcsl Require Import options axioms prelude.
+From fcsl Require Import pcm.
 
 (*****************)
 (*****************)
@@ -280,6 +280,9 @@ Proof. by []. Qed.
 Canonical sepT_seprel (U : pcm) :=
   Eval hnf in seprel (@sepT U) (@sepT_seprel_ax U).
 
+#[export]
+Hint Resolve sepT_seprel : core.
+
 (* always-unit relation *)
 (* always-false relation is not seprel, because we need sep0 Unit Unit *)
 (* i.e., sep0 is really the smallest seprel we can have *)
@@ -315,6 +318,25 @@ Qed.
 
 Canonical sepI_seprel U (R1 R2 : sep_rel U) :=
   Eval hnf in seprel (sepI R1 R2) (@sepI_seprel_ax U R1 R2).
+
+(* three-way conjunction is also useful *)
+Definition sep3I U (R1 R2 R3 : rel U) (x y : U) :=
+  [&& R1 x y, R2 x y & R3 x y].
+
+Lemma sep3I_seprel_ax (U : pcm) (R1 R2 R3 : sep_rel U) :
+        seprel_axiom (sep3I R1 R2 R3).
+Proof.
+rewrite /sep3I; split=>[|x y|x y|x y z].
+- by rewrite !sep00.
+- by move=>D; rewrite (sepC R1 D) (sepC R2 D) (sepC R3 D).
+- move=>D /and3P [X1 X2 X3].
+  by rewrite (sepx0 D X1) (sepx0 D X2) (sepx0 D X3).
+move=>D /and3P [X11 X12 X13] /and3P [X21 X22 X23].
+by rewrite !(sepAxx D X11 X21) !(sepAxx D X12 X22) !(sepAxx D X13 X23).
+Qed.
+
+Canonical sep3I_seprel U (R1 R2 R3 : sep_rel U) :=
+  Eval hnf in seprel (sep3I R1 R2 R3) (@sep3I_seprel_ax U R1 R2 R3).
 
 (* pairwise product of seprels is seprel *)
 
@@ -388,6 +410,9 @@ Arguments Morphism [U V].
 
 Section Laws.
 Variables (U V : pcm) (D : rel U) (f : {morphism D >-> V}).
+
+Lemma pfmorph_ax : morph_axiom D f.
+Proof. by case: f. Qed.
 
 Lemma pfunit : f Unit = Unit.
 Proof. by case: f=>g [H1 H2]; apply: H1. Qed.
@@ -963,8 +988,36 @@ Lemma valid_sep (x y : U) :
          valid (pval x \+ pval y) && D (pval x) (pval y).
 Proof. by rewrite -valid_psubU !psub_pval. Qed.
 
+Lemma valid_sepI (x y : U) :
+        valid (x \+ y) -> valid (pval x \+ pval y) && D (pval x) (pval y).
+Proof. by rewrite valid_sep. Qed.
+
 Lemma valid_sep1 (x : U) : valid x = valid (pval x) && D (pval x) Unit.
 Proof. by rewrite -[x]unitR valid_sep pfunit !unitR. Qed.
+
+Lemma valid_sep1I (x : U) : valid x -> valid (pval x) && D (pval x) Unit.
+Proof. by rewrite valid_sep1. Qed.
+
+Lemma valid_sep3 (x y z : U) :
+        valid (x \+ y \+ z) =
+        [&& valid (pval x \+ pval y \+ pval z),
+            D (pval x) (pval y) &
+            D (pval x \+ pval y) (pval z)].
+Proof.
+apply/idP/idP.
+- move=>W; case/valid_sepI/andP: (W).
+  rewrite pfjoin ?(validL W) // =>->-> /=.
+  by rewrite andbT; case/validL/valid_sepI/andP: W.
+case/and3P=>W D1 D2; rewrite valid_sep pfjoin ?W ?D2 //.
+by rewrite valid_sep (validL W) D1.
+Qed.
+
+Lemma valid_sep3I (x y z : U) :
+        valid (x \+ y \+ z) ->
+        [&& valid (pval x \+ pval y \+ pval z),
+            D (pval x) (pval y) &
+            D (pval x \+ pval y) (pval z)].
+Proof. by rewrite valid_sep3. Qed.
 
 (* thus, if we limit to single variable, we get the following *)
 Lemma valid_pval x : valid (pval x) = valid x.
@@ -1008,13 +1061,52 @@ Proof. by rewrite valid_sep1=>/andP []. Qed.
 Lemma valid_pvalE x : valid (pval x) <-> valid x.
 Proof. by split; rewrite valid_pval. Qed.
 
+Lemma psub_inj x y : valid (psub x) -> psub x = psub y -> x = y.
+Proof.
+move=>W E; move: (W) (W).
+rewrite {1}E !valid_psub=>/andP [W2 H2] /andP [W1 H1].
+have : pval (psub x) = pval (psub y) by rewrite E.
+by rewrite !pval_psub.
+Qed.
+
+Lemma valid_psubXUn x y :
+        valid (psub x \+ y) = valid (x \+ pval y) && D x (pval y).
+Proof. by rewrite -{1}(psub_pval y) valid_psubU. Qed.
+
+Lemma valid_psubUnX x y :
+        valid (x \+ psub y) = valid (pval x \+ y) && D (pval x) y.
+Proof. by rewrite -{1}(psub_pval x) valid_psubU. Qed.
+
+Lemma pvalXUn x y :
+       valid (psub x \+ y) -> x \+ pval y = pval (psub x \+ y).
+Proof.
+move=>W; rewrite pfjoin //.
+move/validL: W; rewrite valid_psub=>/andP [V1 V2].
+by rewrite pval_psub.
+Qed.
+
+Lemma pvalUnX x y :
+        valid (x \+ psub y) -> pval x \+ y = pval (x \+ psub y).
+Proof. by rewrite joinC=>/pvalXUn <-; rewrite joinC. Qed.
+
+Lemma psubXUn x y :
+        valid (pval x \+ y) -> D (pval x) y ->
+        x \+ psub y = psub (pval x \+ y).
+Proof. by move=>W H; rewrite pfjoin // psub_pval. Qed.
+
+Lemma psubUnX x y :
+        valid (x \+ pval y) -> D x (pval y) ->
+        psub x \+ y = psub (x \+ pval y).
+Proof. by move=>W H; rewrite pfjoin // psub_pval. Qed.
+
 End Lemmas.
 
 Arguments valid_psubU [V D] U.
 Arguments valid_psub [V D] U.
 Arguments valid_psub1 [V D] U.
 Arguments valid_psub2 [V D] U.
-Prenex Implicits valid_psubU valid_psub valid_psub1 valid_psub2.
+Prenex Implicits valid_psubU valid_psub valid_psub1 valid_psub2 psub_inj.
+Prenex Implicits valid_psubXUn valid_psubUnX pvalXUn pvalUnX psubXUn psubUnX.
 
 End Exports.
 End SubPCM.
@@ -1026,6 +1118,23 @@ Export SubPCM.Exports.
 Lemma psub_undef (V : tpcm) (D : rel V) (U : sub_pcm D) : ~~ valid (psub U undef).
 Proof. by rewrite valid_psub tpcmE. Qed.
 
+(* cancelativity is preserved by subPCM construction *)
+
+Section SubCPCM.
+Variables (V : cpcm) (D : sep_rel V) (U : sub_pcm D).
+
+Lemma subPCM_cancel (x1 x2 x : U) :
+        valid (x1 \+ x) -> x1 \+ x = x2 \+ x -> x1 = x2.
+Proof.
+move=>W E; move: (W) (W); rewrite {1}E !valid_sep=>/andP [W2 D2] /andP [W1 D1].
+move: E; rewrite -(psub_pval x1) -(psub_pval x2) -(psub_pval x).
+rewrite -pfjoin // -[R in _ = R]pfjoin //; move/psub_inj.
+by rewrite valid_psub W1 sepU0 // => /(_ (erefl _))  /(joinKx W1) ->.
+Qed.
+
+Definition subCPCMMix := CPCMMixin subPCM_cancel.
+Canonical subCPCM := Eval hnf in CPCM U subCPCMMix.
+End SubCPCM.
 
 (* specific construction of a sub-pcm obtained *)
 (* by modding out with a separating relation *)
@@ -1335,6 +1444,9 @@ rewrite !eq1=>eq1'; rewrite !eqc=>eq2'; rewrite !eqc.
 by apply: SepSub.xsepP.
 Qed.
 
+Lemma xsep_psub_undef : psub xsepSubPCM undef = undef.
+Proof. by rewrite -xsep_undef psub_pval. Qed.
+
 End SepSubExports.
 End SepSub2.
 
@@ -1389,6 +1501,9 @@ rewrite /xsepPCM/xsepPCMMix; move: eq1.
 rewrite !eq1=>eq1'; rewrite !eqc=>eq2'; rewrite !eqc.
 by apply: SepSub.xsepP.
 Qed.
+
+Lemma xsep_psub_undef : psub xsepSubPCM undef = undef :> xsepTPCM.
+Proof. by rewrite -xsep_undef psub_pval. Qed.
 
 End SepSubExports.
 End SepSub3.
@@ -1524,185 +1639,3 @@ Definition pprodPE := (pfst_ppair, psnd_ppair, pprodPV).
 End PairingLemmas.
 
 Prenex Implicits pfst psnd ppair.
-
-
-(****************************************)
-(* deprecated, to be removed eventually *)
-(****************************************)
-
-Module SubPCMDeprecated.
-Section ClassDef.
-Variable V : pcm.
-
-Record mixin_of (sort : pcm) : Type := Mixin {
-  pval_op : sort -> V;
-  _ : forall x, valid x -> valid (pval_op x);
-  _ : pval_op Unit = Unit;
-  _ : forall x y, valid (x \+ y) -> pval_op (x \+ y) = pval_op x \+ pval_op y;
-  _ : forall x y, pval_op x = pval_op y -> x = y}.
-
-Notation class_of := mixin_of (only parsing).
-
-Structure sub_pcm : Type := Pack {sort : pcm; _ : class_of sort}.
-Local Coercion sort : sub_pcm >-> pcm.
-
-Variables (U : pcm) (sU : sub_pcm).
-
-Definition class := let: Pack _ c as sU' := sU return class_of sU' in c.
-Definition pack c := @Pack U c.
-Definition clone := fun c & sU -> U & phant_id (pack c) sU => pack c.
-
-Definition pval := locked (pval_op class).
-
-End ClassDef.
-
-Module Exports.
-Coercion sort : sub_pcm >-> pcm.
-Notation sub_pcm_deprec := sub_pcm.
-Notation pval_deprec := pval.
-Notation subPCMMix_deprec := Mixin.
-Notation subPCM_deprec m := (@pack _ _ m).
-
-Prenex Implicits pval_deprec.
-
-Section Lemmas.
-Variables (V : pcm) (U : sub_pcm V).
-
-Lemma pvalid_deprec (x : U) : valid x -> valid (pval x).
-Proof. by rewrite /pval -lock; case: U x=>U' [pval H ???] x; apply: H. Qed.
-
-Lemma punit_deprec : pval (Unit : U) = Unit.
-Proof. by rewrite /pval -lock; case: U=>U' [pval ? H ??]; apply: H. Qed.
-
-Lemma pjoin_deprec (x y : U) : valid (x \+ y) -> pval (x \+ y) = pval x \+ pval y.
-Proof. by rewrite /pval -lock; case: U x y=>U' [pval ?? H ?] x y; apply: H. Qed.
-
-Lemma pval_inj_deprec (x y : U) : pval x = pval y -> x = y.
-Proof. by rewrite /pval -lock; case: U x y=>U' [pval ???]; apply. Qed.
-
-Lemma pvalE_deprec (x : U) : pval x = pval_op (class U) x.
-Proof. by rewrite /pval -lock. Qed.
-
-End Lemmas.
-End Exports.
-End SubPCMDeprecated.
-
-Export SubPCMDeprecated.Exports.
-
-(*************************************************************************)
-(* Because the above interface does not specify the retraction, it's not *)
-(* quite canonical for working with subPCM's.  That is, we can have      *)
-(* different subPCM constructions, which will expose additional lemmas   *)
-(* that the subPCM interface doesn't.                                    *)
-(*************************************************************************)
-
-(* Here are two *)
-
-(* First, a construction that takes a closed subset of a PCM *)
-(* leaving the join operation untouched *)
-
-(* do we want decidable P's? That can be a separate construction *)
-Definition pcm_closed (U : pcm) (P : U -> Prop) :=
-  P Unit /\ forall u v, P u -> P v -> P (u \+ v).
-
-Lemma pcl0 (U : pcm) (P : U -> Prop) : pcm_closed P -> P Unit.
-Proof. by case. Qed.
-
-Lemma pcl_join (U : pcm) (P : U -> Prop) u v :
-        pcm_closed P -> P u -> P v -> P (u \+ v).
-Proof. by case=>_; apply. Qed.
-
-Module CSubPCMDeprecated.
-Section CSubPCM.
-Variables (U : pcm) (P : U -> Prop) (pf : pcm_closed P).
-Local Definition tp := {x : U | P x}.
-
-Definition svalid (x : tp) := let: exist v pf := x in valid v.
-
-Definition sjoin (x y : tp) : tp :=
-  match x, y with exist u pfu, exist v pfv =>
-    exist P _ (proj2 pf u v pfu pfv)
-  end.
-
-Definition sunit : tp := exist P _ (proj1 pf).
-
-Lemma sjoinC x y : sjoin x y = sjoin y x.
-Proof.
-case: x y=>x pfx [y pfy] /=; do 2![move: (proj2 pf _ _ _ _)].
-by rewrite joinC=>pfx2 pfy2; rewrite (pf_irr pfx2 pfy2).
-Qed.
-
-Lemma sjoinA x y z : sjoin x (sjoin y z) = sjoin (sjoin x y) z.
-Proof.
-case: x y z=>x pfx [y pfy][z pfz] /=; do 2![move: (proj2 pf _ _ _ _)].
-by rewrite joinA=>pf1 pf2; rewrite (pf_irr pf1 pf2).
-Qed.
-
-Lemma svalidL x y : svalid (sjoin x y) -> svalid x.
-Proof. by case: x y=>x pfx [y pfy]; apply: validL. Qed.
-
-Lemma sunitL x : sjoin sunit x = x.
-Proof.
-case: x=>x pfx /=; move: pfx (proj2 pf _ _ _ _).
-by rewrite unitL=>pf1 pf2; rewrite (pf_irr pf1 pf2).
-Qed.
-
-Lemma svalidU : svalid sunit.
-Proof. by apply: valid_unit. Qed.
-
-End CSubPCM.
-
-Module Exports.
-Section Exports.
-Variables (U : pcm) (P : U -> Prop) (pf : pcm_closed P).
-
-Definition csubPCMMixin :=
-  PCMMixin (CSubPCMDeprecated.sjoinC pf) (CSubPCMDeprecated.sjoinA pf)
-           (CSubPCMDeprecated.sunitL pf) (@CSubPCMDeprecated.svalidL _ _ pf)
-           (CSubPCMDeprecated.svalidU pf).
-Definition csub_pcm := Eval hnf in PCM {x : U | P x} csubPCMMixin.
-
-(* sub_pcm instance *)
-
-Lemma csubvalid (x : csub_pcm) : valid x -> valid (sval x).
-Proof. by rewrite pcmE; case: x. Qed.
-
-Lemma csubunit : sval (Unit : csub_pcm) = Unit.
-Proof. by rewrite pcmE. Qed.
-
-Lemma csubjoin (x y : csub_pcm) :
-         valid (x \+ y) -> sval (x \+ y) = sval x \+ sval y.
-Proof. by rewrite 2!pcmE /=; case: x; case: y. Qed.
-
-Lemma csubpinj (x y : csub_pcm) : sval x = sval y -> x = y.
-Proof. apply: sval_inj. Qed.
-
-Definition csubMix := subPCMMix_deprec csubvalid csubunit csubjoin csubpinj.
-Canonical csub_subPCM : sub_pcm_deprec U := Eval hnf in subPCM_deprec csubMix.
-
-End Exports.
-End Exports.
-End CSubPCMDeprecated.
-
-Export CSubPCMDeprecated.Exports.
-
-(* products and closed subset subPCMs *)
-
-Section SubPCMProdDeprec.
-Variables (U V : pcm) (P : prodPCM U V -> Prop) (pc : pcm_closed P).
-
-Lemma pcl1 : pcm_closed (fun u => exists v, P (u, v)).
-Proof.
-split=>[|u v [u1] Hu [v1] Hv].
-- by exists Unit; rewrite -pcmPE; apply: pcl0 pc.
-by exists (u1 \+ v1); rewrite -pcmPE; apply: (pcl_join pc Hu Hv).
-Qed.
-
-Lemma pcl2 : pcm_closed (fun v => exists u, P (u, v)).
-Proof.
-split=>[|u v [u1] Hu [v1] Hv].
-- by exists Unit; rewrite -pcmPE; apply: pcl0 pc.
-by exists (u1 \+ v1); rewrite -pcmPE; apply: (pcl_join pc Hu Hv).
-Qed.
-
-End SubPCMProdDeprec.

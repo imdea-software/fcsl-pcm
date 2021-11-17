@@ -19,8 +19,8 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype.
-From fcsl Require Import prelude pcm morphism.
-From fcsl Require Import options.
+From fcsl Require Import options prelude.
+From fcsl Require Import pcm morphism.
 
 Module Unlifted.
 
@@ -177,6 +177,9 @@ Lemma upE (a1 a2 : A) :
         up a1 \+ up a2 = if ojoin a1 a2 is Some a then up a else down.
 Proof. by []. Qed.
 
+Lemma valid_up (x : lift A) : valid x -> exists n, x = up n.
+Proof. by case: x=>// n _; exists n. Qed.
+
 Lemma valid_down : valid (@down A) = false.
 Proof. by []. Qed.
 
@@ -242,6 +245,9 @@ Canonical lnatTPCM := Eval hnf in TPCM lnat lnatTPCMMix.
 End LNatTPCM.
 
 (* some lemmas for lifted nats *)
+
+Lemma upAdd (x y : nat) : up (x + y) = up x \+ up y.
+Proof. by []. Qed.
 
 Lemma nxV (m1 m2 : lnat) :
         valid (m1 \+ m2) -> exists n1 n2, m1 = up n1 /\ m2 = up n2.
