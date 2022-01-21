@@ -117,11 +117,9 @@ Variables (K : ordType) (V : Type).
 Notation fmap := (finMap K V).
 Notation nil := (nil K V).
 
+(* `path_le` specialized to `transitive ord` *)
 Lemma ord_path (x y : K) s : ord x y -> path ord y s -> path ord x s.
-Proof.
-elim: s x y=>[|k s IH] x y //=.
-by move=>H1; case/andP=>H2 ->; rewrite (trans H1 H2).
-Qed.
+Proof. by apply: path_le. Qed.
 
 Lemma last_ins' (x : K) (v : V) s :
         path ord x (map key s) -> ins' x v s = (x, v) :: s.
