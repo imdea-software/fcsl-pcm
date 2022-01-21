@@ -2096,16 +2096,6 @@ Proof. by move=>x y z; apply: leq_trans. Qed.
 Lemma ole_total ks : total (seq_le ks).
 Proof. by rewrite /seq_le=>x y; case: ltngtP. Qed.
 
-(* This lemma exists in a less general form as `sub_path_in` in 1.11, *)
-(* it was generalized in 1.12 and renamed in 1.13. *)
-(* TODO: remove when dropping 1.12 *)
-Local Lemma sub_in_path (T : eqType) (P : {pred T}) (e e' : rel T)
-                        (ee' : {in P &, subrel e e'}) : forall x s,
-                        all P (x :: s) -> path e x s -> path e' x s.
-Proof.
-by move=>x s; elim: s x=>//= y s ihs x /and3P [? ? ?] /andP [/ee' -> //]; apply/ihs/andP.
-Qed.
-
 (* every list is sorted by its olt relation, assuming uniqeness and no 0 *)
 Lemma sorted_olt ks : uniq (0 :: ks) -> sorted (seq_lt ks) ks.
 Proof.
