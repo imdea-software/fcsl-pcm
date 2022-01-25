@@ -17,7 +17,7 @@ limitations under the License.
 (******************************************************************************)
 
 From Coq Require Import ssreflect ssrbool ssrfun Eqdep.
-From mathcomp Require Import ssrnat seq choice fintype eqtype.
+From mathcomp Require Import ssrnat seq choice fintype eqtype path.
 From fcsl Require Import axioms.
 From fcsl Require Import options.
 
@@ -406,12 +406,17 @@ Lemma filter_predIC A (s : seq A) p1 p2 :
          filter (predI p1 p2) s = filter (predI p2 p1) s.
 Proof. by rewrite filter_predI filter_swap -filter_predI. Qed.
 
+Lemma filter_predC1 (A : eqType) (x : A) (s : seq A) :
+        x \notin s -> filter (predC1 x) s = s.
+Proof.
+by move=>H; apply/all_filterP/allP=>y /=; case: eqP=>// ->; apply/contraL.
+Qed.
+
 Lemma index_inj (A : eqType) (s : seq A) (x y : A) :
         x \in s -> index x s = index y s -> x = y.
 Proof.
 elim: s=>[|k s IH] //=; rewrite inE eq_sym.
-case: eqP=>[->{k} _|_ /= S]; first by case: eqP.
-by case: eqP=>// _ []; apply: IH S.
+by case: eqP=>[->{k} _|_ /= S]; case: eqP=>// _ []; apply: IH S.
 Qed.
 
 
