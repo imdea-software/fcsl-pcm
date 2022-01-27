@@ -712,3 +712,18 @@ Proof. by case/andP. Qed.
 
 Lemma lqt23 a b c : a <= b < c -> b < c.
 Proof. by case/andP. Qed.
+
+(* Special notation for boolean predicates over K*V *)
+
+Notation "[ 'pts' k v | E ]" :=
+ (fun kv => let '(k, v) := kv in E%B)
+ (at level 0, k name, v name, format "[ 'pts'  k  v  |  E ]").
+Notation "[ 'pts' k ( v : V ) | E ]" :=
+ (fun kv : _*V =>let '(k, v) := kv in E%B)
+ (at level 0, k name, v name, only parsing).
+Notation "[ 'pts' ( k : K ) v | E ]" :=
+ (fun kv : K*_ => let '(k, v) := kv in E%B)
+ (at level 0, k name, v name, only parsing).
+Notation "[ 'pts' ( k : K ) ( v : V ) | E ]" :=
+ (fun kv : K*V => let '(k, v) := kv in E%B)
+ (at level 0, k name, v name, only parsing).
