@@ -19,7 +19,7 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun Eqdep.
 From mathcomp Require Import ssrnat eqtype seq path.
-From fcsl Require Import options prelude axioms pred finmap.
+From fcsl Require Import options axioms finmap.
 From fcsl Require Import pcm unionmap.
 
 (*************)
