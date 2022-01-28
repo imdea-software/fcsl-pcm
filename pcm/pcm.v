@@ -1138,6 +1138,7 @@ Definition top : Pred U := PredT.
 End Star.
 
 Arguments emp {U}.
+Arguments top {U}.
 
 Notation "p1 '#' p2" := (star p1 p2)
   (at level 57, right associativity) : rel_scope.
