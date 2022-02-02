@@ -1090,14 +1090,16 @@ Lemma pvalUnX x y :
 Proof. by rewrite joinC=>/pvalXUn <-; rewrite joinC. Qed.
 
 Lemma psubXUn x y :
-        valid (pval x \+ y) -> D (pval x) y ->
-        x \+ psub y = psub (pval x \+ y).
-Proof. by move=>W H; rewrite pfjoin // psub_pval. Qed.
+        valid (x \+ psub y) -> x \+ psub y = psub (pval x \+ y).
+Proof.
+by rewrite valid_psubUnX=>/andP [W H]; rewrite pfjoin // psub_pval.
+Qed.
 
 Lemma psubUnX x y :
-        valid (x \+ pval y) -> D x (pval y) ->
-        psub x \+ y = psub (x \+ pval y).
-Proof. by move=>W H; rewrite pfjoin // psub_pval. Qed.
+        valid (psub x \+ y) -> psub x \+ y = psub (x \+ pval y).
+Proof.
+by rewrite valid_psubXUn=>/andP [W H]; rewrite pfjoin // psub_pval.
+Qed.
 
 End Lemmas.
 

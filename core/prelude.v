@@ -17,7 +17,7 @@ limitations under the License.
 (******************************************************************************)
 
 From Coq Require Import ssreflect ssrbool ssrfun Eqdep.
-From mathcomp Require Import ssrnat seq choice fintype eqtype path.
+From mathcomp Require Import ssrnat seq choice fintype eqtype.
 From fcsl Require Import axioms.
 From fcsl Require Import options.
 
@@ -332,93 +332,6 @@ Proof. by case: a; case: b; constructor=>//; case. Qed.
 
 Arguments andX {a b}.
 
-(********************)
-(* extension to seq *)
-(********************)
-
-Lemma all_mem (A : eqType) (s1 s2 : seq A) :
-        reflect {subset s2 <= s1} (all [mem s1] s2).
-Proof. by case: allP=>H; constructor; [move=>x /H | move=>X; apply: H=>x /X]. Qed.
-
-Lemma all_predC_sym (A : eqType) (s1 s2 : seq A) :
-        all [predC s1] s2 = all [predC s2] s1.
-Proof. by rewrite all_predC has_sym -all_predC. Qed.
-
-Lemma nilp_hasPn A (s : seq A) : nilp s = ~~ has predT s.
-Proof. by case: s. Qed.
-
-Lemma index_rcons (A : eqType) (a x : A) xs :
-        index a (rcons xs x) =
-        if a \in xs then index a xs else
-          if a == x then size xs else (size xs).+1.
-Proof.
-rewrite eq_sym; elim: xs=>[|y xs IH] //=.
-rewrite inE eq_sym; case: eqP=>//= _.
-by rewrite IH; case: ifP=>// _; case: eqP.
-Qed.
-
-Lemma index_memN (A : eqType) (x : A) xs :
-        x \notin xs -> index x xs = size xs.
-Proof.
-rewrite -index_mem -ltnNge ltnS.
-by case: ltngtP (index_size x xs).
-Qed.
-
-Lemma size0nilP (A : eqType) (xs : seq A) :
-        reflect (xs = [::]) (size xs == 0).
-Proof.
-case: eqP=>X; constructor; first by move/size0nil: X.
-by move=>N; rewrite N in X.
-Qed.
-
-Lemma has_nilP (A : eqType) (xs : seq A) :
-        reflect (has predT xs) (xs != [::]).
-Proof. by case: xs=>[|x xs]; constructor. Qed.
-
-Lemma map_nilP A (B : eqType) (f : A -> B) (s : seq A) :
-        reflect (exists k, k \in map f s) (map f s != [::]).
-Proof.
-case: has_nilP=>X; constructor.
-- by case/hasP: X=>x; exists x.
-by case=>k K; elim: X; apply/hasP; exists k.
-Qed.
-
-Lemma filter_nilP (A : eqType) (p : pred A) (s : seq A) :
-        reflect (forall x, p x -> x \in s -> false)
-                ([seq x <- s | p x] == [::]).
-Proof.
-case: eqP=>E; constructor.
-- move=>x H1 H2; suff : x \in [seq x <- s | p x] by rewrite E.
-  by rewrite mem_filter H1 H2.
-move=>H; apply: E; apply: size0nil; apply/eqP; rewrite size_filter.
-by rewrite eqn0Ngt -has_count; apply/hasPn=>x /H; case: (p x)=>//; apply.
-Qed.
-
-Lemma filter_mem_sym (A : eqType) (s1 s2 : seq A) :
-        filter (mem s1) s2 =i filter (mem s2) s1.
-Proof. by move=>x; rewrite !mem_filter andbC. Qed.
-
-Lemma filter_swap A (s : seq A) p1 p2 :
-        filter p1 (filter p2 s) = filter p2 (filter p1 s).
-Proof. by rewrite -!filter_predI; apply eq_filter=>z /=; rewrite andbC. Qed.
-
-Lemma filter_predIC A (s : seq A) p1 p2 :
-         filter (predI p1 p2) s = filter (predI p2 p1) s.
-Proof. by rewrite filter_predI filter_swap -filter_predI. Qed.
-
-Lemma filter_predC1 (A : eqType) (x : A) (s : seq A) :
-        x \notin s -> filter (predC1 x) s = s.
-Proof.
-by move=>H; apply/all_filterP/allP=>y /=; case: eqP=>// ->; apply/contraL.
-Qed.
-
-Lemma index_inj (A : eqType) (s : seq A) (x y : A) :
-        x \in s -> index x s = index y s -> x = y.
-Proof.
-elim: s=>[|k s IH] //=; rewrite inE eq_sym.
-by case: eqP=>[->{k} _|_ /= S]; case: eqP=>// _ []; apply: IH S.
-Qed.
-
 
 (**************)
 (* empty type *)
@@ -462,6 +375,15 @@ Hint Extern 0 (ocancel _ _) =>
 Lemma gt0 m n : m < n -> 0 < n.
 Proof. by case: n. Qed.
 
+Lemma neq0 m n : m < n -> n != 0.
+Proof. by move/gt0; rewrite lt0n. Qed.
+
+Lemma neqSn n : n.+1 != n.
+Proof. by elim: n. Qed.
+
+Lemma neqnS n : n != n.+1.
+Proof. by elim: n. Qed.
+
 (*************************************)
 (* A copy of booleans with mnemonics *)
 (* LL and RR for working with sides  *)
@@ -485,9 +407,20 @@ Lemma Side_enumP : Finite.axiom [:: LL; RR]. Proof. by case. Qed.
 Definition Side_finMixin := Eval hnf in FinMixin Side_enumP.
 Canonical Side_finType := Eval hnf in FinType Side Side_finMixin.
 
-(*****************************************)
-(* Some basic subset properties on lists *)
-(*****************************************)
+(********************)
+(* Extension to seq *)
+(********************)
+
+(* With A : Type, we have the In_split lemma. *)
+(* With A : eqType, the lemma can be strenghtened to *)
+(* not only return the split of xs, but the split of xs *)
+(* that uses the first occurrence of x is xs *)
+Lemma in_split (A : eqType) (xs : seq A) x :
+        x \in xs -> exists xs1 xs2, xs = xs1 ++ x :: xs2 /\ x \notin xs1.
+Proof.
+rewrite -has_pred1; case/split_find=>_ s1 s2 /eqP ->.
+by rewrite has_pred1=>H; exists s1, s2; rewrite -cats1 -catA.
+Qed.
 
 Lemma subset_nilR (A : eqType) (xs : seq A) :
         {subset xs <= [::]} -> xs = [::].
@@ -497,9 +430,108 @@ Lemma subset_nil (A : eqType) (xs ys : seq A) :
         {subset xs <= ys} -> ys = [::] -> xs = [::].
 Proof. by move=>X E; move: E X=>->; apply: subset_nilR. Qed.
 
-(*****************)
-(* filter + last *)
-(*****************)
+Lemma all_mem (A : eqType) (s1 s2 : seq A) :
+        reflect {subset s2 <= s1} (all [mem s1] s2).
+Proof. by case: allP=>H; constructor; [move=>x /H | move=>X; apply: H=>x /X]. Qed.
+
+Lemma all_predC_sym (A : eqType) (s1 s2 : seq A) :
+        all [predC s1] s2 = all [predC s2] s1.
+Proof. by rewrite all_predC has_sym -all_predC. Qed.
+
+Lemma nilp_hasPn A (s : seq A) : nilp s = ~~ has predT s.
+Proof. by case: s. Qed.
+
+Lemma index_rcons (A : eqType) (a x : A) xs :
+        index a (rcons xs x) =
+        if a \in xs then index a xs else
+          if a == x then size xs else (size xs).+1.
+Proof.
+rewrite eq_sym; elim: xs=>[|y xs IH] //=.
+rewrite inE eq_sym; case: eqP=>//= _.
+by rewrite IH; case: ifP=>// _; case: eqP.
+Qed.
+
+Lemma index_memN (A : eqType) (x : A) xs :
+        x \notin xs <-> index x xs = size xs.
+Proof.
+split; first by exact: memNindex.
+by move=>E; rewrite -index_mem E ltnn.
+Qed.
+
+Lemma has_nilP (A : eqType) (xs : seq A) :
+        reflect (has predT xs) (xs != [::]).
+Proof. by case: xs; constructor. Qed.
+
+Lemma map_nilP A (B : eqType) (f : A -> B) (s : seq A) :
+        reflect (exists k, k \in map f s) (map f s != [::]).
+Proof.
+case: has_nilP=>X; constructor.
+- by case/hasP: X=>x; exists x.
+by case=>k K; elim: X; apply/hasP; exists k.
+Qed.
+
+Lemma filter_nilP (A : eqType) (p : pred A) (s : seq A) :
+        reflect (forall x, p x -> x \in s -> false)
+                ([seq x <- s | p x] == [::]).
+Proof.
+case: eqP=>E; constructor.
+- move=>x H1 H2; suff : x \in [seq x <- s | p x] by rewrite E.
+  by rewrite mem_filter H1 H2.
+move=>H; apply: E; apply: size0nil; apply/eqP; rewrite size_filter.
+by rewrite eqn0Ngt -has_count; apply/hasPn=>x /H; case: (p x)=>//; apply.
+Qed.
+
+Lemma filter_pred1 (A : eqType) (x : A) (s : seq A) :
+        x \notin s -> filter (pred1 x) s = [::].
+Proof.
+move=>H; apply/eqP; apply/filter_nilP=>z /eqP ->.
+by rewrite (negbTE H).
+Qed.
+
+Lemma filter_predC1 (A : eqType) (x : A) (s : seq A) :
+        x \notin s -> filter (predC1 x) s = s.
+Proof.
+by move=>H; apply/all_filterP/allP=>y /=; case: eqP=>// ->; apply/contraL.
+Qed.
+
+Lemma filter_mem_sym (A : eqType) (s1 s2 : seq A) :
+        filter (mem s1) s2 =i filter (mem s2) s1.
+Proof. by move=>x; rewrite !mem_filter andbC. Qed.
+
+Lemma filter_swap A (s : seq A) p1 p2 :
+        filter p1 (filter p2 s) = filter p2 (filter p1 s).
+Proof. by rewrite -!filter_predI; apply eq_filter=>z /=; rewrite andbC. Qed.
+
+Lemma filter_predIC A (s : seq A) p1 p2 :
+         filter (predI p1 p2) s = filter (predI p2 p1) s.
+Proof. by rewrite filter_predI filter_swap -filter_predI. Qed.
+
+Lemma index_inj (A : eqType) (s : seq A) (x y : A) :
+        x \in s -> index x s = index y s -> x = y.
+Proof.
+elim: s=>[|k s IH] //=; rewrite inE eq_sym.
+by case: eqP=>[->{k} _|_ /= S]; case: eqP=>// _ []; apply: IH S.
+Qed.
+
+Lemma cat_cancel (A : eqType) (xs1 xs2 ys1 ys2 : seq A) (k : A) :
+        k \notin xs1 -> k \notin xs2 ->
+        xs1 ++ k :: ys1 = xs2 ++ k :: ys2 ->
+        (xs1 = xs2) * (ys1 = ys2).
+Proof.
+move=>Nk1 Nk2 E.
+have Es : size xs1 = size xs2.
+- have : index k (xs1++k::ys1) = index k (xs2++k::ys2) by rewrite E.
+  by rewrite !index_cat /= (negbTE Nk1) (negbTE Nk2) eq_refl !addn0.
+have Ex : xs1 = take (size xs1) (xs1 ++ k :: ys1).
+- by rewrite take_cat ltnn subnn /= cats0.
+rewrite E Es take_cat ltnn subnn /= cats0 in Ex.
+rewrite {xs1 Nk1 Es}Ex in E *.
+have : ys1 = drop (size (xs2++[::k])) (xs2++k::ys1).
+- by rewrite drop_cat size_cat /= addn1 ltnNge ltnW //= subSn // subnn /= drop0.
+by rewrite E drop_cat size_cat /= addn1 ltnNge ltnW //= subSn // subnn /= drop0.
+Qed.
+
+(* Interaction of filter/last/index *)
 
 Section LastFilter.
 Variables (A : eqType).
@@ -558,8 +590,8 @@ elim: s y=>[|k s IH] y //= /andP [Nk U]; rewrite inE (eq_sym k).
 case: (x =P k) Nk=>[<-{k} Nk _|_ Nk /= S] /= D; last first.
 - apply: IH=>// z Z; move: (D z); rewrite inE Z orbT=>/(_ (erefl _)).
   by case: ifP Z Nk=>// /eqP ->->.
-suff : size s == 0 by move/eqP/size0nil=>->.
-rewrite eqn0Ngt -has_predT; apply/hasPn=>z Z.
+suff : nilp s by move/nilP=>->.
+rewrite /nilp eqn0Ngt -has_predT; apply/hasPn=>z Z.
 move: (D z); rewrite inE Z orbT=>/(_ (erefl _)).
 by case: ifP Z Nk=>// /eqP ->->.
 Qed.
@@ -661,6 +693,83 @@ rewrite eq_sym; case: (last x _ =P x); last first.
 - by move=>_; apply: last_filter_last_helper=>//=; rewrite Sx U.
 move/last_nochange; rewrite mem_filter (negbTE Sx) andbF /=.
 by move/eqP=>E; rewrite E in Hy.
+Qed.
+
+Lemma index_filter_ltL (p : pred A) (ks : seq A) (t1 t2 : A) :
+         (t1 \notin ks) || p t1 ->
+         (index t1 ks < index t2 ks) ->
+         (index t1 (filter p ks) < index t2 (filter p ks)).
+Proof.
+elim: ks t1 t2=>[|k ks IH] t1 t2 //=; rewrite inE negb_or (eq_sym t1).
+case: eqP=>[->{k} /= Pt1|/eqP Nkt1 /= H].
+- by rewrite Pt1 /= eq_refl; case: eqP.
+case: eqP=>// /eqP Nkt2; case: ifP=>H1 /=.
+- by rewrite (negbTE Nkt1) (negbTE Nkt2) !ltnS; apply: IH H.
+by rewrite ltnS; apply: IH H.
+Qed.
+
+Lemma index_filter_leL (p : pred A) (ks : seq A) (t1 t2 : A) :
+         (t1 \notin ks) || p t1 ->
+         (index t1 ks <= index t2 ks) ->
+         (index t1 (filter p ks) <= index t2 (filter p ks)).
+Proof.
+elim: ks t1 t2=>[|k ks IH] t1 t2 //=; rewrite inE negb_or (eq_sym t1).
+case: eqP=>[->{k} /= Pt1|/eqP Nkt1 /= H].
+- by rewrite Pt1 /= eq_refl; case: eqP.
+case: eqP=>// /eqP Nkt2; case: ifP=>H1 /=.
+- by rewrite (negbTE Nkt1) (negbTE Nkt2) !ltnS; apply: IH H.
+by rewrite ltnS; apply: IH H.
+Qed.
+
+Lemma index_filter_ltR (p : pred A) (ks : seq A) (t1 t2 : A) :
+         (t2 \notin ks) || p t2 ->
+         (index t1 (filter p ks) < index t2 (filter p ks)) ->
+         (index t1 ks < index t2 ks).
+Proof.
+elim: ks t1 t2=>[|k ks IH] t1 t2 //=; rewrite inE negb_or /=.
+rewrite (eq_sym t2).
+case: eqP=>[->{k} /= Pt2|/eqP Nkt2 /=].
+- by rewrite Pt2 /= eq_refl; case: eqP.
+case: eqP=>[->{t1}//|/eqP Nt1k].
+case: ifP=>H1 H2 /=.
+- by rewrite (negbTE Nt1k) (negbTE Nkt2) !ltnS; apply: IH H2.
+by rewrite ltnS; apply: IH H2.
+Qed.
+
+Lemma index_filter_leR (p : pred A) (ks : seq A) (t1 t2 : A) :
+         (t2 \notin ks) || p t2 ->
+         (index t1 (filter p ks) <= index t2 (filter p ks)) ->
+         (index t1 ks <= index t2 ks).
+Proof.
+elim: ks t1 t2=>[|k ks IH] t1 t2 //=; rewrite inE negb_or /=.
+rewrite (eq_sym t2).
+case: eqP=>[->{k} /= Pt2|/eqP Nkt2 /=].
+- by rewrite Pt2 /= eq_refl; case: eqP.
+case: eqP=>[->{t1}//|/eqP Nt1k].
+case: ifP=>H1 H2 /=.
+- by rewrite (negbTE Nt1k) (negbTE Nkt2) !ltnS; apply: IH H2.
+by rewrite ltnS; apply: IH H2.
+Qed.
+
+(* we can put the left and right lemmas together *)
+Lemma index_filter_lt (p : pred A) (ks : seq A) (t1 t2 : A) :
+         (t1 \notin ks) || p t1 -> (t2 \notin ks) || p t2 ->
+         (index t1 (filter p ks) < index t2 (filter p ks)) =
+         (index t1 ks < index t2 ks).
+Proof.
+move=>H1 H2; apply/idP/idP.
+- by apply: index_filter_ltR.
+by apply: index_filter_ltL.
+Qed.
+
+Lemma index_filter_le (p : pred A) (ks : seq A) (t1 t2 : A) :
+         (t1 \notin ks) || p t1 -> (t2 \notin ks) || p t2 ->
+         (index t1 (filter p ks) <= index t2 (filter p ks)) =
+         (index t1 ks <= index t2 ks).
+Proof.
+move=>H1 H2; apply/idP/idP.
+- by apply: index_filter_leR.
+by apply: index_filter_leL.
 Qed.
 
 End LastFilter.

@@ -2223,6 +2223,17 @@ case: dom_find=>[E|v /In_find H E]; constructor; last by exists v.
 by case=>v /In_find; rewrite E.
 Qed.
 
+(* this is just find_none stated as reflection *)
+Lemma In_findN k f : reflect (find k f = None) (k \notin dom f).
+Proof.
+case: In_domX=>H; constructor.
+- by case: H=>x /In_find ->.
+by apply/find_none/negP=>/In_domX [v X]; apply: H; exists v.
+Qed.
+
+Lemma In_findNE k f : k \notin dom f -> find k f = None.
+Proof. by move/In_findN. Qed.
+
 Lemma InPtUnE x k v f :
         valid (pts k v \+ f) ->
         x \In pts k v \+ f <-> x = (k, v) \/ x \In f.
@@ -2285,6 +2296,19 @@ case K1 : (find k f1)=>[a1|]; case K2 : (find k f2)=>[a2|] //.
 - by move/In_find/H/In_find: K1; rewrite K2.
 - by move/In_find/H/In_find: K1; rewrite K2.
 by move/In_find/H/In_find: K2; rewrite K1.
+Qed.
+
+(* if we have equality of domains, we can get rid of one direction *)
+(* in the hypothesis in umem_eq *)
+
+Lemma umem_eqD f1 f2 :
+        valid f1 -> valid f2 ->
+        dom f1 =i dom f2 ->
+        (forall x, x \In f1 -> x \In f2) -> f1 = f2.
+Proof.
+move=>V1 V2 E H; apply: umem_eq=>//; case=>k v; split; first by apply: H.
+move=>H2; move: (In_dom H2); rewrite -E /= =>/In_domX [w H1].
+by move/H/(In_fun H2): (H1)=>->.
 Qed.
 
 Lemma InU x k v f :
@@ -3399,6 +3423,44 @@ Qed.
 
 End OmapExtras.
 
+Section OmapExtras2.
+Variables (K : ordType) (C : pred K) (V V1 V2 : Type).
+Variables (U : union_map_class C V).
+Variables (U1 : union_map_class C V1).
+Variables (U2 : union_map_class C V2).
+
+Lemma dom_omap_subseq (a1 : K * V -> option V1) (a2 : K * V -> option V2) (f : U) :
+        (forall kv, kv \In f -> isSome (a1 kv) -> isSome (a2 kv)) ->
+        subseq (dom (omap (U':=U1) a1 f)) (dom (omap (U':=U2) a2 f)).
+Proof.
+elim/um_indf: f=>[||k v f IH W P] H.
+- by rewrite !omap_undef !dom_undef.
+- by rewrite !omap0 !dom0.
+rewrite !omapPtUn W; move: (W); rewrite validPtUn=>W'.
+have T : transitive (T:=K) ord by apply: ordtype.trans.
+have B : (k, v) \In pts k v \+ f by apply: InPtUnL.
+case E1 : (a1 (k, v))=>[x1|].
+- have /(H _ B) : isSome (a1 (k, v)) by rewrite E1.
+  case: (a2 (k, v))=>// x2 _.
+  rewrite !domPtUnK //=; last first.
+  - by apply/allP=>? /In_dom_omap [?][?][] /In_dom Y _; apply: path_mem Y.
+  - by rewrite valid_omapPtUn.
+  - by apply/allP=>? /In_dom_omap [?][?][] /In_dom Y _; apply: path_mem Y.
+  - by rewrite valid_omapPtUn.
+  by rewrite eq_refl; apply: IH=>kx X; apply: H (InR _ _).
+case E2 : (a2 (k, v))=>[x2|]; last by apply: IH=>kx X; apply: H (InR _ _).
+rewrite domPtUnK /=; last first.
+- by apply/allP=>? /In_dom_omap [?][?][] /In_dom Y _; apply: path_mem Y.
+- by rewrite valid_omapPtUn.
+case D : (dom (omap a1 f))=>[//|x xs].
+case: eqP D=>[-> D|_ <-]; last by apply: IH=>kv X; apply: H (InR _ _).
+have : k \in dom (omap (U':=U1) a1 f) by rewrite D inE eq_refl.
+case/In_dom_omap=>w1 [w2][] /In_dom /= D1.
+by rewrite validPtUn D1 !andbF in W.
+Qed.
+
+End OmapExtras2.
+
 
 (*************)
 (* um_filter *)
@@ -3459,6 +3521,11 @@ case: x => k v; rewrite In_omapX; split=>[[w H]|[I H]].
 - by case E: (p (k, w))=>//=; case=><-.
 by exists v=>//; rewrite I.
 Qed.
+
+(* In_umfilt is really only good in one direction. *)
+(* For the other direction, we need the following one *)
+Lemma In_umfiltX p x f : x \In f -> p x -> x \In um_filter p f.
+Proof. by move=>X1 X2; apply/In_umfilt. Qed.
 
 Lemma dom_umfilt p f k :
         reflect (exists v, [/\ p (k, v) & (k, v) \In f])
@@ -3716,12 +3783,14 @@ Hint Extern 0 [pcm um_filter _ ?X <= ?X] =>
 Notation um_filterk p f := (um_filter (p \o fst) f).
 Notation um_filterv p f := (um_filter (p \o snd) f).
 
+Arguments In_umfiltX [K C V U] p x f _ _.
+
 Section FilterKLemmas.
 Variables (K : ordType) (C : pred K) (V : Type) (U : union_map_class C V).
 Implicit Type f : U.
 Implicit Type p q : pred K.
 
-Lemma dom_umfiltk_filter p f : dom (um_filterk p f) = filter p (dom f).
+Lemma dom_umfiltkE p f : dom (um_filterk p f) = filter p (dom f).
 Proof.
 apply: ord_sorted_eq=>//=.
 - by apply: sorted_filter; [apply: trans | apply: sorted_dom].
@@ -3730,8 +3799,19 @@ move=>k; rewrite mem_filter; apply/idP/idP.
 by case/andP=>H1 /In_domX [v H2]; apply/dom_umfilt; exists v.
 Qed.
 
+Lemma valid_umfiltkUn p1 p2 f :
+        valid f ->
+        {in dom f, forall x, x \in p1 -> x \in p2 -> false} ->
+        valid (um_filterk p1 f \+ um_filterk p2 f).
+Proof.
+move=>W H; rewrite validUnAE !valid_umfilt W /=.
+apply/allP=>x; case/dom_umfilt=>v1 /= [H2 F1].
+apply/negP; case/dom_umfilt=>v2 /= [H1 F2].
+by move: (H x (In_dom F1) H1 H2).
+Qed.
+
 Lemma dom_umfiltk p f : dom (um_filterk p f) =i predI p (mem (dom f)).
-Proof. by move=>k; rewrite dom_umfiltk_filter mem_filter. Qed.
+Proof. by move=>k; rewrite dom_umfiltkE mem_filter. Qed.
 
 Lemma umfiltk_dom f1 f2 :
         valid (f1 \+ f2) -> um_filterk (mem (dom f1)) (f1 \+ f2) = f1.
@@ -3841,8 +3921,12 @@ rewrite umfiltF; case: ifP=>// N.
 by rewrite dom_free // dom_umfiltk inE N.
 Qed.
 
+Lemma In_umfiltk p x f : x \In f -> p x.1 -> x \In um_filterk p f.
+Proof. by apply: In_umfiltX. Qed.
+
 End FilterKLemmas.
 
+Arguments In_umfiltk [K C V U] p [x f] _ _.
 
 Section FilterVLemmas.
 Variables (K : ordType) (C : pred K) (V : Type) (U : union_map_class C V).
@@ -3859,8 +3943,12 @@ Lemma umfiltv_predD (q1 q2 : pred V) f :
         um_filterv q2 f = um_filterv q1 f \+ um_filterv (predD q2 q1) f.
 Proof. by move=>H; apply: umfilt_predD; case. Qed.
 
+Lemma In_umfiltv p x f : x \In f -> p x.2 -> x \In um_filterv p f.
+Proof. by apply: In_umfiltX. Qed.
+
 End FilterVLemmas.
 
+Arguments In_umfiltv [K C V U] p [x f] _ _.
 
 Section OmapMembershipLemmas.
 Variables aT rT : Type.
@@ -4064,6 +4152,11 @@ rewrite omfPt //; case E: (map_fun _ _)=>[a|] /=.
 - by rewrite domPt inE T eq_sym.
 by rewrite dom0.
 Qed.
+
+Lemma find_omf f k h :
+        find k (f h) =
+        if find k h is Some v then map_fun f (k, v) else None.
+Proof. by case: f=>s [m H] /=; rewrite H find_omap. Qed.
 
 End OmapFunLemmas.
 
@@ -4448,13 +4541,22 @@ by split=>[/(In_fun X)|[_] ->].
 Qed.
 
 Lemma oevPtUn a k ks v z0 f :
+        valid (pts k v \+ f) -> k \notin ks ->
+        oeval a ks (pts k v \+ f) z0 = oeval a ks f z0.
+Proof.
+move=>W S; apply: eq_in_oevF=>k0 v0 H.
+rewrite InPtUnE //; split; last by right.
+by case=>// [][??]; subst k0; rewrite H in S.
+Qed.
+
+(* a somewhat different version; makes side conditions easier to discharge *)
+Lemma oevPtUn_sub a k ks v z0 f :
         valid (pts k v \+ f) -> {subset ks <= dom f} ->
         oeval a ks (pts k v \+ f) z0 =
         oeval a ks f z0.
 Proof.
-move=>W S; apply: eq_in_oevF=> k0 v0 H.
-rewrite InPtUnE //; split; last by move=> H2; right.
-by case=>//; case=>E _; move: (S _ H); rewrite E (negbTE (validPtUnD W)).
+move=>W F; apply: oevPtUn=>//; apply/negP=>/F.
+by rewrite (negbTE (validPtUnD W)).
 Qed.
 
 Lemma oevPtUnE a k ks v1 v2 f z0 :
@@ -4478,9 +4580,6 @@ move=>S; rewrite oev_filter (eq_in_umfiltI (p2:=predT)) ?umfilt_predT //=.
 by case=>k v /In_dom /S.
 Qed.
 
-(* Ideally (- \In f) part would have been folded into p *)
-(* but can't because p is decidable and (- \In f) isn't. *)
-(* So (- \In f) must be separate. *)
 Lemma oev_ind {P : R -> Prop} f ks a z0 :
         P z0 ->
         (forall k v z0, (k, v) \In f -> k \in ks -> P z0 -> P (a z0 k v)) ->
@@ -4490,6 +4589,21 @@ elim: ks z0=>[|k ks IH] z0 //= Z H; apply: IH; last first.
 - by move=>k' v' z' X D; apply: H=>//; rewrite inE D orbT.
 case E: (find k f)=>[b|] //; move/In_find: E=>E.
 by apply: H=>//; rewrite inE eq_refl.
+Qed.
+
+(* a somewhat stronger lemma making clear that z0' isn't *)
+(* arbitrary but always obtained by evaluation starting from z0 *)
+Lemma oev_indX {P : R -> Prop} f ks a z0 :
+        P z0 ->
+        (forall k ks1 ks2 v z0', (k, v) \In f -> ks = ks1 ++ k :: ks2 ->
+           z0' = oeval a ks1 f z0 -> P z0' -> P (a z0' k v)) ->
+        P (oeval a ks f z0).
+Proof.
+elim: ks z0=>[|k ks IH] z0 //= Z H; apply: IH; last first.
+- move=>k' ks1 ks2 v' z' X D E.
+  by apply: (H k' (k::ks1) ks2 v' z' X _ _)=>//; rewrite D.
+case E: (find k f)=>[b|] //; move/In_find: E=>E.
+by apply: (H k [::] _ b z0).
 Qed.
 
 End OrdEvalDefLemmas.
@@ -4601,9 +4715,11 @@ Lemma evalPtUn a p k v z0 f :
 Proof.
 move=>W /allP H; have: valid (um_filter p (pts k v \+ f)) by rewrite valid_umfilt.
 rewrite /eval umfiltPtUn W.
-case: (p (k, v))=>W'; last by apply/oevPtUn/dom_umfilt_subset.
+case: (p (k, v))=>W'; last first.
+- rewrite oevPtUn //; apply/negP=>/dom_umfilt_subset.
+  by rewrite (negbTE (validPtUnD W)).
 rewrite domPtUnK //=; last by apply/allP=>x /dom_umfilt_subset /H.
-by rewrite findPtUn // oevPtUn //; apply: dom_umfilt_subset.
+by rewrite findPtUn // oevPtUn // (validPtUnD W').
 Qed.
 
 Lemma evalUnPt a p k v z0 f :
@@ -4614,10 +4730,11 @@ Proof.
 move=>W /allP H; have: valid (um_filter p (f \+ pts k v)) by rewrite valid_umfilt.
 rewrite /eval umfiltUnPt W.
 case: (p (k, v))=>W'; last first.
-- by rewrite joinC; apply/oevPtUn/dom_umfilt_subset; rewrite joinC.
+- rewrite joinC oevPtUn //; first by rewrite joinC.
+  by apply/negP=>/dom_umfilt_subset; rewrite (negbTE (validUnPtD W)).
 rewrite domUnPtK //=; last by apply/allP=>x /dom_umfilt_subset /H.
-by rewrite (oev_rconsP _ (v:=v)) // joinC oevPtUn //;
-   [rewrite joinC | apply: dom_umfilt_subset].
+rewrite (oev_rconsP _ (v:=v)) // joinC oevPtUn //; first by rewrite joinC.
+by apply/negP=>/dom_umfilt_subset; rewrite (negbTE (validUnPtD W)).
 Qed.
 
 Lemma evalUn a p z0 f1 f2 :
@@ -4849,14 +4966,14 @@ Proof.
 move=>W; rewrite /eval umfiltPtUn W.
 have D : k \notin dom f by apply: (validPtUnD W).
 have Ck : C k by apply: (validPtUn_cond W).
-case: ifP=>_; last by apply: oevPtUn=>//; apply: dom_umfilt_subset.
+case: ifP=>_; last by apply: oevPtUn_sub=>//; apply: dom_umfilt_subset.
 rewrite oevUn // -(oev_sub_filter (p:=mem [:: k])) ?(domPtK,Ck) //.
-rewrite -dom_umfiltk_filter umfiltPtUn /= valid_umfiltUnR // inE eq_refl.
+rewrite -dom_umfiltkE umfiltPtUn /= valid_umfiltUnR // inE eq_refl.
 rewrite umfilt_mem0L ?(inE,valid_umfilt,validR W) //=; first last.
 - by move=>?? /In_umfilt [] _ /In_dom Df; rewrite inE; case: eqP Df D=>// ->->.
 rewrite unitR domPtK Ck /= findPt Ck -frame unitL.
 rewrite -(oev_sub_filter (p:=mem (dom f))) //.
-rewrite -dom_umfiltk_filter  umfiltPtUn /= valid_umfiltUnR // (negbTE D).
+rewrite -dom_umfiltkE  umfiltPtUn /= valid_umfiltUnR // (negbTE D).
 congr (a (oeval a (dom _) f z0) k v).
 by rewrite -subdom_umfiltkE; apply: dom_umfilt_subset.
 Qed.

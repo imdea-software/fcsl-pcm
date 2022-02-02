@@ -105,7 +105,7 @@ case E: (x == y)=>/=; first by rewrite orbT.
 by apply: semiconnex; rewrite negbT.
 Qed.
 
-Lemma nsym x y : ord x y -> ord y x -> False.
+Lemma nsym x y : ord x y -> ~ ord y x.
 Proof. by move=>E1 E2; move: (trans E1 E2); rewrite irr. Qed.
 
 Lemma orefl x : oleq x x.
@@ -130,10 +130,6 @@ Proof. exact: subrelUl. Qed.
 
 Lemma sorted_oleq s : sorted (@ord T) s -> sorted (@oleq T) s.
 Proof. by case: s=>//= x s; apply/sub_path/subrel_ord. Qed.
-
-Lemma path_filter (r : rel T) (tr : transitive r) s (p : pred T) x :
-        path r x s -> path r x (filter p s).
-Proof. exact: (subseq_path tr (filter_subseq p s)). Qed.
 
 Lemma ord_sorted_eq (s1 s2 : seq T) :
         sorted ord s1 -> sorted ord s2 -> s1 =i s2 -> s1 = s2.
@@ -215,6 +211,23 @@ Proof. by case:oleqP=>// /ordW ->//. Qed.
 
 End Weakening.
 
+(* A trivial total ordering for Unit *)
+Section unitOrd.
+Let ordtt (x y : unit) := false.
+
+Lemma irr_tt : irreflexive ordtt.
+Proof. by []. Qed.
+
+Lemma trans_tt : transitive ordtt.
+Proof. by []. Qed.
+
+Lemma semiconn_tt x y : x != y -> ordtt x y || ordtt y x.
+Proof. by []. Qed.
+
+Let unit_ordMixin := OrdMixin irr_tt trans_tt semiconn_tt.
+Canonical Structure unit_ordType := Eval hnf in OrdType unit unit_ordMixin.
+End unitOrd.
+
 Section NatOrd.
 Lemma irr_ltn_nat : irreflexive ltn. Proof. by move=>x; rewrite /= ltnn. Qed.
 Lemma trans_ltn_nat : transitive ltn. Proof. by apply: ltn_trans. Qed.
@@ -286,7 +299,7 @@ Canonical Structure ordinal_ordType n := Eval hnf in OrdType 'I_n (ordinal_ordMi
 Section SeqOrd.
 Variable (T : ordType).
 
-Fixpoint ords x  : pred (seq T) :=
+Fixpoint ords x : pred (seq T) :=
   fun y => match x , y with
                  | [::] , [::] => false
                  | [::] ,  t :: ts => true
@@ -318,23 +331,6 @@ Qed.
 Definition seq_ordMixin := OrdMixin irr_ords trans_ords semiconn_ords.
 Canonical Structure seq_ordType := Eval hnf in OrdType (seq T) seq_ordMixin.
 End SeqOrd.
-
-(* A trivial total ordering for Unit *)
-Section unitOrd.
-Let ordtt (x y : unit) := false.
-
-Lemma irr_tt : irreflexive ordtt.
-Proof. by []. Qed.
-
-Lemma trans_tt : transitive ordtt.
-Proof. by []. Qed.
-
-Lemma semiconn_tt x y : x != y -> ordtt x y || ordtt y x.
-Proof. by []. Qed.
-
-Let unit_ordMixin := OrdMixin irr_tt trans_tt semiconn_tt.
-Canonical Structure unit_ordType := Eval hnf in OrdType unit unit_ordMixin.
-End unitOrd.
 
 
 (* ordering with path, seq and last *)

@@ -752,16 +752,33 @@ Prenex Implicits pleq_refl.
 (* Local functions *)
 (*******************)
 
-Definition local (U : pcm) (f : U -> U -> option U) :=
+Definition local_fun (U : pcm) (f : U -> U -> option U) :=
   forall p x y r, valid (x \+ (p \+ y)) -> f x (p \+ y) = Some r ->
                   valid (r \+ p \+ y) /\ f (x \+ p) y = Some (r \+ p).
 
 Lemma localV U f x y r :
-        @local U f -> valid (x \+ y) -> f x y = Some r -> valid (r \+ y).
+        @local_fun U f -> valid (x \+ y) -> f x y = Some r -> valid (r \+ y).
 Proof. by move=>H V E; move: (H Unit x y r); rewrite unitL !unitR; case. Qed.
 
-Lemma idL (U : pcm) : @local U (fun x y => Some x).
+Lemma idL (U : pcm) : @local_fun U (fun x y => Some x).
 Proof. by move=>p x y _ V [<-]; rewrite -joinA. Qed.
+
+(*******************)
+(* Local relations *)
+(*******************)
+
+(* Local relations are needed at some places *)
+(* but are weaker than separating relations *)
+(* For example, separating relation would allow moving p from y to x *)
+(* only if R p y; this is the associativity property *)
+(* of seprels, and is essential for the subPCM construction *)
+(* But here we don't require that property, because we won't be *)
+(* modding out U by a local rel to obtain a subPCM *)
+(* Also, we don't require any special behavior wrt unit. *)
+(* And no commutativity (for now) *)
+
+Definition local_rel (U : pcm) (R : U -> U -> Prop) :=
+  forall p x y, valid (x \+ p \+ y) -> R x (p \+ y) -> R (x \+ p) y.
 
 (******************)
 (* Tuples of PCMs *)
