@@ -216,7 +216,7 @@ Export PCM.Exports.
 (* Cancellative PCMs *)
 (*********************)
 
-(* definition of precision for an arbitrary PCM U *)
+(* definition of precision for an arbitrary PCM U and a predicate on it *)
 
 Definition precise (U : pcm) (P : U -> Prop) :=
   forall s1 s2 t1 t2,

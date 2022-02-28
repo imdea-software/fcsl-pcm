@@ -39,26 +39,27 @@ From fcsl Require Import pcm unionmap natmap.
 (* contepts are:                                                               *)
 (*                                                                             *)
 (* - onth: returns None to signal that an element is not found                 *)
-(* - prefix: will be used for growing interpretation contexts                  *)
+(* - prefix: a prefix relation on sequences, will be used for growing          *)
+(*   interpretation contexts                                                   *)
 
-Section Helpers.
+Section Prefix.
 Variable A : Type.
 
 Fixpoint onth (s : seq A) n : option A :=
   if s is x::sx then if n is nx.+1 then onth sx nx else Some x else None.
 
-Definition prefix s1 s2 :=
+Definition prefix s1 s2 : Prop :=
   forall n x, onth s1 n = some x -> onth s2 n = some x.
 
-(* Lemmas *)
+(* Theory of onth + prefix *)
 
-Lemma size_onth s n : n < size s -> exists x, onth s n = Some x.
+Lemma size_onth s n : n < size s -> exists x, onth s n = some x.
 Proof.
 elim: s n=>[//|a s IH] [|n] /=; first by exists a.
 by rewrite -(addn1 n) -(addn1 (size s)) ltn_add2r; apply: IH.
 Qed.
 
-Lemma onth_size s n x : onth s n = Some x -> n < size s.
+Lemma onth_size s n x : onth s n = some x -> n < size s.
 Proof. by elim: s n=>[//|a s IH] [//|n]; apply: IH. Qed.
 
 Lemma prefix_refl s : prefix s s.
@@ -86,12 +87,15 @@ elim:s t x =>[//|a s IH] [|b t] x H1 H2; first by move: (H2 0 a (erefl _)).
 by case/prefix_cons': H2=><- H2; case: x H1=>[|n] //= H1; apply: IH.
 Qed.
 
-End Helpers.
+Lemma onth_nth s n : onth s n = nth None (map some s) n.
+Proof. by elim: s n=> [|x s IH] [|n] /=. Qed.
+
+End Prefix.
 
 #[export]
 Hint Resolve prefix_refl : core.
 
-Lemma onth_mem (A : eqType) (s : seq A) n x : onth s n = Some x -> x \in s.
+Lemma onth_mem (A : eqType) (s : seq A) n x : onth s n = some x -> x \in s.
 Proof.
 by elim: s n=>//= a s IH [[->]|n /IH]; rewrite inE ?eq_refl // orbC => ->.
 Qed.
@@ -113,7 +117,8 @@ Definition empx := Context [::] [::].
 (* because contexts grow during computation, *)
 (* we need a notion of sub-context *)
 
-Definition sub_ctx i j := prefix (keyx i) (keyx j) /\ prefix (varx i) (varx j).
+Definition sub_ctx (i j : ctx) :=
+  prefix (keyx i) (keyx j) /\ prefix (varx i) (varx j).
 
 Lemma sc_refl i : sub_ctx i i.
 Proof. by []. Qed.
@@ -125,11 +130,11 @@ Qed.
 
 End ReflectionContexts.
 
-(* Keys and map variables are syntactified as indices in the context.    *)
-(* Disjoint union is syntactified as concatenation of lists.             *)
-(*                                                                       *)
-(* Pts n v : syntax for "key indexed the context under number n" \-> v   *)
-(* Var n : syntax for "expression indexed in the context under number n" *)
+(* Keys and map variables are syntactified as De Bruijn indices in the context. *)
+(* Disjoint union is syntactified as concatenation of lists.                    *)
+(*                                                                              *)
+(* Pts n v : syntax for "key indexed the context under number n" \-> v          *)
+(* Var n : syntax for "expression indexed in the context under number n"        *)
 
 (* In the cancellation algorithms, we iterate over the first              *)
 (* expression e1 and remove each of its components from the second        *)
@@ -156,9 +161,17 @@ End ReflectionContexts.
 Section OneShotFilter.
 Variables (A : Type) (p : pred A).
 
-Fixpoint rfilter ts : seq A :=
+(* a variant of filter that removes only the first occurence *)
+
+Fixpoint rfilter (ts : seq A) : seq A :=
   if ts is t :: ts' then if p t then ts' else t :: rfilter ts' else [::].
+
 End OneShotFilter.
+
+(* rfilter can also be thought of as a generalization of rem *)
+Lemma rfilter_rem {T : eqType} (ts : seq T) x :
+        rfilter (pred1 x) ts = rem x ts.
+Proof. by elim: ts=> [|t ts IH] //=; case: eqP=>//= _; rewrite IH. Qed.
 
 (* now for reflection *)
 
@@ -577,10 +590,10 @@ Section WrappersForCancellationLemmas.
 Variable U : cpcm.
 
 Lemma joinKx' (x1 x2 x : U) : x1 \+ x = x2 \+ x -> valid (x1 \+ x) -> x1 = x2.
-Proof. by move=>E V; apply: joinKx V E. Qed.
+Proof. by move=>/[swap]; exact: joinKx. Qed.
 
 Lemma joinxK' (x x1 x2 : U) : x \+ x1 = x \+ x2 -> valid (x \+ x1) -> x1 = x2.
-Proof. by move=>E V; apply: joinxK V E. Qed.
+Proof. by move=>/[swap]; exact: joinxK. Qed.
 
 Lemma cancPL' (P : U -> Prop) (s1 s2 t1 t2 : U) :
        precise P -> s1 \+ t1 = s2 \+ t2 -> P s1 -> P s2 -> valid (s1 \+ t1) ->
