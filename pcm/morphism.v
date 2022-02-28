@@ -12,7 +12,7 @@ limitations under the License.
 *)
 
 From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import eqtype.
+From mathcomp Require Import eqtype fintype.
 From fcsl Require Import options axioms prelude.
 From fcsl Require Import pcm.
 
@@ -887,6 +887,26 @@ End PMorphMorph.
 (* e.g. if we focus on the first argument, is *)
 (* (x \+ y, _) = (x, _) \+ (y, _) *)
 (* It isn't, since _ has to be replaced by the same value everywhere *)
+
+(* morphisms for finite products *)
+
+Section FinProdMorph.
+Variables (T : finType) (Us : T -> pcm).
+
+Lemma sel_morph_ax t : morph_axiom (@sepT (fin_prod_PCM Us)) (sel t).
+Proof.
+split=>[|x y /forallP V _]; first by rewrite sel_fin.
+split; last by rewrite sel_fin.
+by move: (V t); rewrite sel_fin.
+Qed.
+
+Canonical sel_morph t := Morphism' (sel t) (sel_morph_ax t).
+
+Lemma finprodUnE (f1 f2 : forall t, Us t) :
+        finprod f1 \+ finprod f2 = finprod (fun t => f1 t \+ f2 t).
+Proof. by apply: fin_ext=>a; rewrite !sel_fin. Qed.
+
+End FinProdMorph.
 
 (***********************************************************)
 (* Subpcm comes with an injection pval and retraction psub *)

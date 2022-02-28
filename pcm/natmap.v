@@ -628,6 +628,10 @@ Qed.
 
 End FreshLastKey.
 
+Lemma fresh_mono A B (h1 : natmap A) (h2 : natmap B) :
+        {subset dom h1 <= dom h2} -> fresh h1 <= fresh h2.
+Proof. by apply: lastkey_mono. Qed.
+
 Lemma range_freshUnK (A : ordType) (h : natmap A) k (v : A) :
         valid h -> last_key h < k ->
         range (k \-> v \+ h) = rcons (range h) v.
