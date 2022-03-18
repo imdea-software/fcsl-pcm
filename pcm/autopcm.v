@@ -505,62 +505,68 @@ Notation untag := Syntactify.untag.
 Structure packed_pcm (m : U) := Pack {unpack : U}.
 Canonical equate (m : U) := Pack m m.
 
-(* res is the residual seq of terms *)
-Definition raxiom j k ts1 ts2 m res (pivot : packed_pcm m) :=
-  all (wf j) ts1 -> res = Some ts2 -> sub_ctx j k /\
-  interp k ts1 \+ interp k ts2 = Some (unpack pivot).
+(* TODO move to prelude *)
+Definition someb {A} (x : option A) : bool :=
+  if x isn't None then true else false.
 
-Structure rform j k ts1 ts2 m res :=
-  RForm {pivot :> packed_pcm m; _ : raxiom j k ts1 ts2 res pivot}.
+(* rs is the residual seq of terms *)
+Definition raxiom j k ts1 b rs m (pivot : packed_pcm m) :=
+  all (wf j) ts1 -> b -> sub_ctx j k /\
+  interp k ts1 = Some (unpack pivot) \+ interp k (odflt [::] rs).
+
+Structure rform j k ts1 b m res :=
+  RForm {pivot :> packed_pcm m; _ : raxiom j k ts1 b res pivot}.
 
 (* start instance: note how subtract ts1 ts2 [::] is unified with *)
 (* the b component of rform thus passing the residual terms *)
 
 Lemma start_pf j k ts1 ts2 (f2 : form j k ts2) :
-        @raxiom j k ts1 (untag f2) (subtract ts1 ts2 [::]) (equate f2).
+  let sub := subtract ts1 ts2 [::] in
+  @raxiom j k ts1 (someb sub) sub (untag f2) (equate f2).
 Proof.
-case: f2=>f2 [<- S A2]; case E : (subtract _ _ _)=>[rs1 rs2] A1; split=>//.
-case/(subtract_sound (sc_wf S A1) A2): E=>ys [/= D1 D2 D].
-rewrite unitR in D1; apply: domeq_trans D1 _.
-rewrite domeq_sym; apply: domeq_trans D2 _.
-by rewrite domeq_sym; apply: domeqUn.
+case: f2=>f2 [E1 S A2]; case E : (subtract _ _ _)=>[rs|] //= A1 _.
+by move/(subtract_sound (sc_wf S A1) A2): E=>/=; rewrite unitR joinC E1=>->.
 Qed.
 
 Canonical start j k ts1 ts2 f2 := RForm (@start_pf j k ts1 ts2 f2).
 
-End DomeqX.
+End SubtractX.
 
 Module Exports.
 Canonical equate.
 Canonical start.
 
 Section Exports.
-Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
-Implicit Types (j : ctx U) (ts : seq (term T)).
+Variables (U : pcm).
+Implicit Types (j : ctx U) (ts : seq term).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
 
 (* the main lemma; notice how residuals rs1, rs2 are passed to g to compute *)
 
-Lemma domeqX m j k rs1 rs2 ts1 (f1 : form (empx U) j ts1)
-                               (g : rform j k ts1 m (rs1, rs2)) :
-        dom_eq (pprint k (rev rs1)) (pprint k rs2) ->
-        dom_eq (untag f1) (unpack (pivot g)).
+Lemma subtractX m j k ts1 ts2 rs (f1 : form (empx U) j ts1)
+                                 (g : rform j k ts1 true m rs) :
+        untag f1 = unpack (pivot g) \+ odflt Unit (pprint k (odflt [::] rs)).
 Proof.
-case: g f1; case=>pivot R [f1][<- _ A1] /=; case/(_ A1): R=>S D.
-by rewrite !pp_interp interp_rev (sc_interp S A1).
+case: g f1; case=>pivot R [f1][E _ A1] /=.
+case/(_ A1 erefl): R =>S /=.
+rewrite -(sc_interp S A1) E.
+rewrite pp_interp; case: rs=>/= [trs|]; last by rewrite !unitR; case.
+by case: (interp k trs)=>//= u2; case.
 Qed.
 
 End Exports.
 
-Arguments domeqX [K C T U m j k rs1 rs2 ts1 f1 g] _.
+Arguments subtractX {U m j k ts1 ts2 rs f1 g}.
 
+From fcsl Require Import unionmap natmap.
+(*
 Example ex0 (x y z : nat) (v1 v2 : nat) h:
           dom_eq (Unit \+ y \\-> v1 \+ h \+ x \\-> v1) (x \\-> v2 \+ Unit).
 Proof. apply: domeqX=>/=. Abort.
-
+*)
 End Exports.
-End DomeqX.
+End SubtractX.
 
-Export DomeqX.Exports.
+Export SubtractX.Exports.
 
