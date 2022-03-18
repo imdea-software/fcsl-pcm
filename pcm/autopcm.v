@@ -101,25 +101,23 @@ Qed.
 (* The context of keys is thus seq K. The context of vars is seq U.      *)
 
 Section ReflectionContexts.
-Variables (U : tpcm).
+Variables (U : pcm).
 
-Structure ctx := Context {expx : seq U; varx : seq U}.
+Structure ctx := Context {expx : seq U}.
 
-Definition empx := Context [::] [::].
+Definition empx := Context [::].
 
 (* because contexts grow during computation, *)
 (* we need a notion of sub-context *)
 
 Definition sub_ctx (i j : ctx) :=
-  prefix (expx i) (expx j) /\ prefix (varx i) (varx j).
+  prefix (expx i) (expx j).
 
 Lemma sc_refl i : sub_ctx i i.
 Proof. by []. Qed.
 
 Lemma sc_trans i j k : sub_ctx i j -> sub_ctx j k -> sub_ctx i k.
-Proof.
-by case=>K1 V1 [K2 V2]; split; [move: K2 | move: V2]; apply: prefix_trans.
-Qed.
+Proof. by apply: prefix_trans. Qed.
 
 End ReflectionContexts.
 
@@ -169,24 +167,62 @@ Proof. by elim: ts=> [|t ts IH] //=; case: eqP=>//= _; rewrite IH. Qed.
 (* now for reflection *)
 
 Section Reflection.
-Variables (U : tpcm).
+Variables (U : pcm).
 Implicit Type i : ctx U.
 
-Inductive term := Expr of nat | Var of nat.
+Variant term := Expr of nat.
+
+Definition nat_of (t : term) : nat :=
+  let: Expr n := t in n.
 
 (* interpretation function for elements *)
-Definition interp' i t :=
-  match t with
-    Expr n => if onth (expx i) n is Some v then v else undef
-  | Var n => if onth (varx i) n is Some f then f else undef
-  end.
+Definition interp' (i : ctx U) (t : term) : option U :=
+  let: Expr n := t in
+  onth (expx i) n.
 
+(* PCMs lifted to options, TODO move to pcm? *)
+(*
+Definition ojoin (x y : option U) : option U :=
+  if x is Some a then
+    if y is Some b
+      then Some (a \+ b)
+      else None
+    else None.
+
+Definition ovalid (x : option U) :=
+  if x is Some a then valid a else false.
+
+Definition ounit : option U := Some Unit.
+
+Lemma ojoinC x y : ojoin x y = ojoin y x.
+Proof. by case: x; case: y=>//=b a; rewrite joinC. Qed.
+
+Lemma ojoinA x y z : ojoin x (ojoin y z) = ojoin (ojoin x y) z.
+Proof. by case: x; case: y; case: z=>//=c b a; rewrite joinA. Qed.
+
+(* sanity check *)
+Lemma ovalidL x y : ovalid (ojoin x y) -> ovalid x.
+Proof. by case x=>//=a; case: y=>//=b /validL. Qed.
+
+Lemma ovalidR x y : ovalid (ojoin x y) -> ovalid y.
+Proof. by rewrite ojoinC => /ovalidL. Qed.
+
+Lemma ounitL x : ojoin ounit x = x.
+Proof. by case: x=>//=a; rewrite unitL. Qed.
+
+Lemma ounitR x : ojoin x ounit = x.
+Proof. by case: x=>//=a; rewrite unitR. Qed.
+
+Lemma ojoinCA x y z : ojoin x (ojoin y z) = ojoin y (ojoin x z).
+Proof. by case: x; case: y; case: z=>//=c b a; rewrite joinCA. Qed.
+*)
 (* main interpretation function *)
 Notation fx i := (fun t f => interp' i t \+ f).
-Definition interp i ts := foldr (fx i) Unit ts.
+Definition interp (i : ctx U) (ts : seq term) : option U :=
+  foldr (fx i) Unit ts.
 
-Lemma fE i ts x  : foldr (fx i) x ts = x \+ interp i ts.
-Proof. by elim: ts x=>[|t ts IH] x; rewrite /= ?unitR // IH joinCA. Qed.
+Lemma fE i ts x : foldr (fx i) x ts = x \+ interp i ts.
+Proof. by elim: ts x=>[|t ts IH] x /=; rewrite ?unitR // IH /= joinCA. Qed.
 
 Lemma interp_rev i ts : interp i (rev ts) = interp i ts.
 Proof.
@@ -205,80 +241,67 @@ Fixpoint pprint i ts :=
 Lemma pp_interp i ts : pprint i ts = interp i ts.
 Proof. by elim: ts=>[|t ts /= <-] //; case: ts=>//; rewrite unitR. Qed.
 
-Definition exp n t := if t is Expr m then n == m else false.
-Definition var n t := if t is Var m then n == m else false.
+Definition exp n t := let: Expr m := t in n == m.
 
 Definition efree n t := rfilter (exp n) t.
-Definition vfree n t := rfilter (var n) t.
 
 Lemma expN i n ts : ~~ has (exp n) ts -> interp i (efree n ts) = interp i ts.
 Proof. by elim: ts=>[|t ts IH] //=; case: ifP=>//= _ /IH ->. Qed.
 
-Lemma varN i n ts : ~~ has (var n) ts -> interp i (vfree n ts) = interp i ts.
-Proof. by elim: ts=>[|t ts IH] //=; case: ifP=>//= _ /IH ->. Qed.
-
-Lemma expP i n e ts :
-        has (exp n) ts -> onth (expx i) n = Some e ->
-        interp i ts = e \+ interp i (efree n ts).
+Lemma expP i n ts :
+        has (exp n) ts ->
+        interp i ts = onth (expx i) n \+ interp i (efree n ts).
 Proof.
-elim: ts=>[|t ts IH] //=; case: ifP=>[|_ H].
-- by case: t=>//= _ /eqP <- _ ->.
-by move/(IH H)=>->; rewrite joinCA.
-Qed.
-
-Lemma varP i n u ts :
-        has (var n) ts -> onth (varx i) n = Some u ->
-        interp i ts = u \+ interp i (vfree n ts).
-Proof.
-elim: ts=>[|t ts IH] //=; case: ifP=>[|_ H].
-- by case: t=>//= _ /eqP <- _ ->.
-by move/(IH H)=>->; rewrite joinCA.
+elim: ts=>[|t ts IH] //=; case: ifP=>/= [|_ H].
+- by case: t=>/= m /eqP->.
+by rewrite (IH H) joinCA.
 Qed.
 
 (* interpretation is invariant under context weakening *)
 (* under assumption that the interpreted term is well-formed *)
 
 Definition wf i t :=
-  match t with
-    Expr n => n < size (expx i)
-  | Var n => n < size (varx i)
-  end.
+  let: Expr n := t in n < size (expx i).
 
 Lemma sc_wf i j ts : sub_ctx i j -> all (wf i) ts -> all (wf j) ts.
 Proof.
-case=>/prefix_size H1 /prefix_size H2; elim: ts=>[|t ts IH] //=.
-case/andP=>H /IH ->; rewrite andbT.
-by case: t H=>v H; apply: leq_trans H _.
+move/prefix_size=>H; elim: ts=>[|t ts IH] //=.
+case/andP=>Hi /IH ->; rewrite andbT.
+by case: t Hi=>v /= Hi; apply: leq_trans H.
 Qed.
 
 Lemma sc_interp i j ts :
         sub_ctx i j -> all (wf i) ts -> interp i ts = interp j ts.
 Proof.
-case=>H1 H2; elim: ts=>[|t ts IH] //= /andP [H] /IH ->.
-by case: t H=>n /= /prefix_onth <-.
+move=>H; elim: ts=>[|t ts IH] //= /andP [H0] /IH ->.
+by case: t H0=>n /= /prefix_onth <-.
 Qed.
 
 Lemma valid_wf i ts : valid (interp i ts) -> all (wf i) ts.
 Proof.
 elim: ts=>[|t ts IH] //= V; rewrite (IH (validR V)) andbT.
-case: t {V IH} (validL V)=>n /=;
-by case X : (onth _ _)=>[a|]; rewrite ?(onth_size X) // valid_undef.
+case: t {V IH} (validL V)=>n /=.
+by case X: (onth _ _)=>[a|] //=; rewrite (onth_size X).
 Qed.
 
-Lemma wf_kfree i n ts : all (wf i) ts -> all (wf i) (efree n ts).
-Proof. by elim: ts=>//= t ts IH; case: ifP=>_ /andP [] //= -> /IH ->. Qed.
+Lemma wf_some i ts : all (wf i) ts -> exists u, interp i ts = Some u.
+Proof.
+elim: ts=>[|t ts IH] /=; first by move=>_; exists Unit.
+case/andP; case: t=>n /= /size_onth [u1->] /IH [u2 ->].
+by exists (u1 \+ u2).
+Qed.
 
-Lemma wf_vfree i n ts : all (wf i) ts -> all (wf i) (vfree n ts).
+Lemma wf_efree i n ts : all (wf i) ts -> all (wf i) (efree n ts).
 Proof. by elim: ts=>//= t ts IH; case: ifP=>_ /andP [] //= -> /IH ->. Qed.
 
 (* sometimes we want to get keys in a list, not in a predicate *)
-
+(*
 Definition getexprs :=
   foldr (fun t es => if t is Expr e then e :: es else es) [::].
 
 Lemma has_getexprs ts n : n \in getexprs ts = has (exp n) ts.
 Proof. by elim: ts=>//= t ts IH; case: t=>m //; rewrite inE IH. Qed.
-
+*)
 End Reflection.
 
 
@@ -295,7 +318,7 @@ End Reflection.
 (* subtract is purely functional version of domeqX *)
 
 Section Subtract.
-Variables (U : tpcm).
+Variables (U : pcm).
 Implicit Types (i : ctx U) (ts : seq term).
 
 (* We need a subterm lemma that returns the residiual of ts1. *)
@@ -306,32 +329,22 @@ Fixpoint subtract ts1 ts2 xs : option (seq term) :=
     Expr n :: tsx1 =>
       if has (exp n) ts2 then subtract tsx1 (efree n ts2) xs
       else subtract tsx1 ts2 (Expr n :: xs)
-  | Var n :: tsx1 =>
-      if has (var n) ts2 then subtract tsx1 (vfree n ts2) xs
-      else subtract tsx1 ts2 (Var n :: xs)
   | [::] => if ts2 is [::] then Some xs else None
   end.
 
-(*
-(* below, the existentially quantified u is the cancelled part *)
 Lemma subtract_sound i ts1 ts2 rs1 xs :
         all (wf i) ts1 -> all (wf i) ts2 ->
         subtract ts1 ts2 xs = Some rs1 ->
-        exists u, dom_eq (interp i ts1 \+ interp i xs) (interp i rs1 \+ u) /\
-                  dom_eq (interp i ts2) (interp i rs2 \+ u).
+        interp i ts1 \+ interp i xs = interp i rs1 \+ interp i ts2.
 Proof.
-elim: ts1 ts2 xs=>[|t ts1 IH] ts2 xs /= A1 A2.
-- by case=><-<-; exists Unit; rewrite unitL !unitR.
-case/andP: A1; case: t=>[n v|n] /= /size_onth [x X] A1; rewrite X; case: ifP=>Y.
-- case: (keyP Y X)=>w -> /(IH _ _ A1 (wf_kfree n A2)) [u][H1 H2].
-  exists (pts x v \+ u); rewrite -joinA !(pull (pts x _)).
-  by split=>//; apply: domeqUn.
-- by case/(IH _ _ A1 A2)=>u [/= H1 H2]; rewrite X joinCA joinA in H1; exists u.
-- move: (varP Y X)=>-> /(IH _ _ A1 (wf_vfree n A2)) [u][H1 H2].
-  by exists (x \+ u); rewrite -joinA !(pull x); split=>//; apply: domeqUn.
-by case/(IH _ _ A1 A2)=>u [/= H1 H2]; rewrite X joinCA joinA in H1; exists u.
+elim: ts1 ts2 xs=>[|t ts1 IH] ts2 xs /= =>[_|/andP [At A1]].
+- by case: ts2=>//=_; case=>->; rewrite unitR unitL.
+case: t At=>n /= /size_onth [x X] A2; case: ifP=>Y.
+- rewrite -joinA; move: (expP i Y)=>-> /(IH _ _ A1 (wf_efree n A2))->.
+  by rewrite joinCA.
+by move/(IH _ _ A1 A2)=><-/=; rewrite joinCA joinA.
 Qed.
-*)
+
 End Subtract.
 
 
@@ -383,18 +396,17 @@ End XFind.
 
 Module Syntactify.
 Section Syntactify.
-Variables (U : tpcm).
+Variables (U : pcm).
 Implicit Types (i : ctx U) (ts : seq term).
 
 (* a tagging structure to control the flow of computation *)
 Structure tagged_pcm := Tag {untag : U}.
 
-Local Coercion untag : tagged_pcm >-> TPCM.sort.
+Local Coercion untag : tagged_pcm >-> PCM.sort.
 
-(* in reversed order; first test for unions, then empty, pts and vars *)
-Definition var_tag := Tag.
-Definition key_tag := var_tag.
-Definition empty_tag := key_tag.
+(* in reversed order; first test for unions, then empty, and exprs *)
+Definition expr_tag := Tag.
+Definition empty_tag := expr_tag.
 Canonical Structure union_tag hc := empty_tag hc.
 
 (* Main structure                                    *)
@@ -403,7 +415,7 @@ Canonical Structure union_tag hc := empty_tag hc.
 (* - ts : syntactification of map_of using context j *)
 
 Definition axiom i j ts (pivot : tagged_pcm) :=
-  [/\ interp j ts = pivot :> U, sub_ctx i j & all (wf j) ts].
+  [/\ interp j ts = Some (untag pivot), sub_ctx i j & all (wf j) ts].
 Structure form i j ts := Form {pivot : tagged_pcm; _ : axiom i j ts pivot}.
 
 Local Coercion pivot : form >-> tagged_pcm.
@@ -413,8 +425,8 @@ Local Coercion pivot : form >-> tagged_pcm.
 Lemma union_pf i j k ts1 ts2 (f1 : form i j ts1) (f2 : form j k ts2) :
         axiom i k (ts1 ++ ts2) (union_tag (untag f1 \+ untag f2)).
 Proof.
-case: f1 f2=>_ [<- S1 W1][_][<- S2 W2]; split.
-- by rewrite /interp foldr_cat fE joinC -(sc_interp S2 W1).
+case: f1 f2 =>[[u1]] /= [E1 S1 W1][[u2]][E2 S2 W2]; split=>/=.
+- by rewrite /interp foldr_cat !fE unitL joinC -(sc_interp S2 W1) E1 E2.
 - by apply: sc_trans S1 S2.
 by rewrite all_cat (sc_wf S2 W1) W2.
 Qed.
@@ -425,10 +437,24 @@ Canonical union_form i j k ts1 ts2 f1 f2 :=
 (* check if reached empty *)
 
 Lemma empty_pf i : axiom i i [::] (empty_tag Unit).
-Proof. by []. Qed.
+Proof. by split. Qed.
 
 Canonical empty_form i := Form (@empty_pf i).
 
+(* check for expr *)
+
+Lemma expr_pf exprs1 exprs2 n (f : xfind exprs1 exprs2 n) :
+        axiom (Context exprs1) (Context exprs2)
+              [:: Expr n] (expr_tag (xuntag f)).
+Proof.
+case: f=>p [E H]; split=>//=.
+- by rewrite unitR E.
+by rewrite andbT (onth_size E).
+Qed.
+
+Canonical expr_form exprs1 exprs2 v f := Form (@expr_pf exprs1 exprs2 v f).
+
+(*
 (* check for pts k v *)
 
 Lemma pts_pf vars keys1 keys2 k v (f : xfind keys1 keys2 k):
@@ -447,151 +473,45 @@ Lemma var_pf keys vars1 vars2 n (f : xfind vars1 vars2 n) :
 Proof. by case: f=>p [E H]; split=>//=; rewrite ?E ?unitR // (onth_size E). Qed.
 
 Canonical var_form keys vars1 vars2 v f := Form (@var_pf keys vars1 vars2 v f).
-
+*)
 End Syntactify.
 
 Module Exports.
-Coercion untag : tagged_map >-> UMC.sort.
-Coercion pivot : form >-> tagged_map.
+Coercion untag : tagged_pcm >-> PCM.sort.
+Coercion pivot : form >-> tagged_pcm.
 Canonical union_tag.
 Canonical union_form.
 Canonical empty_form.
-Canonical pts_form.
-Canonical var_form.
+Canonical expr_form.
+(*Canonical pts_form.
+Canonical var_form.*)
 End Exports.
 End Syntactify.
 
 Export Syntactify.Exports.
 
-(*********************)
-(* Automating validX *)
-(*********************)
-
-(* validX is a refined lemma for subterm checking which *)
-(* automatically discharges the spurious argument from above *)
-
-Module ValidX.
-Section ValidX.
-Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
-Implicit Types (j : ctx U) (ts : seq (term T)).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
-
-(* The rform structure has two important components:                      *)
-(*                                                                        *)
-(* -- a packed/hoisted map m, which will be reified into the ts2 argument *)
-(*    of subterm ts2 ts1                                                  *)
-(*                                                                        *)
-(* -- a boolean b, which will be instantiated with true in the validX     *)
-(*    lemma, and will be unified with subterm ts2 ts1 in the start        *)
-(*    instance                                                            *)
-(*                                                                        *)
-(* The other components of rform are j ts1 and pivot, which are forced by *)
-(* needing to compose the proofs, but behave plainly in unification.      *)
-
-Structure packed_map (m : U) := Pack {unpack : U}.
-Canonical equate (m : U) := Pack m m.
-
-Definition raxiom j ts1 m (b : bool) (pivot : packed_map m) :=
-  all (wf j) ts1 -> valid (interp j ts1) -> b -> valid (unpack pivot).
-
-Structure rform j ts1 m b :=
-  RForm {pivot :> packed_map m; _ : raxiom j ts1 b pivot}.
-
-(* start instance: note how subterm ts2 ts1 is unified with *)
-(* the boolean component of rform *)
-
-Lemma start_pf j k ts1 ts2 (f2 : form j k ts2) :
-        @raxiom j ts1 (untag f2) (subterm ts2 ts1) (equate f2).
-Proof.
-case: f2=>f2 [<- S A2] A1; rewrite (sc_interp S A1)=>V.
-case/(subterm_sound A2 (sc_wf S A1))=>xs.
-by case/domeqP; rewrite V=>/validL ->.
-Qed.
-
-Canonical start j k ts1 ts2 f2 := RForm (@start_pf j k ts1 ts2 f2).
-
-End ValidX.
-
-(* Wrappers for automated versions of joinKx(xK), cancPL(PR) lemmas *)
-Section WrappersForCancellationLemmas.
-Variable U : cpcm.
-
-Lemma joinKx' (x1 x2 x : U) : x1 \+ x = x2 \+ x -> valid (x1 \+ x) -> x1 = x2.
-Proof. by move=>/[swap]; exact: joinKx. Qed.
-
-Lemma joinxK' (x x1 x2 : U) : x \+ x1 = x \+ x2 -> valid (x \+ x1) -> x1 = x2.
-Proof. by move=>/[swap]; exact: joinxK. Qed.
-
-Lemma cancPL' (P : U -> Prop) (s1 s2 t1 t2 : U) :
-       precise P -> s1 \+ t1 = s2 \+ t2 -> P s1 -> P s2 -> valid (s1 \+ t1) ->
-       (s1 = s2) * (t1 = t2).
-Proof. by move=>H E H1 H2 V; apply: cancPL H V H1 H2 E. Qed.
-
-Lemma cancPR' (P : U -> Prop) (s1 s2 t1 t2 : U) :
-       precise P -> s1 \+ t1 = s2 \+ t2 -> P t1 -> P t2 -> valid (s1 \+ t1) ->
-       (s1 = s2) * (t1 = t2).
-Proof. by move=>H E H1 H2 V; apply: cancPR H V H1 H2 E. Qed.
-End WrappersForCancellationLemmas.
-
-Module Exports.
-Canonical equate.
-Canonical start.
-
-Section Exports.
-Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
-Implicit Types (j : ctx U) (ts : seq (term T)).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
-
-(* the main lemma; note how the boolean component of rform is set to true *)
-
-Lemma validX m j ts1 (f1 : form (empx U) j ts1) (g: rform j ts1 m true) :
-        valid (untag f1) -> valid (unpack (pivot g)).
-Proof. by case: g f1; case=>pivot H [f1][<- Sc A] /(H A); apply. Qed.
-
-End Exports.
-
-Arguments validX [K C T U m j ts1 f1 g] _.
-
-Example ex0 (x y z : nat) (v1 v2 : nat) h:
-          valid (Unit \+ y \\-> v1 \+ h \+ x \\-> v1) ->
-          valid (x \\-> v2 \+ Unit).
-Proof. apply: validX. Abort.
-
-(* Automated versions of joinKx(xK), cancPL(PR) lemmas *)
-Notation joinKX V E := (joinKx' E (validX V)).
-Notation joinXK V E := (joinxK' E (validX V)).
-Notation cancPLX pf V H1 H2 E := (cancPL' pf E H1 H2 (validX V)).
-Notation cancPRX pf V H1 H2 E := (cancPR' pf E H1 H2 (validX V)).
-
-End Exports.
-End ValidX.
-
-Export ValidX.Exports.
 
 (*********************)
 (* Automating domeqX *)
 (*********************)
 
-Module DomeqX.
-Section DomeqX.
-Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
-Implicit Types (j : ctx U) (ts : seq (term T)).
+Module SubtractX.
+Section SubtractX.
+Variables (U : pcm).
+Implicit Types (j : ctx U) (ts : seq term).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
 
-Structure packed_map (m : U) := Pack {unpack : U}.
+Structure packed_pcm (m : U) := Pack {unpack : U}.
 Canonical equate (m : U) := Pack m m.
 
-(* b is the pair of residual terms *)
-Definition raxiom j k ts1 m b (pivot : packed_map m) :=
-  all (wf j) ts1 -> sub_ctx j k /\
-  (dom_eq (interp k b.1) (interp k b.2) ->
-   dom_eq (interp k ts1) (unpack pivot)).
+(* res is the residual seq of terms *)
+Definition raxiom j k ts1 ts2 m res (pivot : packed_pcm m) :=
+  all (wf j) ts1 -> res = Some ts2 -> sub_ctx j k /\
+  interp k ts1 \+ interp k ts2 = Some (unpack pivot).
 
-Structure rform j k ts1 m b :=
-  RForm {pivot :> packed_map m; _ : raxiom j k ts1 b pivot}.
+Structure rform j k ts1 ts2 m res :=
+  RForm {pivot :> packed_pcm m; _ : raxiom j k ts1 ts2 res pivot}.
 
 (* start instance: note how subtract ts1 ts2 [::] is unified with *)
 (* the b component of rform thus passing the residual terms *)

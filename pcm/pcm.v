@@ -677,6 +677,78 @@ Definition boolPCMMixin := PCMMixin andbC andbA andTb
 Canonical boolConjPCM := Eval hnf in PCM bool boolPCMMixin.
 Canonical boolConjEQPCM := Eval hnf in EQPCM bool boolPCMMixin.
 
+Module OptionPCM.
+Section OptionPCM.
+Variables (U : pcm).
+
+Definition ovalid (x : option U) :=
+  if x is Some a then valid a else false.
+
+Definition ojoin (x y : option U) : option U :=
+  if x is Some a then
+    if y is Some b
+      then Some (a \+ b)
+      else None
+    else None.
+
+Definition ounit : option U := Some Unit.
+
+Lemma joinC x y : ojoin x y = ojoin y x.
+Proof. by case: x; case: y=>//=b a; rewrite joinC. Qed.
+
+Lemma joinA x y z : ojoin x (ojoin y z) = ojoin (ojoin x y) z.
+Proof. by case: x; case: y; case: z=>//=c b a; rewrite joinA. Qed.
+
+Lemma validL x y : ovalid (ojoin x y) -> ovalid x.
+Proof. by case x=>//=a; case: y=>//=b /validL. Qed.
+
+Lemma unitL x : ojoin ounit x = x.
+Proof. by case: x=>//=a; rewrite unitL. Qed.
+
+Lemma validU : ovalid ounit.
+Proof. by rewrite /= valid_unit. Qed.
+
+End OptionPCM.
+End OptionPCM.
+
+Definition optPCMMixin U :=
+  PCMMixin (@OptionPCM.joinC U) (@OptionPCM.joinA U)
+           (@OptionPCM.unitL U) (@OptionPCM.validL U)
+           (@OptionPCM.validU U).
+Canonical optPCM U := Eval hnf in PCM (option _) (@optPCMMixin U).
+Canonical optEQPCM (U : eqpcm) :=
+  Eval hnf in EQPCM (option _) (optPCMMixin U).
+
+(* option of a decidable PCM is a free TPCM *)
+
+Section OptTPCM.
+Variables (U : eqpcm).
+
+Definition opt_undef : optPCM U := None.
+
+Definition opt_unitb (x : option U) : bool :=
+  if x is Some a then a == Unit else false.
+
+Lemma opt_unitbP (x : optPCM U) :
+        reflect (x = Unit) (opt_unitb x).
+Proof.
+case: x=>/= [a|].
+- case: eqP=>[->|E]; constructor=>// [[E']].
+  by rewrite E' in E.
+by constructor.
+Qed.
+
+Lemma opt_valid_undef : ~~ @valid (optPCM U) opt_undef.
+Proof. by []. Qed.
+
+Lemma opt_undef_join (x : optPCM U) : opt_undef \+ x = opt_undef.
+Proof. by []. Qed.
+
+Definition optTPCMMix := TPCMMixin opt_unitbP opt_valid_undef opt_undef_join.
+Canonical optTPCM := Eval hnf in TPCM (option _) optTPCMMix.
+
+End OptTPCM.
+
 (*************************)
 (* PCM-induced pre-order *)
 (*************************)
