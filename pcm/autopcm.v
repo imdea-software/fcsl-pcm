@@ -572,7 +572,7 @@ Arguments subtractX [U] m {j k ts1 rs f1 g}.
 Example ex0 (x y z : nat) :
           1 \+ x \+ 2 \+ y \+ 3 \+ z = 0.
 Proof.
-apply: (subtractX' xxxx).
+apply: (subtractX' m (erefl _)).
 
 apply: (subtractX' (m:=(1 \+ x))).
 
