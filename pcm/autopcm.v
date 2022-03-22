@@ -409,10 +409,10 @@ Definition expr_tag := Tag.
 Definition empty_tag := expr_tag.
 Canonical Structure union_tag hc := empty_tag hc.
 
-(* Main structure                                    *)
-(* - i : input context                               *)
-(* - j : output context                              *)
-(* - ts : syntactification of map_of using context j *)
+(* Main structure                                 *)
+(* - i : input context                            *)
+(* - j : output context                           *)
+(* - ts : syntactification of pcm using context j *)
 
 Definition axiom i j ts (pivot : tagged_pcm) :=
   [/\ interp j ts = Some (untag pivot), sub_ctx i j & all (wf j) ts].
@@ -447,33 +447,12 @@ Lemma expr_pf exprs1 exprs2 n (f : xfind exprs1 exprs2 n) :
         axiom (Context exprs1) (Context exprs2)
               [:: Expr n] (expr_tag (xuntag f)).
 Proof.
-case: f=>p [E H]; split=>//=.
-- by rewrite unitR E.
+case: f=>p [E H]; split=>//=; first by rewrite unitR.
 by rewrite andbT (onth_size E).
 Qed.
 
 Canonical expr_form exprs1 exprs2 v f := Form (@expr_pf exprs1 exprs2 v f).
 
-(*
-(* check for pts k v *)
-
-Lemma pts_pf vars keys1 keys2 k v (f : xfind keys1 keys2 k):
-        axiom (Context keys1 vars) (Context keys2 vars)
-              [:: Pts k v] (key_tag (pts (xuntag f) v)).
-Proof. by case: f=>p [E H]; split=>//=; rewrite ?E ?unitR // (onth_size E). Qed.
-
-Canonical pts_form vars keys1 keys2 k v f :=
-  Form (@pts_pf vars keys1 keys2 k v f).
-
-(* check for var *)
-
-Lemma var_pf keys vars1 vars2 n (f : xfind vars1 vars2 n) :
-        axiom (Context keys vars1) (Context keys vars2)
-              [:: Var T n] (var_tag (xuntag f)).
-Proof. by case: f=>p [E H]; split=>//=; rewrite ?E ?unitR // (onth_size E). Qed.
-
-Canonical var_form keys vars1 vars2 v f := Form (@var_pf keys vars1 vars2 v f).
-*)
 End Syntactify.
 
 Module Exports.
@@ -483,8 +462,6 @@ Canonical union_tag.
 Canonical union_form.
 Canonical empty_form.
 Canonical expr_form.
-(*Canonical pts_form.
-Canonical var_form.*)
 End Exports.
 End Syntactify.
 
@@ -509,20 +486,25 @@ Canonical equate (m : U) := Pack m m.
 Definition someb {A} (x : option A) : bool :=
   if x isn't None then true else false.
 
-(* rs is the residual seq of terms *)
-Definition raxiom j k ts1 b rs m (pivot : packed_pcm m) :=
+(* j   : input context                        *)
+(* k   : output context                       *)
+(* ts1 : syntactification of left PCM         *)
+(* rs  : syntactification of residual         *)
+(* b   : witness of rs being valid (not None) *)
+(* m   : the right PCM                        *)
+Definition raxiom j k ts1 rs b m (pivot : packed_pcm m) :=
   all (wf j) ts1 -> b -> sub_ctx j k /\
   interp k ts1 = Some (unpack pivot) \+ interp k (odflt [::] rs).
 
 Structure rform j k ts1 b m res :=
-  RForm {pivot :> packed_pcm m; _ : raxiom j k ts1 b res pivot}.
+  RForm {pivot :> packed_pcm m; _ : raxiom j k ts1 res b pivot}.
 
 (* start instance: note how subtract ts1 ts2 [::] is unified with *)
 (* the b component of rform thus passing the residual terms *)
 
 Lemma start_pf j k ts1 ts2 (f2 : form j k ts2) :
   let sub := subtract ts1 ts2 [::] in
-  @raxiom j k ts1 (someb sub) sub (untag f2) (equate f2).
+  @raxiom j k ts1 sub (someb sub) (untag f2) (equate f2).
 Proof.
 case: f2=>f2 [E1 S A2]; case E : (subtract _ _ _)=>[rs|] //= A1 _.
 by move/(subtract_sound (sc_wf S A1) A2): E=>/=; rewrite unitR joinC E1=>->.
@@ -544,27 +526,27 @@ Notation untag := Syntactify.untag.
 
 (* the main lemma; notice how residuals rs1, rs2 are passed to g to compute *)
 
-Lemma subtractX m j k ts1 ts2 rs (f1 : form (empx U) j ts1)
-                                 (g : rform j k ts1 true m rs) :
-        untag f1 = unpack (pivot g) \+ odflt Unit (pprint k (odflt [::] rs)).
+Lemma subtractX m j k ts1 rs (f1 : form (empx U) j ts1)
+                             (g : rform j k ts1 true m rs) :
+        untag f1 = unpack (pivot g) \+ odflt Unit (obind (pprint k) rs).
 Proof.
 case: g f1; case=>pivot R [f1][E _ A1] /=.
-case/(_ A1 erefl): R =>S /=.
-rewrite -(sc_interp S A1) E.
-rewrite pp_interp; case: rs=>/= [trs|]; last by rewrite !unitR; case.
-by case: (interp k trs)=>//= u2; case.
+case/(_ A1 erefl): R =>S /=; rewrite -(sc_interp S A1) E.
+case: rs=>/= [trs|]; last by rewrite !unitR; case.
+by rewrite pp_interp; case: (interp k trs)=>//= u2; case.
 Qed.
 
 End Exports.
 
-Arguments subtractX {U m j k ts1 ts2 rs f1 g}.
+Arguments subtractX [U] m {j k ts1 rs f1 g}.
 
-From fcsl Require Import unionmap natmap.
-(*
-Example ex0 (x y z : nat) (v1 v2 : nat) h:
-          dom_eq (Unit \+ y \\-> v1 \+ h \+ x \\-> v1) (x \\-> v2 \+ Unit).
-Proof. apply: domeqX=>/=. Abort.
-*)
+Example ex0 (x y z : nat) :
+          valid (1 \+ x \+ 2 \+ y \+ 3 \+ z).
+Proof.
+move: (@subtractX natPCM (1 \+ x)) =>/=.
+rewrite (subtractX (1 \+ x)).
+apply: domeqX=>/=. Abort.
+
 End Exports.
 End SubtractX.
 
