@@ -431,15 +431,16 @@ case: f1 f2 =>[[u1]] /= [E1 S1 W1][[u2]][E2 S2 W2]; split=>/=.
 by rewrite all_cat (sc_wf S2 W1) W2.
 Qed.
 
-Canonical union_form i j k ts1 ts2 f1 f2 :=
-  Form (@union_pf i j k ts1 ts2 f1 f2).
+Canonical union_form i j k ts1 ts2 (f1 : form i j ts1) (f2 : form j k ts2) :=
+  @Form i k (ts1 ++ ts2) (union_tag (untag f1 \+ untag f2)) (@union_pf i j k ts1 ts2 f1 f2).
 
 (* check if reached empty *)
 
 Lemma empty_pf i : axiom i i [::] (empty_tag Unit).
 Proof. by split. Qed.
 
-Canonical empty_form i := Form (@empty_pf i).
+Canonical empty_form i :=
+  @Form i i nil (empty_tag Unit) (@empty_pf i).
 
 (* check for expr *)
 
@@ -451,7 +452,9 @@ case: f=>p [E H]; split=>//=; first by rewrite unitR.
 by rewrite andbT (onth_size E).
 Qed.
 
-Canonical expr_form exprs1 exprs2 v f := Form (@expr_pf exprs1 exprs2 v f).
+Canonical expr_form exprs1 exprs2 n (f : xfind exprs1 exprs2 n) :=
+  @Form (Context exprs1) (Context exprs2) [:: Expr n]
+        (expr_tag (xuntag f)) (@expr_pf exprs1 exprs2 n f).
 
 End Syntactify.
 
@@ -462,15 +465,167 @@ Canonical union_tag.
 Canonical union_form.
 Canonical empty_form.
 Canonical expr_form.
+
 End Exports.
 End Syntactify.
 
 Export Syntactify.Exports.
 
+(*
+Lemma blah (j : ctx natPCM) (ts : seq term) (e : Syntactify.form (Context [::]) j ts) x :
+         Syntactify.untag (Syntactify.pivot e) = x -> j = j -> ts = ts -> Syntactify.untag (Syntactify.pivot e) = x.
+by [].
+Qed.
 
-(*********************)
-(* Automating domeqX *)
-(*********************)
+Lemma blah1 : 1 \+ 2 \+ 3 = 4.
+apply: blah.
+*)
+
+
+(************************)
+(* Automating subtractX *)
+(************************)
+
+Module SubtractX.
+Section SubtractX.
+Variables (U : pcm).
+Implicit Types (j : ctx U) (ts : seq term).
+Notation form := Syntactify.form.
+Notation untag := Syntactify.untag.
+
+Structure packed_pcm (m : U) := Pack {unpack : U}.
+Canonical equate (m : U) := Pack m m.
+
+(* TODO move to prelude *)
+Definition someb {A} (x : option A) : bool :=
+  if x isn't None then true else false.
+
+(* j   : input context                           *)
+(* ts1 : the syntactification of subtractee in j *)
+(* k   : output context                          *)
+(* ts2 : syntactification of goal                *)
+(* rs  : syntactification of residual            *)
+(* b   : witness of rs being valid (not None)    *)
+(* g   : reification of goal                     *)
+
+Definition raxiom (j k : ctx U) (ts1 : seq term) (ts2 : seq term) (rs : option (seq term)) (b : bool) g (pivot : packed_pcm g) :=
+  all (wf j) ts1 -> b -> sub_ctx j k /\
+  Some (unpack pivot) = interp k ts1 \+ interp k (odflt [::] rs).
+
+Structure rform j k ts1 ts2 rs b g :=
+  RForm {pivot :> packed_pcm g; _ : @raxiom j k ts1 ts2 rs b g pivot}.
+
+(* start instance: note how subtract ts1 ts2 [::] is unified with *)
+(* the b component of rform thus passing the residual terms *)
+
+
+Lemma start_pf j k ts1 ts2 (f2 : form j k ts2) :
+  let sub := subtract ts2 ts1 [::] in
+  @raxiom j k ts1 ts2 sub (someb sub) (untag f2) (equate f2).
+Proof.
+case: f2=>f2 [E2 S A2]; case E : (subtract _ _ _)=>[rs|] //= A1 _.
+by move/(subtract_sound A2 (sc_wf S A1)): E=>/=; rewrite unitR joinC E2=>->.
+Qed.
+
+Canonical start j k ts1 ts2 (f2 : form j k ts2) :=
+  let sub := subtract ts2 ts1 [::] in
+  @RForm j k ts1 ts2 sub (someb sub) (untag f2) (equate f2)
+  (@start_pf j k ts1 ts2 f2).
+
+End SubtractX.
+
+Module Exports.
+Canonical equate.
+Canonical start.
+
+Section Exports.
+Variables (U : pcm).
+Implicit Types (j : ctx U) (ts : seq term).
+Notation form := Syntactify.form.
+Notation untag := Syntactify.untag.
+
+(* we need to syntactify first the subtractee (fm), then the goal (g) *)
+
+Lemma subtractX' m j tsm tsg (fm : form (empx U) j tsm)
+                 k wh rs b
+                 (g : rform j k tsm tsg rs b wh) :
+        untag fm = m ->
+        b = true ->
+(*      j = j ->
+        tsm = tsm ->
+        tsg = tsg ->
+        g = g ->
+        k = k ->
+        rs = rs ->
+        *)
+        unpack (pivot g) = m \+ odflt Unit (obind (pprint k \o rev) rs)
+        (*
+        m \+ odflt Unit (obind (pprint k \o rev) rs) = m \+ odflt Unit (obind (pprint k \o rev) rs) ->
+        unpack (pivot g) = unpack (pivot g)
+        *)
+        .
+
+Proof.
+Admitted.
+(*
+move=><-; case: g fm; case=>pivot R [fm][E _ A1] /= Eb.
+rewrite {b}Eb in R.
+case/(_ A1 erefl): R=>S /=; rewrite -(sc_interp S A1) E.
+case: rs=>/= [trs|]; last by rewrite !unitR; case.
+by rewrite pp_interp interp_rev; case: (interp k trs)=>//= a; case.
+Qed.
+*)
+
+End Exports.
+
+Arguments subtractX' [U] m {j tsm tsg fm k wh rs b g}.
+
+Example ex0 (x y z : nat) :
+  1 \+ x \+ 2 \+ y \+ 3 \+ z = 1 \+ x \+ 2 \+ y \+ 3 \+ z.
+Proof.
+
+rewrite (subtractX' (1 \+ 2 \+ 3) erefl _).
+
+(*
+apply: (@subtractX' natPCM (1 \+ x) _ _ _ _ _ _ _ _ _ erefl)=>/=.
+
+move: (@subtractX' natPCM (1 \+ x)). apply.
+
+apply: (subtractX' (m:=(1 \+ x))).
+
+rewrite (subtractX (1 \+ x)).
+
+move: (@subtractX natPCM (1 \+ x)) =>/=.
+rewrite (subtractX (1 \+ x)).
+apply: domeqX=>/=.
+*)
+Abort.
+
+End Exports.
+End SubtractX.
+
+Export SubtractX.Exports.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Module SubtractX.
 Section SubtractX.
@@ -536,13 +691,27 @@ case: rs=>/= [trs|]; last by rewrite !unitR; case.
 by rewrite pp_interp; case: (interp k trs)=>//= u2; case.
 Qed.
 
+Lemma subtractX' m j tsm (fm : form (empx U) j tsm)
+                 k wh rs
+                 (g : rform j k m true wh rs) x :
+        untag fm = m ->
+        g = g -> k = k -> rs = rs ->
+        unpack (pivot g) = x.
+Admitted.
+
 End Exports.
 
 Arguments subtractX [U] m {j k ts1 rs f1 g}.
 
 Example ex0 (x y z : nat) :
-          valid (1 \+ x \+ 2 \+ y \+ 3 \+ z).
+          1 \+ x \+ 2 \+ y \+ 3 \+ z = 0.
 Proof.
+apply: (subtractX' xxxx).
+
+apply: (subtractX' (m:=(1 \+ x))).
+
+rewrite (subtractX (1 \+ x)).
+
 move: (@subtractX natPCM (1 \+ x)) =>/=.
 rewrite (subtractX (1 \+ x)).
 apply: domeqX=>/=. Abort.
