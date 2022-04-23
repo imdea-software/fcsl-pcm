@@ -267,20 +267,25 @@ Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
 
 Structure packed_pcm (m : U) := Pack {unpack : U}.
+
+Local Coercion unpack : packed_pcm >-> PCM.sort.
+
 Canonical equate (m : U) := Pack m m.
 
 (* j   : input context                           *)
-(* tsm : the syntactification of subtractee in j *)
 (* k   : output context                          *)
-(* rs  : the optional syntactified residual term *)
+(* tsm : the syntactification of subtractee in j *)
 (* g   : reification of goal                     *)
+(* rs  : the optional syntactified residual term *)
 
 Definition raxiom j k tsm g (rs : option (seq term)) (pivot : packed_pcm g) :=
   all (wf j) tsm -> rs -> sub_ctx j k /\
   Some (unpack pivot) = interp k tsm \+ interp k (odflt [::] rs).
 
 Structure rform j k tsm g rs :=
-  RForm {pivot :> packed_pcm g; _ : @raxiom j k tsm g rs pivot}.
+  RForm {pivot : packed_pcm g; _ : @raxiom j k tsm g rs pivot}.
+
+Local Coercion pivot : rform >-> packed_pcm.
 
 (* start instance: note how subtract ts1 ts2 [::] is unified with *)
 (* the b component of rform thus passing the residual terms *)
@@ -298,6 +303,8 @@ Canonical start j k tsm tsg (fg : form j k tsg) :=
 End PullX.
 
 Module Exports.
+Coercion unpack : packed_pcm >-> PCM.sort.
+Coercion pivot : rform >-> packed_pcm.
 Canonical equate.
 Canonical start.
 
@@ -314,7 +321,7 @@ Lemma pullX' m j k tsm g rs (fm : form (empx U) j tsm)
         untag fm = m ->
         unpack (pivot fg) = m \+ odflt Unit ((pprint k \o rev) rs).
 Proof.
-move=><-; case: fg fm; case=>pivot R [fm][E X A1] /=.
+move=><-; case: fg fm; case=>pivot R [fm][E _ A1] /=.
 case/(_ A1 erefl): R=>S /=; rewrite -(sc_interp S A1) E.
 by rewrite pp_interp interp_rev; case: (interp k rs)=>//= a [].
 Qed.
