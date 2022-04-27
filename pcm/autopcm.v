@@ -1,5 +1,5 @@
 (*
-Copyright 2017 IMDEA Software Institute
+Copyright 2022 IMDEA Software Institute
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -13,22 +13,29 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq.
-From fcsl Require Import options auto pred.
+From fcsl Require Import options pred.
+From fcsl Require Export auto.
 From fcsl Require Import pcm.
 
 (**************************************************************************)
 (**************************************************************************)
 (* Canonical structure lemmas for automating the following task:          *)
 (*                                                                        *)
-(* Splitting a PCM expression e1 into a given expression e2 + a residual  *)
-(* expression obtained by dropping all terms from e2 in e1.               *)
+(* Splitting a PCM expression e into a combination of a input             *)
+(* subexpression e1 (modulo AC) and a residual expression obtained by     *)
+(* dropping all subterms of e1 from e.                                    *)
+(*                                                                        *)
+(* This allows us to formulate a generalized "pull"-style transformation, *)
+(* which can factor out a given subexpression with one invocation. Note,  *)
+(* however, that this rewrites the goal into a right-biased form, losing  *)
+(* the associativity information.                                         *)
 (*                                                                        *)
 (**************************************************************************)
 (**************************************************************************)
 
-(* Context structure for reflection of PCM expressions. An expression is  *)
-(* everything that are not recognized as a disjoint union, i.e., it can a *)
-(* variable or a literal.                                                 *)
+(* Context structure for reflection of PCM expressions. An expression is *)
+(* everything that are not recognized as a disjoint union, i.e., it can  *)
+(* be a variable or a literal.                                           *)
 
 Section ReflectionContexts.
 Variables (U : pcm).
@@ -262,7 +269,7 @@ Export Syntactify.Exports.
 Module PullX.
 Section PullX.
 Variables (U : pcm).
-Implicit Types (j : ctx U) (ts : seq term).
+Implicit Types (j k : ctx U) (ts : seq term).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
 
@@ -272,33 +279,40 @@ Local Coercion unpack : packed_pcm >-> PCM.sort.
 
 Canonical equate (m : U) := Pack m m.
 
-(* j   : input context                           *)
-(* k   : output context                          *)
-(* tsm : the syntactification of subtractee in j *)
-(* g   : reification of goal                     *)
-(* rs  : the optional syntactified residual term *)
+(* j  : input context                                   *)
+(* k  : output context                                  *)
+(* ts : (input) the syntactification of subtractee in j *)
+(* g  : (aux) copy of the goal                          *)
+(* r  : (output) the optional residual term             *)
 
-Definition raxiom j k tsm g (rs : option (seq term)) (pivot : packed_pcm g) :=
-  all (wf j) tsm -> rs -> sub_ctx j k /\
-  Some (unpack pivot) = interp k tsm \+ interp k (odflt [::] rs).
+(* We have a choice of leaving the residual in a syntactified form or printing *)
+(* it back into a PCM. Here we choose the second option since in HTT we need   *)
+(* to pass the residual to a partitioning autolemma which operates on heaps.   *)
 
-Structure rform j k tsm g rs :=
-  RForm {pivot : packed_pcm g; _ : @raxiom j k tsm g rs pivot}.
+Definition raxiom j k ts g (r : option U) (pivot : packed_pcm g) :=
+  all (wf j) ts -> r -> sub_ctx j k /\
+  Some (unpack pivot) = interp k ts \+ r.
+
+Structure rform j k ts g r :=
+  RForm {pivot : packed_pcm g; _ : @raxiom j k ts g r pivot}.
 
 Local Coercion pivot : rform >-> packed_pcm.
 
-(* start instance: note how subtract ts1 ts2 [::] is unified with *)
-(* the b component of rform thus passing the residual terms *)
+(* start instance: syntactify the goal (by triggering fg),     *)
+(* run the subtraction on quoted terms and print the residual. *)
 
-Lemma start_pf j k tsm tsg (fg : form j k tsg) :
-  @raxiom j k tsm (untag fg) (subtract tsg tsm [::]) (equate fg).
+Lemma start_pf j k ts tg (fg : form j k tg) :
+  @raxiom j k ts (untag fg)
+                 (obind (pprint k \o rev) (subtract tg ts [::]))
+                 (equate fg).
 Proof.
-case: fg=>fg [Eg S Ag]; case E : (subtract _ _ _)=>[rs|] //= Am _.
-by move/(subtract_sound Ag (sc_wf S Am)): E=>/=; rewrite unitR joinC Eg=>->.
+case: fg=>fg [Eg S Ag]; case E: (subtract _ _ _)=>[rs|] //= Am _; split=>//.
+move/(subtract_sound Ag (sc_wf S Am)): E=>/=.
+by rewrite unitR joinC Eg pp_interp interp_rev.
 Qed.
 
-Canonical start j k tsm tsg (fg : form j k tsg) :=
-  RForm (@start_pf j k tsm tsg fg).
+Canonical start j k ts tg (fg : form j k tg) :=
+  RForm (@start_pf j k ts tg fg).
 
 End PullX.
 
@@ -316,23 +330,23 @@ Notation untag := Syntactify.untag.
 
 (* we need to syntactify first the subtractee (fm), then the goal (fg) *)
 
-Lemma pullX' m j k tsm g rs (fm : form (empx U) j tsm)
-                            (fg : rform j k tsm g (Some rs)) :
-        untag fm = m ->
-        unpack (pivot fg) = m \+ odflt Unit ((pprint k \o rev) rs).
+Lemma pullX' s j k ts g r (fs : form (empx U) j ts)
+                          (fg : rform j k ts g (Some r)) :
+        untag fs = s ->
+        unpack (pivot fg) = s \+ r.
 Proof.
-move=><-; case: fg fm; case=>pivot R [fm][E _ A1] /=.
+move=><-; case: fg fs; case=>pivot R [fm][E _ A1] /=.
 case/(_ A1 erefl): R=>S /=; rewrite -(sc_interp S A1) E.
-by rewrite pp_interp interp_rev; case: (interp k rs)=>//= a [].
+by case.
 Qed.
 
 End Exports.
 
-Arguments pullX' [U] m [j k tsm g rs fm fg] _.
-Notation pullX m := (pullX' m erefl).
+Arguments pullX' [U] s [j k ts g r fs fg] _.
+Notation pullX s := (pullX' s erefl).
 
 Example ex0 (x y z : nat) :
-          1 \+ x \+ 2 \+ y \+ 3 \+ z = 1.
+          1 \+ x \+ 2 \+ y \+ 3 \+ z = 0.
 Proof.
 rewrite [LHS](pullX (3 \+ 2)) /=.
 Abort.
