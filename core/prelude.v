@@ -533,6 +533,18 @@ Proof. by rewrite all_predC has_sym -all_predC. Qed.
 Lemma nilp_hasPn A (s : seq A) : nilp s = ~~ has predT s.
 Proof. by case: s. Qed.
 
+Lemma nilp_filter (A : eqType) (p : pred A) s :
+        reflect {in s, forall z, ~~ p z} (nilp (filter p s)).
+Proof.
+case E : (nilp _); constructor.
+- move: E; rewrite nilp_hasPn=>/hasPn H x Kx; apply/negP=>Px.
+  by move: (H x); rewrite mem_filter Px=>/(_ Kx).
+move=>X; move/negP: E; elim.
+rewrite nilp_hasPn; apply/negP=>/hasP [x].
+rewrite mem_filter=>/andP [Px Kx] _.
+by move: (X x Kx); rewrite Px.
+Qed.
+
 Lemma index_rcons (A : eqType) (a x : A) xs :
         index a (rcons xs x) =
         if a \in xs then index a xs else
@@ -623,6 +635,33 @@ have : ys1 = drop (size (xs2++[::k])) (xs2++k::ys1).
 by rewrite E drop_cat size_cat /= addn1 ltnNge ltnW //= subSn // subnn /= drop0.
 Qed.
 
+(* if the list is not empty, the default value in head doesn't matter *)
+Lemma head_dflt (A : eqType) (x1 x2 x : A) (s : seq A) :
+        x \in s -> head x1 s = head x2 s.
+Proof. by case: s. Qed.
+
+Lemma mem_head (A : eqType) (x : A) (s : seq A) : head x s \in x :: s.
+Proof. by case: s=>[|y ys]; rewrite !inE //= eq_refl orbT. Qed.
+
+(* a common pattern of using mem_head that avoids forward reasoning *)
+Lemma mem_headI (A : eqType) (x : A) (s : seq A) a :
+        a = head x s -> a \in x :: s.
+Proof. by move=>->; apply: mem_head. Qed.
+
+Lemma head_nilp (A : eqType) (x : A) (s : seq A) :
+        x \notin s -> head x s = x -> nilp s.
+Proof.
+elim: s=>[|y ys IH] //= H1 H2.
+by rewrite H2 inE eq_refl /= in H1.
+Qed.
+
+Lemma head_notin (A : eqType) (x y : A) (s : seq A) :
+        y \in s -> x \notin s -> head x s != x.
+Proof.
+move=>Y X; apply/negP=>/eqP; move/(head_nilp X)/nilP=>E.
+by rewrite E in Y.
+Qed.
+
 (* Interaction of filter/last/index *)
 
 Section LastFilter.
@@ -665,12 +704,13 @@ Proof. by move/last_nochange; case/orP=>[/negbF ->|/eqP]. Qed.
 
 (* last has bigger index than anything in x *)
 Lemma index_last_mono x k (s : seq A) :
-         uniq (k :: s) -> x \in s -> index x s <= index (last k s) s.
+         uniq s -> x \in s -> index x s <= index (last k s) s.
 Proof.
-elim: s k=>[|k s IH] //= k'; rewrite !inE negb_or (eq_sym x).
-case: eqP=>//= _; case: eqP=>//= _ /and3P [_ H2 H3 H].
-case: eqP=>[/esym E|_]; last by apply: IH=>//=; rewrite H2 H3.
-by rewrite (last_nochange_nil E H2) in H.
+elim: s k=>[|k s IH] //= k'; rewrite inE !(eq_sym k).
+case/andP=>K U; case: (x =P k)=>//= /eqP N X.
+case: (last k s =P k)=>[/last_nochange|/eqP L].
+- by case: eqP X=>[->//|]; rewrite (negbTE K).
+by apply: leq_trans (IH k U X) _.
 Qed.
 
 (* if it has bigger index, and is in the list, then it's last *)

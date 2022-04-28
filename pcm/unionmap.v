@@ -3774,6 +3774,18 @@ Qed.
 
 Hint Resolve umfilt_pleqI : core.
 
+Lemma dom_umfilt2 p1 p2 f x :
+        x \in dom (um_filter p1 (um_filter p2 f)) =
+        (x \in dom (um_filter p1 f)) && (x \in dom (um_filter p2 f)).
+Proof.
+rewrite -umfilt_predI; apply/idP/idP.
+- case/dom_umfilt=>v [/andP [X1 X2] H].
+  by apply/andP; split; apply/dom_umfilt; exists v.
+case/andP=>/dom_umfilt [v1][X1 H1] /dom_umfilt [v2][X2 H2].
+move: (In_fun H1 H2)=>E; rewrite -{v2}E in X2 H2 *.
+by apply/dom_umfilt; exists v1; split=>//; apply/andP.
+Qed.
+
 End FilterDefLemmas.
 
 #[export]
