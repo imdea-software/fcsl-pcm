@@ -27,9 +27,9 @@ This library relies on propositional and functional extentionality axioms.
 - Author(s):
   - Aleksandar Nanevski (initial)
 - License: [Apache-2.0](LICENSE)
-- Compatible Coq versions: Coq 8.13 to 8.15
+- Compatible Coq versions: Coq 8.14 to 8.15
 - Additional dependencies:
-  - [MathComp ssreflect 1.13 to 1.15](https://math-comp.github.io)
+  - [MathComp ssreflect 1.13 to 1.14](https://math-comp.github.io)
 - Coq namespace: `fcsl`
 - Related publication(s): none
 
