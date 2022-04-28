@@ -4,6 +4,7 @@
 
 options.v
 core/axioms.v
+core/auto.v
 core/prelude.v
 core/pred.v
 core/ordtype.v
@@ -11,6 +12,7 @@ core/seqperm.v
 core/finmap.v
 core/rtc.v
 pcm/pcm.v
+pcm/autopcm.v
 pcm/morphism.v
 pcm/invertible.v
 pcm/unionmap.v

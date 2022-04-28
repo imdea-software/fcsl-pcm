@@ -18,8 +18,8 @@ limitations under the License.
 (******************************************************************************)
 
 From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import ssrnat eqtype bigop seq fintype finset.
-From fcsl Require Import prelude seqperm pred options.
+From mathcomp Require Import ssrnat eqtype seq bigop fintype finset.
+From fcsl Require Import axioms prelude seqperm pred options.
 
 Declare Scope pcm_scope.
 Delimit Scope pcm_scope with pcm.
@@ -216,7 +216,7 @@ Export PCM.Exports.
 (* Cancellative PCMs *)
 (*********************)
 
-(* definition of precision for an arbitrary PCM U *)
+(* definition of precision for an arbitrary PCM U and a predicate on it *)
 
 Definition precise (U : pcm) (P : U -> Prop) :=
   forall s1 s2 t1 t2,
@@ -677,6 +677,78 @@ Definition boolPCMMixin := PCMMixin andbC andbA andTb
 Canonical boolConjPCM := Eval hnf in PCM bool boolPCMMixin.
 Canonical boolConjEQPCM := Eval hnf in EQPCM bool boolPCMMixin.
 
+Module OptionPCM.
+Section OptionPCM.
+Variables (U : pcm).
+
+Definition ovalid (x : option U) :=
+  if x is Some a then valid a else false.
+
+Definition ojoin (x y : option U) : option U :=
+  if x is Some a then
+    if y is Some b
+      then Some (a \+ b)
+      else None
+    else None.
+
+Definition ounit : option U := Some Unit.
+
+Lemma joinC x y : ojoin x y = ojoin y x.
+Proof. by case: x; case: y=>//=b a; rewrite joinC. Qed.
+
+Lemma joinA x y z : ojoin x (ojoin y z) = ojoin (ojoin x y) z.
+Proof. by case: x; case: y; case: z=>//=c b a; rewrite joinA. Qed.
+
+Lemma validL x y : ovalid (ojoin x y) -> ovalid x.
+Proof. by case x=>//=a; case: y=>//=b /validL. Qed.
+
+Lemma unitL x : ojoin ounit x = x.
+Proof. by case: x=>//=a; rewrite unitL. Qed.
+
+Lemma validU : ovalid ounit.
+Proof. by rewrite /= valid_unit. Qed.
+
+End OptionPCM.
+End OptionPCM.
+
+Definition optPCMMixin U :=
+  PCMMixin (@OptionPCM.joinC U) (@OptionPCM.joinA U)
+           (@OptionPCM.unitL U) (@OptionPCM.validL U)
+           (@OptionPCM.validU U).
+Canonical optPCM U := Eval hnf in PCM (option _) (@optPCMMixin U).
+Canonical optEQPCM (U : eqpcm) :=
+  Eval hnf in EQPCM (option _) (optPCMMixin U).
+
+(* option of a decidable PCM is a free TPCM *)
+
+Section OptTPCM.
+Variables (U : eqpcm).
+
+Definition opt_undef : optPCM U := None.
+
+Definition opt_unitb (x : option U) : bool :=
+  if x is Some a then a == Unit else false.
+
+Lemma opt_unitbP (x : optPCM U) :
+        reflect (x = Unit) (opt_unitb x).
+Proof.
+case: x=>/= [a|].
+- case: eqP=>[->|E]; constructor=>// [[E']].
+  by rewrite E' in E.
+by constructor.
+Qed.
+
+Lemma opt_valid_undef : ~~ @valid (optPCM U) opt_undef.
+Proof. by []. Qed.
+
+Lemma opt_undef_join (x : optPCM U) : opt_undef \+ x = opt_undef.
+Proof. by []. Qed.
+
+Definition optTPCMMix := TPCMMixin opt_unitbP opt_valid_undef opt_undef_join.
+Canonical optTPCM := Eval hnf in TPCM (option _) optTPCMMix.
+
+End OptTPCM.
+
 (*************************)
 (* PCM-induced pre-order *)
 (*************************)
@@ -752,16 +824,33 @@ Prenex Implicits pleq_refl.
 (* Local functions *)
 (*******************)
 
-Definition local (U : pcm) (f : U -> U -> option U) :=
+Definition local_fun (U : pcm) (f : U -> U -> option U) :=
   forall p x y r, valid (x \+ (p \+ y)) -> f x (p \+ y) = Some r ->
                   valid (r \+ p \+ y) /\ f (x \+ p) y = Some (r \+ p).
 
 Lemma localV U f x y r :
-        @local U f -> valid (x \+ y) -> f x y = Some r -> valid (r \+ y).
+        @local_fun U f -> valid (x \+ y) -> f x y = Some r -> valid (r \+ y).
 Proof. by move=>H V E; move: (H Unit x y r); rewrite unitL !unitR; case. Qed.
 
-Lemma idL (U : pcm) : @local U (fun x y => Some x).
+Lemma idL (U : pcm) : @local_fun U (fun x y => Some x).
 Proof. by move=>p x y _ V [<-]; rewrite -joinA. Qed.
+
+(*******************)
+(* Local relations *)
+(*******************)
+
+(* Local relations are needed at some places *)
+(* but are weaker than separating relations *)
+(* For example, separating relation would allow moving p from y to x *)
+(* only if R p y; this is the associativity property *)
+(* of seprels, and is essential for the subPCM construction *)
+(* But here we don't require that property, because we won't be *)
+(* modding out U by a local rel to obtain a subPCM *)
+(* Also, we don't require any special behavior wrt unit. *)
+(* And no commutativity (for now) *)
+
+Definition local_rel (U : pcm) (R : U -> U -> Prop) :=
+  forall p x y, valid (x \+ p \+ y) -> R x (p \+ y) -> R (x \+ p) y.
 
 (******************)
 (* Tuples of PCMs *)
@@ -1088,6 +1177,124 @@ Proof. by rewrite pcmE /= !undef_join. Qed.
 Definition prod7TPCMMix := TPCMMixin uunitbP7 uvalid_undef7 uundef_join7.
 Canonical prod7_TPCM := Eval hnf in TPCM (Prod7 U1 U2 U3 U4 U5 U6 U7) prod7TPCMMix.
 End UTPCM7.
+
+(***************************************)
+(* In fact, for all finite products    *)
+(* function extensionality is required *)
+(***************************************)
+
+Section UPCM_fin.
+Variables (T : finType) (Us : T -> pcm).
+Notation tp := (FinProd Us).
+
+Let uvalid (x : tp) := [forall t, valid (sel t x)].
+Let ujoin (x y : tp) := finprod (fun t => sel t x \+ sel t y).
+Let uunit : tp := finprod (fun t => Unit).
+
+Lemma ujoinC_fin x y : ujoin x y = ujoin y x.
+Proof. by apply: fin_ext=>a; rewrite !sel_fin joinC. Qed.
+
+Lemma ujoinA_fin x y z : ujoin x (ujoin y z) = ujoin (ujoin x y) z.
+Proof. by apply: fin_ext=>a; rewrite !sel_fin joinA. Qed.
+
+Lemma uvalidL_fin x y : uvalid (ujoin x y) -> uvalid x.
+Proof.
+move/forallP=>H; apply/forallP=>t; move: (H t).
+by rewrite sel_fin=>/validL.
+Qed.
+
+Lemma uunitL_fin x : ujoin uunit x = x.
+Proof. by apply: fin_ext=>t; rewrite !sel_fin unitL. Qed.
+
+Lemma uvalidU_fin : uvalid uunit.
+Proof. by apply/forallP=>t; rewrite sel_fin valid_unit. Qed.
+
+Definition fin_prodPCMMixin :=
+  PCMMixin ujoinC_fin ujoinA_fin uunitL_fin uvalidL_fin uvalidU_fin.
+Canonical fin_prod_PCM := Eval hnf in PCM (FinProd Us) fin_prodPCMMixin.
+End UPCM_fin.
+
+(* for TPCM, we require that T has at least one element *)
+(* otherwise, undef won't be invalid *)
+
+Section UTPCM_fin.
+Variables (T : finType) (Us : T -> tpcm) (i : T).
+Notation tp := (FinProd Us).
+
+Let uunitb (x : tp) := [forall t, unitb (sel t x)].
+Let uundef : tp := finprod (fun t => undef).
+
+Lemma uunitbP_fin x : reflect (x = Unit) (uunitb x).
+Proof.
+case H : (uunitb x); constructor.
+- move/forallP: H=>H; apply: fin_ext=>a.
+  by rewrite sel_fin; move/unitbP: (H a).
+move=>E; move/negP: H; apply; apply/forallP=>t.
+by rewrite E sel_fin unitb0.
+Qed.
+
+Lemma uvalid_undef_fin : ~~ valid uundef.
+Proof. by apply/negP=>/forallP/(_ i); rewrite sel_fin valid_undef. Qed.
+
+Lemma uundef_join_fin x : uundef \+ x = uundef.
+Proof. by apply: fin_ext=>a; rewrite !sel_fin undef_join. Qed.
+
+Definition fin_prodTPCMMix :=
+  TPCMMixin uunitbP_fin uvalid_undef_fin uundef_join_fin.
+Canonical fin_prod_TPCM := Eval hnf in TPCM (FinProd Us) fin_prodTPCMMix.
+End UTPCM_fin.
+
+Notation fin_undef := (finprod (fun x => undef)).
+
+Lemma valid_sel (T : finType) (Us : T -> pcm) tag (x : FinProd Us) :
+         valid x -> valid (sel tag x).
+Proof. by move/forallP; apply. Qed.
+
+Lemma valid_selUn (T : finType) (Us : T -> pcm) tag (x1 x2 : FinProd Us) :
+        valid (x1 \+ x2) -> valid (sel tag x1 \+ sel tag x2).
+Proof. by move/forallP/(_ tag); rewrite sel_fin. Qed.
+
+Lemma valid_fin (T : finType) (Us : T -> pcm) (f : forall x, Us x) :
+        (forall t, valid (f t)) -> valid (finprod f).
+Proof. by move=>H; apply/forallP=>x; rewrite sel_fin. Qed.
+
+Lemma valid_finUn (T : finType) (Us : T -> pcm) (f1 f2 : forall x, Us x) :
+        (forall t, valid (f1 t \+ f2 t)) -> valid (finprod f1 \+ finprod f2).
+Proof. by move=>H; apply/forallP=>x; rewrite !sel_fin. Qed.
+
+Lemma sel_undef (T : finType) (Us : T -> tpcm) (tag : T) :
+        sel tag (undef : fin_prod_TPCM Us tag) = undef.
+Proof. by rewrite sel_fin. Qed.
+
+Lemma fin_undefE (T : finType) (Us : T -> tpcm) (tag : T) :
+        fin_undef = undef :> fin_prod_TPCM Us tag.
+Proof. by []. Qed.
+
+Lemma valid_spliceUn (T : finType) (Us : T -> pcm) (tag : T) (x y : FinProd Us) v :
+        valid (x \+ y) ->
+        valid (v \+ sel tag y) ->
+        valid (splice x tag v \+ y).
+Proof.
+move=>V V'; apply/forallP=>z; rewrite !sel_fin.
+case: decP=>?; first by subst z; rewrite eqc.
+by rewrite valid_selUn.
+Qed.
+
+Lemma valid_splice (T : finType) (Us : T -> pcm) (tag : T) (x : FinProd Us) v :
+        valid x -> valid v ->
+        valid (splice x tag v).
+Proof.
+move=>V V'; apply/forallP=>z; rewrite sel_fin.
+case: decP=>?; first by subst z; rewrite eqc.
+by rewrite valid_sel.
+Qed.
+
+Lemma spliceUn (T : finType) (Us : T -> pcm) (tag : T) (x y : FinProd Us) v w :
+        splice (x \+ y) tag (v \+ w) = splice x tag v \+ splice y tag w.
+Proof.
+apply: fin_ext=>a; rewrite !sel_fin; case: decP=>// ?.
+by subst a; rewrite !eqc.
+Qed.
 
 
 (********************)

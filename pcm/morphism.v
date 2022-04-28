@@ -12,7 +12,7 @@ limitations under the License.
 *)
 
 From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import eqtype.
+From mathcomp Require Import eqtype fintype.
 From fcsl Require Import options axioms prelude.
 From fcsl Require Import pcm.
 
@@ -888,6 +888,26 @@ End PMorphMorph.
 (* (x \+ y, _) = (x, _) \+ (y, _) *)
 (* It isn't, since _ has to be replaced by the same value everywhere *)
 
+(* morphisms for finite products *)
+
+Section FinProdMorph.
+Variables (T : finType) (Us : T -> pcm).
+
+Lemma sel_morph_ax t : morph_axiom (@sepT (fin_prod_PCM Us)) (sel t).
+Proof.
+split=>[|x y /forallP V _]; first by rewrite sel_fin.
+split; last by rewrite sel_fin.
+by move: (V t); rewrite sel_fin.
+Qed.
+
+Canonical sel_morph t := Morphism' (sel t) (sel_morph_ax t).
+
+Lemma finprodUnE (f1 f2 : forall t, Us t) :
+        finprod f1 \+ finprod f2 = finprod (fun t => f1 t \+ f2 t).
+Proof. by apply: fin_ext=>a; rewrite !sel_fin. Qed.
+
+End FinProdMorph.
+
 (***********************************************************)
 (* Subpcm comes with an injection pval and retraction psub *)
 (***********************************************************)
@@ -946,8 +966,8 @@ Bind Scope pcm_scope with sort.
 Coercion pcmType : type >-> PCM.type.
 Canonical pcmType.
 Notation sub_pcm := type.
-Notation subPCMMix := (@Mixin _ _).
-Notation subPCM T m := (@pack _ _ T _ m _ id).
+Notation subPCMMix D := (@Mixin _ D).
+Notation subPCM D T m := (@pack _ D T _ m _ id).
 
 Definition pval V D (U : @sub_pcm V D) : {morphism (@sepT U) >-> V} :=
   pval_op (mixin (class U)).
@@ -1090,14 +1110,16 @@ Lemma pvalUnX x y :
 Proof. by rewrite joinC=>/pvalXUn <-; rewrite joinC. Qed.
 
 Lemma psubXUn x y :
-        valid (pval x \+ y) -> D (pval x) y ->
-        x \+ psub y = psub (pval x \+ y).
-Proof. by move=>W H; rewrite pfjoin // psub_pval. Qed.
+        valid (x \+ psub y) -> x \+ psub y = psub (pval x \+ y).
+Proof.
+by rewrite valid_psubUnX=>/andP [W H]; rewrite pfjoin // psub_pval.
+Qed.
 
 Lemma psubUnX x y :
-        valid (x \+ pval y) -> D x (pval y) ->
-        psub x \+ y = psub (x \+ pval y).
-Proof. by move=>W H; rewrite pfjoin // psub_pval. Qed.
+        valid (psub x \+ y) -> psub x \+ y = psub (x \+ pval y).
+Proof.
+by rewrite valid_psubXUn=>/andP [W H]; rewrite pfjoin // psub_pval.
+Qed.
 
 End Lemmas.
 
@@ -1307,8 +1329,8 @@ rewrite {2}/valid /= /xsep_valid /= -!lock.
 by case: x=>x /= [/andP [->->]|] // ->; rewrite tpcmE.
 Qed.
 
-Definition xsepSubMix := subPCMMix valid_xpsubU xpsub_xval xval_xpsub xvalid_pval.
-Canonical xsepSubPCM : sub_pcm D := Eval hnf in subPCM xsepPCM xsepSubMix.
+Definition xsepSubMix := subPCMMix D valid_xpsubU xpsub_xval xval_xpsub xvalid_pval.
+Canonical xsepSubPCM : sub_pcm D := Eval hnf in subPCM D xsepPCM xsepSubMix.
 
 End SepSubPCM.
 
@@ -1361,7 +1383,7 @@ Canonical xsepTPCM U D :=
 Parameter xsepSubMix : forall (U : tpcm) (D : sep_rel U),
                          SubPCM.mixin_of D (xsepPCM D).
 Canonical xsepSubPCM (U : tpcm) (D : sep_rel U) : sub_pcm D :=
-  Eval hnf in subPCM (@xsepPCM U D) (@xsepSubMix U D).
+  Eval hnf in subPCM D (@xsepPCM U D) (@xsepSubMix U D).
 Parameter xsep_undef : forall (U : tpcm) (D : sep_rel U),
   @pval U D (@xsepSubPCM U D) (@undef (@xsepTPCM U D)) = undef.
 
@@ -1379,7 +1401,7 @@ Definition xsepTPCMMix := @SepSubPCM.xsepTPCMMix U D.
 Canonical xsepTPCM := Eval hnf in TPCM xsep xsepTPCMMix.
 Definition xsepSubMix := @SepSubPCM.xsepSubMix U D.
 Canonical xsepSubPCM : sub_pcm D :=
-  Eval hnf in subPCM xsepPCM xsepSubMix.
+  Eval hnf in subPCM D xsepPCM xsepSubMix.
 Lemma xsep_undef : pval (U:=xsepSubPCM) undef = undef.
 Proof. by apply: SepSubPCM.Exports.xval_undef. Qed.
 Lemma xsepP (x : xsepSubPCM) : x = undef \/  valid x.
@@ -1426,7 +1448,7 @@ Definition xsepSubMix :=
   cast (fun W : sep_rel U * tpcm => SubPCM.mixin_of W.1 W.2)
        eq3
        (SepSub.xsepSubMix D).
-Canonical xsepSubPCM := Eval hnf in subPCM xsepPCM xsepSubMix.
+Canonical xsepSubPCM := Eval hnf in subPCM D xsepPCM xsepSubMix.
 
 Lemma xsep_undef : pval (U:=xsepSubPCM) undef = undef.
 Proof.
@@ -1484,7 +1506,7 @@ Definition xsepSubMix :=
   cast (fun W : sep_rel U * tpcm => SubPCM.mixin_of W.1 W.2)
        eq3
        (SepSub.xsepSubMix D).
-Definition xsepSubPCM := Eval hnf in subPCM xsepPCM xsepSubMix.
+Definition xsepSubPCM := Eval hnf in subPCM D xsepPCM xsepSubMix.
 
 Lemma xsep_undef : pval (U:=xsepSubPCM) (@undef xsepTPCM) = undef.
 Proof.
@@ -1537,9 +1559,9 @@ Canonical pprodPCM := Eval hnf in PCM (pprod U1 U2) pprodPCMMix.
 Parameter pprodTPCMMix : TPCM.mixin_of pprodPCM.
 Canonical pprodTPCM := Eval hnf in TPCM (pprod U1 U2) pprodTPCMMix.
 Parameter pprodSubMix :
-  SubPCM.mixin_of [seprel of @sepT (U1 * U2)] pprodPCM.
+  SubPCM.mixin_of (sepT_seprel (prodPCM U1 U2)) pprodPCM.
 Canonical pprodSubPCM :=
-  Eval hnf in subPCM (pprod U1 U2) pprodSubMix.
+  Eval hnf in subPCM (sepT_seprel (prodPCM U1 U2)) (pprod U1 U2) pprodSubMix.
 Parameter pprod_pval_undef : pval (@undef pprodTPCM) = undef.
 Parameter pprodP : forall x : pprod U1 U2, x = undef \/ valid x.
 End PairingSig.
@@ -1560,7 +1582,7 @@ Definition pprodTPCMMix := @SepSubPCM.xsepTPCMMix Uraw Draw.
 Canonical pprodTPCM := Eval hnf in TPCM pprod pprodTPCMMix.
 Definition pprodSubMix := @SepSubPCM.xsepSubMix Uraw Draw.
 Canonical pprodSubPCM : sub_pcm Draw :=
-  Eval hnf in subPCM pprod pprodSubMix.
+  Eval hnf in subPCM Draw pprod pprodSubMix.
 
 Lemma pprod_pval_undef : pval (@undef pprodTPCM) = undef.
 Proof. by apply: SepSubPCM.Exports.xval_undef. Qed.
