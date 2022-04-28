@@ -1,0 +1,79 @@
+fullname: The PCM library
+shortname: fcsl-pcm
+organization: imdea-software
+opam_name: coq-fcsl-pcm
+community: false
+action: true
+coqdoc: false
+
+synopsis: >-
+  Partial Commutative Monoids
+description: |-
+  The PCM library provides a formalisation of Partial Commutative Monoids (PCMs),
+  a common algebraic structure used in separation logic for verification of
+  pointer-manipulating sequential and concurrent programs.
+
+  The library provides lemmas for mechanised and automated reasoning about PCMs
+  in the abstract, but also supports concrete common PCM instances, such as heaps,
+  histories, and mutexes.
+
+  This library relies on propositional and functional extentionality axioms.
+authors:
+- name: Aleksandar Nanevski
+  initial: true
+
+maintainers:
+- name: Alexander Gryzlov
+  nickname: clayrat
+
+opam-file-maintainer: fcsl@software.imdea.org
+
+opam-file-version: dev
+
+license:
+  fullname: Apache-2.0
+  identifier: Apache-2.0
+  file: LICENSE
+
+supported_coq_versions:
+  text: Coq 8.13 to 8.15
+  opam: '{ (>= "8.13" & < "8.16~") | (= "dev") }'
+
+tested_coq_opam_versions:
+- version: '1.13.0-coq-8.13'
+  repo: 'mathcomp/mathcomp'
+- version: '1.14.0-coq-8.15'
+  repo: 'mathcomp/mathcomp'
+- version: 'coq-dev'
+  repo: 'mathcomp/mathcomp-dev'
+
+dependencies:
+- opam:
+    name: coq-mathcomp-ssreflect
+    version: '{ (>= "1.13.0" & < "1.15~") | (= "dev") }'
+  description: |-
+    [MathComp ssreflect 1.13 to 1.15](https://math-comp.github.io)
+
+namespace: fcsl
+
+keywords:
+- name: partial commutative monoids
+- name: separation logic
+- name: concurrency
+
+categories:
+- name: Computer Science/Data Types and Data Structures
+
+documentation: |-
+  ## Getting help
+
+  If you need assistance or would like to report a bug, drop us an email:
+  <fcsl@software.imdea.org> or open an [issue](https://github.com/imdea-software/fcsl-pcm/issues).
+
+  ## History and context
+
+  More information can be obtained via the [FCSL web page](https://software.imdea.org/fcsl/).
+
+  An earlier version of this library was developed as a part of [Hoare type
+  theory](https://github.com/imdea-software/htt), which is now rebased on FCSL-PCM. The original
+  version of HTT can be found [here](https://software.imdea.org/~aleks/htt/).

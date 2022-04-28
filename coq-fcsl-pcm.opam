@@ -1,38 +1,41 @@
-opam-version: "2.0"
-version: "dev"
-maintainer: "FCSL <fcsl@software.imdea.org>"
+# This file was generated from `meta.yml`, please do not edit manually.
+# Follow the instructions on https://github.com/coq-community/templates to regenerate.
 
-homepage: "http://software.imdea.org/fcsl/"
-bug-reports: "https://github.com/imdea-software/fcsl-pcm/issues"
+opam-version: "2.0"
+maintainer: "fcsl@software.imdea.org"
+version: "dev"
+
+homepage: "https://github.com/imdea-software/fcsl-pcm"
 dev-repo: "git+https://github.com/imdea-software/fcsl-pcm.git"
+bug-reports: "https://github.com/imdea-software/fcsl-pcm/issues"
 license: "Apache-2.0"
 
-build: [ make "-j%{jobs}%" ]
-install: [ make "install" ]
-depends: [
-  "coq" {(>= "8.13" & < "8.16~") | (= "dev")}
-  "coq-mathcomp-ssreflect" {(>= "1.13.0" & < "1.15~") | (= "dev")}
-]
-tags: [
-  "keyword:separation logic"
-  "keyword:partial commutative monoid"
-  "category:Computer Science/Data Types and Data Structures"
-  "logpath:fcsl"
-]
-authors: [
-  "Aleksandar Nanevski"
-]
 synopsis: "Partial Commutative Monoids"
 description: """
 The PCM library provides a formalisation of Partial Commutative Monoids (PCMs),
 a common algebraic structure used in separation logic for verification of
 pointer-manipulating sequential and concurrent programs.
+
 The library provides lemmas for mechanised and automated reasoning about PCMs
 in the abstract, but also supports concrete common PCM instances, such as heaps,
-histories and mutexes.
+histories, and mutexes.
 
-This library relies on extensionality axioms: propositional and
-functional extentionality."""
-url {
-  src: "git+https://github.com/imdea-software/fcsl-pcm.git#master"
-}
+This library relies on propositional and functional extentionality axioms."""
+
+build: [make "-j%{jobs}%"]
+install: [make "install"]
+depends: [
+  "coq" { (>= "8.13" & < "8.16~") | (= "dev") }
+  "coq-mathcomp-ssreflect" { (>= "1.13.0" & < "1.15~") | (= "dev") }
+]
+
+tags: [
+  "category:Computer Science/Data Types and Data Structures"
+  "keyword:partial commutative monoids"
+  "keyword:separation logic"
+  "keyword:concurrency"
+  "logpath:fcsl"
+]
+authors: [
+  "Aleksandar Nanevski"
+]
