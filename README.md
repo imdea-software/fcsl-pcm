@@ -26,6 +26,8 @@ This library relies on propositional and functional extentionality axioms.
 
 - Author(s):
   - Aleksandar Nanevski (initial)
+  - Anton Trunov
+  - Alexander Gryzlov
 - License: [Apache-2.0](LICENSE)
 - Compatible Coq versions: Coq 8.14 to 8.15
 - Additional dependencies:

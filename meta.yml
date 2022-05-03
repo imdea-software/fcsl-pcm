@@ -7,7 +7,7 @@ action: true
 coqdoc: false
 
 synopsis: >-
-  Partial Commutative Monoids
+  Coq library of Partial Commutative Monoids
 description: |-
   The PCM library provides a formalisation of Partial Commutative Monoids (PCMs),
   a common algebraic structure used in separation logic for verification of
@@ -21,6 +21,10 @@ description: |-
 authors:
 - name: Aleksandar Nanevski
   initial: true
+- name: Anton Trunov
+  initial: false
+- name: Alexander Gryzlov
+  initial: false
 
 maintainers:
 - name: Alexander Gryzlov
