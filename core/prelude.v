@@ -221,50 +221,80 @@ Fixpoint iter_respectful {S T} (A : relation S) (Z : relation T) (n : nat)
 Arguments iter_respectful {S T} A Z n.
 
 (** Logical conjunction *)
+#[global]
 Program Instance and3_impl_morphism : Proper (iter_respectful impl impl 3) and3 | 1.
+#[global]
 Program Instance and3_iff_morphism : Proper (iter_respectful iff iff 3) and3 | 1.
 
+#[global]
 Program Instance and4_impl_morphism : Proper (iter_respectful impl impl 4) and4 | 1.
+#[global]
 Program Instance and4_iff_morphism : Proper (iter_respectful iff iff 4) and4 | 1.
 
+#[global]
 Program Instance and5_impl_morphism : Proper (iter_respectful impl impl 5) and5 | 1.
+#[global]
 Program Instance and5_iff_morphism : Proper (iter_respectful iff iff 5) and5 | 1.
 
+#[global]
 Program Instance and6_impl_morphism : Proper (iter_respectful impl impl 6) and6 | 1.
+#[global]
 Program Instance and6_iff_morphism : Proper (iter_respectful iff iff 6) and6 | 1.
 
+#[global]
 Program Instance and7_impl_morphism : Proper (iter_respectful impl impl 7) and7 | 1.
+#[global]
 Program Instance and7_iff_morphism : Proper (iter_respectful iff iff 7) and7 | 1.
 
+#[global]
 Program Instance and8_impl_morphism : Proper (iter_respectful impl impl 8) and8 | 1.
+#[global]
 Program Instance and8_iff_morphism : Proper (iter_respectful iff iff 8) and8 | 1.
 
+#[global]
 Program Instance and9_impl_morphism : Proper (iter_respectful impl impl 9) and9 | 1.
+#[global]
 Program Instance and9_iff_morphism : Proper (iter_respectful iff iff 9) and9 | 1.
 
+#[global]
 Program Instance and10_impl_morphism : Proper (iter_respectful impl impl 10) and10 | 1.
+#[global]
 Program Instance and10_iff_morphism : Proper (iter_respectful iff iff 10) and10 | 1.
 
+#[global]
 Program Instance and11_impl_morphism : Proper (iter_respectful impl impl 11) and11 | 1.
+#[global]
 Program Instance and11_iff_morphism : Proper (iter_respectful iff iff 11) and11 | 1.
 
+#[global]
 Program Instance and12_impl_morphism : Proper (iter_respectful impl impl 12) and12 | 1.
+#[global]
 Program Instance and12_iff_morphism : Proper (iter_respectful iff iff 12) and12 | 1.
 
 (** Logical disjunction *)
+#[global]
 Program Instance or3_impl_morphism : Proper (iter_respectful impl impl 3) or3 | 1.
+#[global]
 Program Instance or3_iff_morphism : Proper (iter_respectful iff iff 3) or3 | 1.
 
+#[global]
 Program Instance or4_impl_morphism : Proper (iter_respectful impl impl 4) or4 | 1.
+#[global]
 Program Instance or4_iff_morphism : Proper (iter_respectful iff iff 4) or4 | 1.
 
+#[global]
 Program Instance or5_impl_morphism : Proper (iter_respectful impl impl 5) or5 | 1.
+#[global]
 Program Instance or5_iff_morphism : Proper (iter_respectful iff iff 5) or5 | 1.
 
+#[global]
 Program Instance or6_impl_morphism : Proper (iter_respectful impl impl 6) or6 | 1.
+#[global]
 Program Instance or6_iff_morphism : Proper (iter_respectful iff iff 6) or6 | 1.
 
+#[global]
 Program Instance or7_impl_morphism : Proper (iter_respectful impl impl 7) or7 | 1.
+#[global]
 Program Instance or7_iff_morphism : Proper (iter_respectful iff iff 7) or7 | 1.
 
 
