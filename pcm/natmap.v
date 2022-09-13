@@ -475,6 +475,9 @@ Proof. by move/lastkey_max. Qed.
 Lemma dom_freshN h x : x \in dom h -> x != fresh h.
 Proof. by move/dom_ordfresh; case: ltngtP. Qed.
 
+Lemma dom_ordfreshT h x t : fresh h <= t -> x \in dom h -> x != t.
+Proof. by move=>H1 /dom_ordfresh H2; case: ltngtP (leq_trans H2 H1). Qed.
+
 Lemma dom_freshn h n : fresh h + n \notin dom h.
 Proof. by apply: contra (@dom_ordfresh _ _) _; rewrite -leqNgt leq_addr. Qed.
 
@@ -502,6 +505,17 @@ Proof. by move=>F; apply/negP=>/omf_subdom/dom_ordfresh; case: ltngtP F. Qed.
 Lemma dom_omfresh B h t (f : omap_fun (nat_mapUMC A) (nat_mapUMC B)) :
         t \in dom (f h) -> t < fresh h.
 Proof. by move/omf_subdom/dom_ordfresh. Qed.
+
+Lemma dom_omfreshT B h x t (f : omap_fun (nat_mapUMC A) (nat_mapUMC B)) :
+        fresh h <= t -> x \in dom (f h) -> x != t.
+Proof. by move=>H1 /dom_omfresh H2; case: ltngtP (leq_trans H2 H1). Qed.
+
+Lemma omf_subdom0 B h (f : omap_fun (nat_mapUMC A) (nat_mapUMC B)) :
+        {subset 0::dom (f h) <= 0::dom h}.
+Proof.
+move=>x; rewrite !inE; case/orP=>[->//|].
+by move/omf_subdom=>->; rewrite orbT.
+Qed.
 
 Lemma find_fresh h x : fresh h <= x -> find x h = None.
 Proof. by move=>H; rewrite In_findNE // ordfresh_dom. Qed.
@@ -601,6 +615,22 @@ Lemma freshUnf h1 h2 :
         valid (h1 \+ h2) -> fresh h2 <= fresh (h1 \+ h2).
 Proof. by apply: lastkeyUnf. Qed.
 
+Lemma freshfUnT U D (f : @morphism U (nat_mapPCM A) D) fr :
+        forall x y : U, valid (x \+ y) ->
+          D x y ->
+          fresh (f (x \+ y)) <= fr -> fresh (f x) <= fr.
+Proof.
+move=>x y V H; apply: leq_trans.
+by rewrite pfjoin // freshfUn // pfV2.
+Qed.
+
+Lemma freshfUn_phantT U D fr (f : @morphism U (nat_mapPCM A) D) of phantom (_ -> _) f :
+        forall x y : U, valid (x \+ y) ->
+          D x y ->
+          fresh (f (x \+ y)) <= fr -> fresh (f x) <= fr.
+Proof. by apply: freshfUnT. Qed.
+
+
 (* pcm induced ordering *)
 
 Lemma umpleq_lastkey h1 h2 :
@@ -649,6 +679,8 @@ Qed.
 
 End FreshLastKey.
 
+Notation freshT f := (@freshfUn_phantT _ _ _ _ _ (Phantom (_ -> _) f)).
+
 Lemma fresh_mono A B (h1 : natmap A) (h2 : natmap B) :
         {subset dom h1 <= dom h2} -> fresh h1 <= fresh h2.
 Proof. by apply: lastkey_mono. Qed.
@@ -688,9 +720,9 @@ Proof. by rewrite /last_key=>/dom_omap_some ->. Qed.
 
 Lemma omap_fresh V V' (h : natmap V) (a : nat * V -> option V') k v :
         fresh h <= k ->
-        omap a (k \-> v \+ h) =
+        omap a (pts k v \+ h) =
         (if a (k, v) is Some v' then
-         k \-> v' \+ omap a h else omap a h) :> natmap V'.
+         pts k v' \+ omap a h else omap a h) :> natmap V'.
 Proof.
 case W : (valid h).
 - by move=>H; rewrite omapPtUn valid_fresh // W.
@@ -722,10 +754,10 @@ by move=>N H; apply/InR=>//; rewrite valid_fresh // (In_valid H).
 Qed.
 
 Lemma In_fresh_inv V (h : natmap V) x e t k :
-        k < fresh h <= t ->
+        k < fresh h -> fresh h <= t ->
         (k, x) \In t \-> e \+ h -> (k, x) \In h.
 Proof.
-move=>/andP [N F] H; have W : valid (t \-> e \+ h).
+move=>N F H; have W : valid (t \-> e \+ h).
 - by rewrite valid_fresh // (validR (In_valid H)).
 by case/(InPtUnE _ W): H F=>// [[<- _]]; case: ltngtP N.
 Qed.
@@ -768,8 +800,8 @@ Proof. by apply: lastkey_umfilt. Qed.
 
 Lemma umfilt_fresh V (p : pred (nat * V)) (h : natmap V) k v :
         fresh h <= k ->
-        um_filter p (k \-> v \+ h) =
-        if p (k, v) then k \-> v \+ um_filter p h else um_filter p h.
+        um_filter p (pts k v \+ h) =
+        if p (k, v) then pts k v \+ um_filter p h else um_filter p h.
 Proof.
 case W : (valid h).
 - by move=>H; rewrite umfiltPtUn valid_fresh // W.
@@ -779,7 +811,7 @@ Qed.
 
 Lemma fresh_lt V (h : natmap V) x :
         fresh h <= x ->
-        um_filterk (ltn^~ x) h = h.
+        um_filterk [ pred k | k < x ] h = h.
 Proof.
 move=>F; rewrite -[RHS]umfilt_predT.
 apply/eq_in_umfilt; case=>y v /In_dom/lastkey_max /= K.
@@ -845,11 +877,18 @@ Proof. by move=>H; apply/fresh_lt/leq_trans/H/fresh_omf. Qed.
 Lemma lastkey_omfE h : last_key h \in dom (f h) -> last_key (f h) = last_key h.
 Proof. by apply: lastkey_subdom omf_subdom. Qed.
 
+(* some phantomization *)
+
+Lemma pfresh_omf_phantT (x : phantom (_ -> _) f) t h :
+         fresh h <= t -> fresh (f h) <= t.
+Proof. by apply: fresh_omfT. Qed.
+
 End OmapFunNatmap.
 
 (* in many proofs, rewriting by the following 3 lemmas discharges the sideconditions *)
-(* so we git it a name *)
+(* so we give it a name *)
 Definition freshX := (fresh_omfT, valid_omf, ordfresh_dom).
+Notation pfresh_omfT f := (@pfresh_omf_phantT _ _ _ (Phantom (_ -> _) f)).
 
 (*******************************)
 (* Monotonicity for natmap nat *)
@@ -865,6 +904,25 @@ move=>H1 H2; case W: (valid h); last first.
 by apply: ummonoPtUn (lastkeyPtUn_valid _ W H1) _=>k v X; split;
 [move/In_dom/lastkey_max/leq_ltn_trans: X; apply|apply: H2 X].
 Qed.
+
+(* Membership lemmas under pcm morphisms *)
+Section Membership.
+Variables (U : pcm) (V : Type) (S : rel U).
+Variables (f : morphism (nat_mapPCM V) S).
+
+Lemma pfL e (x y : U) :
+        valid (x \+ y) -> S x y -> e \In f x -> e \In f (x \+ y).
+Proof. by move=>W H1 H2; rewrite pfjoin //=; apply: InL=>//; rewrite pfV2. Qed.
+
+Lemma pfR e (x y : U) :
+        valid (x \+ y) -> S x y -> e \In f y -> e \In f (x \+ y).
+Proof. by move=>W H1 H2; rewrite pfjoin //=; apply: InR=>//; rewrite pfV2. Qed.
+
+Lemma pfUn e (x y : U) :
+        valid (x \+ y) -> S x y -> e \In f (x \+ y) -> e \In f x \/ e \In f y.
+Proof. by move=>W H1; rewrite pfjoin //; case/InUn; eauto. Qed.
+
+End Membership.
 
 
 (***********************************)
@@ -940,7 +998,7 @@ Lemma olt_neq x y ks : x <[ks] y -> x != y.
 Proof. by case: eqP=>// ->; rewrite olt_irr. Qed.
 
 Lemma neq_olt x y ks : x <[ks] y -> y != x.
-Proof. by rewrite eq_sym; exact: olt_neq. Qed.
+Proof. by move/olt_neq; case: ltngtP. Qed.
 
 Lemma oltxx x ks : ~ x <[ks] x.
 Proof. by rewrite olt_irr. Qed.
@@ -1654,7 +1712,7 @@ Qed.
 (* because it requires t1 <[ks] t2 *)
 (* i.e., it doesn't hold if t1 == t2 *)
 (* The reason is that the left interval is open *)
-(* but the first interal on the right is closed *)
+(* but the first interval on the right is closed *)
 Lemma sq_uxoo ks t1 t2 :
         uniq ks ->
         t1 <[ks] t2 ->
@@ -3424,6 +3482,16 @@ case: ifP=>/= X; last by rewrite andbN.
 by move/olt_memE; rewrite (negbTE T1).
 Qed.
 
+Lemma consecP_lastE y ks t1 t2 :
+        uniq ks -> t2 \notin ks ->
+        consec ks t1 t2 = (t1 \in ks) && (t1 == last y ks).
+Proof.
+move=>U T2; case: consecP_last=>//.
+- by case=>xs ->; rewrite mem_rcons last_rcons inE eq_refl.
+move=>H; apply/esym/negP=>/andP [H1 H2]; elim: H.
+by apply/(rcons_lastXP _ y); rewrite H1 H2.
+Qed.
+
 Lemma consecP_nilp_filter ks (p : pred _) t1 t2 :
         consec (filter p ks) t1 t2 <->
         if p t2 then [/\ t1 <[ks] t2, p t1 & nilp (filter p |sqint t1 t2 ks|)]
@@ -3776,7 +3844,7 @@ Qed.
 
 (* a useful lemma that collects the case analysis *)
 (* for consec (k::ks) *)
-Lemma consec_consE' k k1 k2 (ks : seq nat) :
+Lemma consec_consEP' k k1 k2 (ks : seq nat) :
         k \notin ks ->
         consec (k::ks) k1 k2 <->
         if k1 == k then
@@ -3823,7 +3891,7 @@ rewrite mem_filter !oltL !olt_cons eq_refl andbT inE inE eq_refl orbT andbT.
 by rewrite Nk2x Nk2k /= eq_sym Nkx orbT.
 Qed.
 
-Lemma consec_consE k k1 k2 (ks : seq nat) :
+Lemma consec_consEP k k1 k2 (ks : seq nat) :
         k \notin ks ->
         consec (k::ks) k1 k2 <->
         if k1 == k then
@@ -3831,13 +3899,42 @@ Lemma consec_consE k k1 k2 (ks : seq nat) :
           else k2 != k /\ ks = [::]
         else k2 != k /\ consec ks k1 k2.
 Proof.
-move/consec_consE'=>->.
+move/consec_consEP'=>->.
 case: ifP=>// E1; case: ifP=>//.
 by case: ks=>//= x ks E2; split=>[[]|->].
 Qed.
 
+(* let's make them boolean *)
+Lemma consec_consE' k k1 k2 (ks : seq nat) :
+        k \notin ks ->
+        consec (k::ks) k1 k2 =
+        if k1 == k then
+          if k2 \in ks then ks == k2 :: behead ks
+          else (k2 != k) && (ks == [::])
+        else (k2 != k) && consec ks k1 k2.
+Proof.
+move=>K; rewrite iffE consec_consEP' //.
+case: ifP=>H1; last by case: andP.
+case: ifP=>H2; first by case: eqP.
+by split; [case=>->->|case/andP=>-> /eqP].
+Qed.
+
+Lemma consec_consE k k1 k2 (ks : seq nat) :
+        k \notin ks ->
+        consec (k::ks) k1 k2 =
+        if k1 == k then
+          if k2 \in ks then k2 == head k ks
+          else (k2 != k) && (ks == [::])
+        else (k2 != k) && consec ks k1 k2.
+Proof.
+move=>K; rewrite iffE consec_consEP //.
+case: ifP=>H1; last by case: andP.
+case: ifP=>H2; first by case: eqP.
+by split; [case=>->->|case/andP=>-> /eqP].
+Qed.
+
 (* for rcons, we need a uniqueness condition *)
-Lemma consec_rconsE' k k1 k2 (ks : seq nat) :
+Lemma consec_rconsEP' k k1 k2 (ks : seq nat) :
         uniq ks -> k \notin ks ->
         consec (rcons ks k) k1 k2 <->
         if k1 != k then
@@ -3896,7 +3993,7 @@ move/esym; rewrite (ole_eqVlt (or_intror K1)) (negbTE M) /=.
 by move/(ole_olt_trans (ole_last k1 U K1))/oltxx.
 Qed.
 
-Lemma consec_rconsE k k1 k2 (ks : seq nat) :
+Lemma consec_rconsEP k k1 k2 (ks : seq nat) :
         uniq ks -> k \notin ks ->
         consec (rcons ks k) k1 k2 <->
         if k1 != k then
@@ -3904,7 +4001,7 @@ Lemma consec_rconsE k k1 k2 (ks : seq nat) :
           else consec ks k1 k2
         else k2 \notin rcons ks k.
 Proof.
-move=>U K; rewrite consec_rconsE' //.
+move=>U K; rewrite consec_rconsEP' //.
 case: eqP=>//= /eqP N1; case: ifP=>// N2.
 split; case=>->; first by case=>ks' ->; rewrite last_rcons.
 move/esym=>E; split=>//; rewrite -E.
@@ -3914,10 +4011,42 @@ move: ks k U K E; apply: last_ind=>// xs x IH k U K E.
 by rewrite last_rcons; exists xs.
 Qed.
 
+(* boolean version *)
+Lemma consec_rconsE' y k k1 k2 (ks : seq nat) :
+        uniq ks -> k \notin ks ->
+        consec (rcons ks k) k1 k2 =
+        if k1 != k then
+          if k2 \notin ks then [&& k2 == k, k1 == last y ks & k1 \in ks]
+          else consec ks k1 k2
+        else k2 \notin rcons ks k.
+Proof.
+move=>U K; rewrite iffE consec_rconsEP' //.
+case: ifP=>_ //; case: ifP=>_ //; split.
+- by case=>X1 /(rcons_lastXP _ y); rewrite X1 eq_refl.
+case/and3P=>/eqP X1 X2 X3; split=>//.
+by apply/(rcons_lastXP _ y); rewrite X2 X3.
+Qed.
+
+(* This one is the same, except it drops k1 \in ks condition *)
+(* and replaces y by k. The simplifications may be desirable *)
+(* depending on the direction of rewriting *)
+Lemma consec_rconsE k k1 k2 (ks : seq nat) :
+        uniq ks -> k \notin ks ->
+        consec (rcons ks k) k1 k2 =
+        if k1 != k then
+          if k2 \notin ks then (k2 == k) && (k1 == last k ks)
+          else consec ks k1 k2
+        else k2 \notin rcons ks k.
+Proof.
+move=>U K; rewrite iffE consec_rconsEP //.
+case: ifP=>H1 //; case: ifP=>H2 //.
+by split; [case=>->->; rewrite !eq_refl|case/andP=>/eqP -> /eqP ->].
+Qed.
+
 Lemma consec_behead k ks x y :
         k \notin ks -> x != k ->
         consec (k::ks) x y -> y != k /\ consec ks x y.
-Proof. by move=>K Nx /(consec_consE _ _ K); rewrite (negbTE Nx). Qed.
+Proof. by move=>K Nx /(consec_consEP _ _ K); rewrite (negbTE Nx). Qed.
 
 (* the following isn't a consecuence of consec_consE *)
 (* as it's independent of k \notin ks *)
@@ -3939,7 +4068,7 @@ Proof.
 case: (not_memX ks)=>k N U X.
 have {}U : uniq (k :: ks) by rewrite /= N U.
 have : k <[k::ks] x by rewrite oltL; case: eqP X N=>// ->->.
-case/(olt_consec_prev _ _ U)=>t [_]; rewrite consec_consE' //.
+case/(olt_consec_prev _ _ U)=>t [_]; rewrite consec_consEP' //.
 by case: eqP X=>[_ ->|_ _ []]; [left|right; exists t].
 Qed.
 
@@ -3953,10 +4082,34 @@ case: (not_memX ks)=>k N U X.
 have Ur : uniq (rcons ks k) by rewrite rcons_uniq N U.
 have : x <[rcons ks k] k by rewrite olt_rcons (negbTE N) eq_refl orbF.
 case/(olt_consec_next _ _ Ur)=>t [].
-rewrite consec_rconsE' //.
+rewrite consec_rconsEP' //.
 case: eqP X N=>[->->//|/eqP Nkx X N /=].
 case T: (t \in ks)=>/=; first by right; exists t.
 by case=>-> {t T} [ks' -> _]; left; exists ks'.
+Qed.
+
+(* Pairs of consecutive elements are totally ordered. *)
+(* That is: either the two pairs are the same pair, *)
+(* or one of the second projections is ordered before the *)
+(* first projection of the other pair. *)
+Lemma consec2_total ks x1 x2 y1 y2 :
+        uniq ks ->
+        y1 \in ks \/ y2 \in ks ->
+        consec ks x1 y1 -> consec ks x2 y2 ->
+        [|| (x1 == x2) && (y1 == y2), y2 <=[ks] x1 | y1 <=[ks] x2].
+Proof.
+move=>U.
+suff L a1 a2 b1 b2 : b1 \in ks ->
+  consec ks a1 b1 -> consec ks a2 b2 ->
+  [|| (a1 == a2) && (b1 == b2), b2 <=[ks] a1 | b1 <=[ks] a2].
+- case=>Y Cx1 Cx2; first by apply: L.
+  case/or3P: (L _ _ _ _ Y Cx2 Cx1)=>[|->|->]; try by rewrite !orbT.
+  by case/andP=>/eqP/esym -> /eqP/esym ->; rewrite !eq_refl.
+move=>Y1 Cx1 Cx2; move: (consec_mem Cx1) (consec_mem Cx2)=>X1 X2.
+case/or3P: (olt_total a2 X1) Cx2 X2=>[/eqP <-{a2}|H|H] Cx2 X2.
+- by rewrite (consec_next_inj U Y1 Cx1 Cx2) !eq_refl.
+- by rewrite (consec_next Cx1 H) !orbT.
+by rewrite (consec_next Cx2 H) !orbT.
 Qed.
 
 (***************************************)

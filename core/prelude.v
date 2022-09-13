@@ -163,7 +163,6 @@ Reserved Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 , P8 , P9 , P10 , P11 &
   "'[hv' [ /\ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 , '/'  P5 , '/'  P6 , '/'  P7 , '/'  P8 , '/' P9 , '/' P10 , '/' P11 ']' '/ '  &  P12 ] ']'").
 
 
-
 Reserved Notation "[ \/ P1 , P2 , P3 , P4 | P5 ]" (at level 0, format
   "'[hv' [ \/ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 ']' '/ '  |  P5 ] ']'").
 Reserved Notation "[ \/ P1 , P2 , P3 , P4 , P5 | P6 ]" (at level 0, format
@@ -424,6 +423,16 @@ Proof. by case: a; case: b; constructor=>//; case. Qed.
 
 Arguments andX {a b}.
 
+Lemma iffPb (b1 b2 : bool) : reflect (b1 <-> b2) (b1 == b2).
+Proof.
+case: eqP=>[->|N]; constructor=>//.
+case: b1 b2 N; case=>//= _.
+- by case=>/(_ erefl).
+by case=>_ /(_ erefl).
+Qed.
+
+Lemma iffE (b1 b2 : bool) : b1 = b2 <-> (b1 <-> b2).
+Proof. by split=>[->|] //; move/iffPb/eqP. Qed.
 
 (**************)
 (* empty type *)
@@ -562,9 +571,16 @@ split; first by exact: memNindex.
 by move=>E; rewrite -index_mem E ltnn.
 Qed.
 
+Lemma size0nilP (A : eqType) (xs : seq A) :
+        reflect (xs = [::]) (size xs == 0).
+Proof.
+case: eqP=>X; constructor; first by move/size0nil: X.
+by move=>N; rewrite N in X.
+Qed.
+
 Lemma has_nilP (A : eqType) (xs : seq A) :
         reflect (has predT xs) (xs != [::]).
-Proof. by case: xs; constructor. Qed.
+Proof. by case: xs=>[|x xs]; constructor. Qed.
 
 Lemma map_nilP A (B : eqType) (f : A -> B) (s : seq A) :
         reflect (exists k, k \in map f s) (map f s != [::]).
@@ -701,6 +717,30 @@ Qed.
 
 Lemma last_nochange_nil k (s : seq A) : last k s = k -> k \notin s -> s = [::].
 Proof. by move/last_nochange; case/orP=>[/negbF ->|/eqP]. Qed.
+
+(* last and rcons *)
+
+Lemma rcons_lastX x y (s : seq A) :
+        x \in s -> exists s', s = rcons s' (last y s).
+Proof.
+elim/last_ind: s=>[|ks k IH] //=.
+by rewrite last_rcons; exists ks.
+Qed.
+
+Lemma rcons_lastP x (s : seq A) :
+        reflect (exists s', s = rcons s' (last x s)) (last x s \in s).
+Proof.
+case X : (last x s \in s); constructor; first by apply: rcons_lastX X.
+case=>s' E; move/negP: X; elim.
+by rewrite E last_rcons mem_rcons inE eq_refl.
+Qed.
+
+Lemma rcons_lastXP x y (s : seq A) :
+        reflect (exists s', s = rcons s' x) ((x == last y s) && (x \in s)).
+Proof.
+case: eqP=>[->|N]; first by apply: rcons_lastP.
+by constructor; case=>s' E; elim: N; rewrite E last_rcons.
+Qed.
 
 (* last has bigger index than anything in x *)
 Lemma index_last_mono x k (s : seq A) :
@@ -905,6 +945,88 @@ by apply: index_filter_leL.
 Qed.
 
 End LastFilter.
+
+(* sequence prefixes *)
+
+(* Two helper concepts for searching in sequences:                       *)
+(*                                                                       *)
+(* - onth: like nth, but returns None when the element is not found      *)
+(* - prefix: a prefix relation on sequences, used for growing            *)
+(*   interpretation contexts                                             *)
+
+Section SeqPrefix.
+Variable A : Type.
+
+Fixpoint onth (s : seq A) n : option A :=
+  if s is x::sx then if n is nx.+1 then onth sx nx else Some x else None.
+
+Definition prefix s1 s2 :=
+  forall n x, onth s1 n = some x -> onth s2 n = some x.
+
+(* Lemmas *)
+
+Lemma size_onth s n : n < size s -> exists x, onth s n = Some x.
+Proof.
+elim: s n=>[//|a s IH] [|n] /=; first by exists a.
+by rewrite -(addn1 n) -(addn1 (size s)) ltn_add2r; apply: IH.
+Qed.
+
+Lemma onth_size s n x : onth s n = Some x -> n < size s.
+Proof. by elim: s n=>[//|a s IH] [//|n]; apply: IH. Qed.
+
+Lemma prefix_refl s : prefix s s.
+Proof. by move=>n x <-. Qed.
+
+Lemma prefix_trans s2 s1 s3 : prefix s1 s2 -> prefix s2 s3 -> prefix s1 s3.
+Proof. by move=>H1 H2 n x E; apply: H2; apply: H1. Qed.
+
+Lemma prefix_cons x s1 s2 : prefix (x :: s1) (x :: s2) <-> prefix s1 s2.
+Proof. by split=>E n; [apply: (E n.+1) | case: n]. Qed.
+
+Lemma prefix_cons' x y s1 s2 :
+        prefix (x :: s1) (y :: s2) -> x = y /\ prefix s1 s2.
+Proof. by move=>H; case: (H 0 x (erefl _)) (H)=>-> /prefix_cons. Qed.
+
+Lemma prefix_rcons x s : prefix s (rcons s x).
+Proof. by elim: s=>//= y ys IH; apply/prefix_cons; apply: IH. Qed.
+
+Lemma prefix_cat s1 s2 : prefix s1 (s1 ++ s2).
+Proof.
+elim: s2 s1=>[|x xs IH] s1; first by rewrite cats0.
+rewrite -cat_rcons; apply: prefix_trans (IH _).
+by apply: prefix_rcons.
+Qed.
+
+Lemma prefix_size s1 s2 : prefix s1 s2 -> size s1 <= size s2.
+Proof.
+elim: s1 s2=>[//|a s1 IH] [|b s2] H; first by move: (H 0 a (erefl _)).
+by rewrite ltnS; apply: (IH _ (proj2 (prefix_cons' H))).
+Qed.
+
+Lemma prefix_onth s t x : x < size s -> prefix s t -> onth s x = onth t x.
+Proof.
+elim:s t x =>[//|a s IH] [|b t] x H1 H2; first by move: (H2 0 a (erefl _)).
+by case/prefix_cons': H2=><- H2; case: x H1=>[|n] //= H1; apply: IH.
+Qed.
+
+Lemma prefixP s1 s2 : prefix s1 s2 <-> exists s3, s2 = s1 ++ s3.
+Proof.
+split; last by case=>s3 ->; apply: prefix_cat.
+elim: s1 s2=>[|x xs IH] s2; first by exists s2.
+case: s2=>[/(_ 0 x erefl)//|y ys /prefix_cons' [?]].
+by subst y=>/IH [s3 ->]; exists s3.
+Qed.
+
+End SeqPrefix.
+
+#[export]
+Hint Resolve prefix_refl : core.
+
+Lemma onth_mem (A : eqType) (s : seq A) n x : onth s n = Some x -> x \in s.
+Proof.
+by elim: s n=>//= a s IH [[->]|n /IH]; rewrite inE ?eq_refl // orbC => ->.
+Qed.
+
 
 (******************************)
 (* Some commuting conversions *)

@@ -1,74 +1,10 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq eqtype.
-From fcsl Require Import options.
+From fcsl Require Import options prelude.
 
 (***************************************************************************)
 (* Common infrastructure for syntactifying expressions in automated lemmas *)
 (***************************************************************************)
-
-(* Two helper concepts for searching in sequences:                       *)
-(*                                                                       *)
-(* - onth: like nth, but returns None when the element is not found      *)
-(* - prefix: a prefix relation on sequences, used for growing            *)
-(*   interpretation contexts                                             *)
-
-Section Prefix.
-Variable A : Type.
-
-Fixpoint onth (s : seq A) n : option A :=
-  if s is x::sx then if n is nx.+1 then onth sx nx else Some x else None.
-
-Definition prefix s1 s2 : Prop :=
-  forall n x, onth s1 n = some x -> onth s2 n = some x.
-
-(* Theory of onth + prefix *)
-
-Lemma size_onth s n : n < size s -> exists x, onth s n = some x.
-Proof.
-elim: s n=>[//|a s IH] [|n] /=; first by exists a.
-by rewrite -(addn1 n) -(addn1 (size s)) ltn_add2r; apply: IH.
-Qed.
-
-Lemma onth_size s n x : onth s n = some x -> n < size s.
-Proof. by elim: s n=>[//|a s IH] [//|n]; apply: IH. Qed.
-
-Lemma prefix_refl s : prefix s s.
-Proof. by move=>n x <-. Qed.
-
-Lemma prefix_trans s2 s1 s3 : prefix s1 s2 -> prefix s2 s3 -> prefix s1 s3.
-Proof. by move=>H1 H2 n x E; apply: H2; apply: H1. Qed.
-
-Lemma prefix_cons x s1 s2 : prefix (x :: s1) (x :: s2) <-> prefix s1 s2.
-Proof. by split=>E n; [apply: (E n.+1) | case: n]. Qed.
-
-Lemma prefix_cons' x y s1 s2 :
-        prefix (x :: s1) (y :: s2) -> x = y /\ prefix s1 s2.
-Proof. by move=>H; case: (H 0 x (erefl _)) (H)=>-> /prefix_cons. Qed.
-
-Lemma prefix_size s1 s2 : prefix s1 s2 -> size s1 <= size s2.
-Proof.
-elim: s1 s2=>[//|a s1 IH] [|b s2] H; first by move: (H 0 a (erefl _)).
-by rewrite ltnS; apply: (IH _ (proj2 (prefix_cons' H))).
-Qed.
-
-Lemma prefix_onth s t x : x < size s -> prefix s t -> onth s x = onth t x.
-Proof.
-elim:s t x =>[//|a s IH] [|b t] x H1 H2; first by move: (H2 0 a (erefl _)).
-by case/prefix_cons': H2=><- H2; case: x H1=>[|n] //= H1; apply: IH.
-Qed.
-
-Lemma onth_nth s n : onth s n = nth None (map some s) n.
-Proof. by elim: s n=> [|x s IH] [|n] /=. Qed.
-
-End Prefix.
-
-#[export]
-Hint Resolve prefix_refl : core.
-
-Lemma onth_mem {A : eqType} (s : seq A) n x : onth s n = Some x -> x \in s.
-Proof.
-by elim: s n=>//= a s IH [[->]|n /IH]; rewrite inE ?eq_refl // orbC => ->.
-Qed.
 
 (* In cancellation algorithms for automated lemmas, we iterate over the   *)
 (* first expression e1 and remove each of its components from the second  *)
