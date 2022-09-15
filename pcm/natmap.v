@@ -1760,3 +1760,92 @@ Lemma lastval_indom v h :
 Proof. by rewrite /last_val /atval; case: dom_find=>// ->. Qed.
 
 End AtVal.
+
+(* Continuous maps with binary range *)
+
+Section Continuous.
+Variable A : Type.
+Implicit Type h : natmap (A * A).
+
+Definition continuous v h :=
+  forall k x, find k.+1 h = Some x -> oapp snd v (find k h) = x.1.
+
+Lemma cn_undef v : continuous v undef.
+Proof. by move=>x w; rewrite find_undef. Qed.
+
+Lemma cn0 v : continuous v Unit.
+Proof. by move=>x w; rewrite find0E. Qed.
+
+Lemma cn_fresh v h x :
+        valid h ->
+        continuous v (fresh h \-> x \+ h) <->
+        continuous v h /\ last_val v h = x.1.
+Proof.
+rewrite -(valid_fresh x (leqnn _))=>V; split; last first.
+- case=>C H k y; rewrite !findPtUn2 // eqSS; case: ltngtP=>N.
+  - by rewrite ltn_eqF; [apply: C | apply: (ltn_trans N _)].
+  - by move/find_some /dom_ordfresh /(ltn_trans N); rewrite ltnn.
+  by case=><-; rewrite N ltn_eqF.
+move=>C; split; last first.
+- move: (C (last_key h) x).
+  by rewrite !findPtUn2 // eq_refl ltn_eqF //; apply.
+move=>k w; case: (ltnP k (last_key h))=>N; last first.
+- by move/find_some /dom_ordfresh /(leq_ltn_trans N); rewrite ltnn.
+by move: (C k w); rewrite !findPtUn2 // eqSS !ltn_eqF // (ltn_trans N _).
+Qed.
+
+Lemma cn_sub v h x y k :
+        valid (k.+1 \-> (x, y) \+ h) -> continuous v (k.+1 \-> (x, y) \+ h) ->
+        oapp snd v (find k h) = x.
+Proof.
+by move=>V /(_ k (x, y)); rewrite !findPtUn2 // eq_refl ltn_eqF //; apply.
+Qed.
+
+End Continuous.
+
+Arguments cn_fresh [A][v][h][x] _.
+
+(* Complete natmaps with binary range *)
+
+Section Complete.
+Variable A : Type.
+Implicit Type h : natmap (A * A).
+
+Definition complete v0 h vn :=
+  [/\ valid h, gapless h, continuous v0 h & last_val v0 h = vn].
+
+Lemma cm_valid v0 h vn : complete v0 h vn -> valid h.
+Proof. by case. Qed.
+
+Lemma cm0 v : complete v Unit v.
+Proof. by split=>//; [apply: gp0 | apply: cn0 | rewrite lastval0]. Qed.
+
+Lemma cm_fresh v0 vn h x :
+        complete v0 (fresh h \-> x \+ h) vn <-> vn = x.2 /\ complete v0 h x.1.
+Proof.
+split.
+- by case=>/validR V /gp_fresh G /(cn_fresh V) []; rewrite lastval_fresh.
+case=>-> [V] /(gp_fresh x) G C E; split=>//;
+by [rewrite valid_fresh | apply/(cn_fresh V) | rewrite lastval_fresh].
+Qed.
+
+Lemma cmPtUn v0 vn h k x :
+        complete v0 (k \-> x \+ h) vn -> last_key h < k -> k = fresh h.
+Proof. by case=>V /(gpPtUn V). Qed.
+
+Lemma cmPt v0 vn k x : complete v0 (k \-> x) vn -> k = 1 /\ x = (v0, vn).
+Proof.
+case; rewrite validPt; case: k=>//= k _ /(_ 1).
+rewrite lastkeyPt //= domPt inE /= => /(_ (erefl _))/eqP ->.
+move/(_ 0 x); rewrite findPt findPt2 /= => -> //.
+by rewrite /last_val lastkeyPt // /atval findPt /= => <-; case: x.
+Qed.
+
+Lemma cmCons v0 vn k x h :
+        complete v0 (k \-> x \+ h) vn -> last_key h < k ->
+         [/\ k = fresh h, vn = x.2 & complete v0 h x.1].
+Proof. by move=>C H; move: {C} (cmPtUn C H) (C)=>-> /cm_fresh []. Qed.
+
+End Complete.
+
+Prenex Implicits cm_valid cmPt.
