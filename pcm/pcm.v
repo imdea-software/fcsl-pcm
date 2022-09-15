@@ -299,6 +299,66 @@ End CancellativePCM.
 
 Export CancellativePCM.Exports.
 
+(****************)
+(* Conical PCMs *)
+(****************)
+
+Module ConicalPCM.
+
+Variant mixin_of (U : pcm) := Mixin of
+  forall x y : U, x \+ y = Unit -> x = Unit /\ y = Unit.
+
+Section ClassDef.
+
+Record class_of (U : Type) := Class {
+  base : PCM.mixin_of U;
+  mixin : mixin_of (PCM.Pack base)}.
+
+Local Coercion base : class_of >-> PCM.mixin_of.
+
+Structure type : Type := Pack {sort : Type; _ : class_of sort}.
+Local Coercion sort : type >-> Sortclass.
+
+Variables (T : Type) (cT : type).
+Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
+Definition clone c of phant_id class c := @Pack T c.
+
+(* produce a conical type out of the mixin *)
+(* equalize m0 and m by means of a phantom *)
+Definition pack b0 (m0 : mixin_of (PCM.Pack b0)) :=
+  fun m & phant_id m0 m => Pack (@Class T b0 m).
+
+Definition pcm := PCM.Pack class.
+
+End ClassDef.
+
+Module Exports.
+Coercion base : class_of >-> PCM.mixin_of.
+Coercion sort : type >-> Sortclass.
+Coercion pcm : type >-> PCM.type.
+Canonical Structure pcm.
+
+Notation cnpcm := type.
+Notation CNPCMMixin := Mixin.
+Notation CNPCM T m := (@pack T _ _ m id).
+
+Notation "[ 'cnpcm' 'of' T 'for' cT ]" := (@clone T cT _ idfun)
+  (at level 0, format "[ 'cnpcm'  'of'  T  'for' cT ]") : pcm_scope.
+Notation "[ 'cnpcm' 'of' T ]" := (@clone T _ _ id)
+  (at level 0, format "[ 'cnpcm'  'of'  T ]") : pcm_scope.
+
+Section Lemmas.
+Variable U : cnpcm.
+
+(* TODO *)
+
+End Lemmas.
+End Exports.
+
+End ConicalPCM.
+
+Export ConicalPCM.Exports.
+
 (***************)
 (* Topped PCMs *)
 (***************)
@@ -512,6 +572,24 @@ Definition bool_orPCMMix :=
   PCMMixin orbC orbA orFb (fun x y => @id true) (erefl _).
 Definition bool_orPCM := Eval hnf in PCM bool bool_orPCMMix.
 Definition bool_orEQPCM := Eval hnf in EQPCM bool bool_orPCMMix.
+
+Lemma orb_conical (x y : bool_orPCM) : x || y = false -> x = false /\ y = false.
+Proof. by move/negbT/norP=>[/negbTE->/negbTE->]. Qed.
+Definition bool_orCNPCMMix :=
+  CNPCMMixin orb_conical.
+Definition bool_orCNPCM := Eval hnf in CNPCM bool bool_orCNPCMMix.
+
+(* also with conjunction *)
+Definition bool_andPCMMix :=
+  PCMMixin andbC andbA andTb (fun x y => @id true) (erefl _).
+Definition bool_andPCM := Eval hnf in PCM bool bool_andPCMMix.
+Definition bool_andEQPCM := Eval hnf in EQPCM bool bool_andPCMMix.
+
+Lemma andb_conical (x y : bool_andPCM) : x && y -> x /\ y.
+Proof. by move/andP. Qed.
+Definition bool_andCNPCMMix :=
+  CNPCMMixin andb_conical.
+Definition bool_andCNPCM := Eval hnf in CNPCM bool bool_andCNPCMMix.
 
 (* positive natural numbers under max are a pcm *)
 Section PosNatMax.
