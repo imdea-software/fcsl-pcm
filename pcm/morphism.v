@@ -306,37 +306,87 @@ Canonical sepU_seprel U := Eval hnf in seprel (@sep0 U) (@sep0_seprel_ax U).
 
 Definition sepI U (R1 R2 : rel U) (x y : U) := R1 x y && R2 x y.
 
-Lemma sepI_seprel_ax (U : pcm) (R1 R2 : sep_rel U) : seprel_axiom (sepI R1 R2).
+(* we develop the proof where the relations are decomposed *)
+(* from their seprel proof, just because in practice we don't *)
+(* always want to declare things seprel just in order to conjunct them. *)
+Section SepISeprel.
+Variables (U : pcm) (X Y : rel U).
+Hypotheses (pfx : seprel_axiom X) (pfy : seprel_axiom Y).
+
+Lemma sepI_sepax : seprel_axiom (sepI X Y).
 Proof.
+case: pfx pfy=>X0 Xc Xu Xa [Y0 Yc Yu Ya].
 rewrite /sepI; split=>[|x y|x y|x y z].
-- by rewrite !sep00.
-- by move=>D; rewrite sepC //= [in X in _ && X]sepC.
-- by move=>D /andP [X H]; rewrite (sepx0 D X) (sepx0 D H).
-move=>D /andP [S1 H1] /andP [S2 H2].
-by rewrite !(sepAxx D S1 S2) !(sepAxx D H1 H2).
+- by rewrite X0 Y0.
+- by move=>D; rewrite Xc // Yc.
+- by move=>D /andP [/Xu -> // /Yu ->].
+move=>D /andP [X1 Y1] /andP [X2 Y2].
+case/andP: (Xa x y z D X1 X2)=>->->.
+by case/andP: (Ya x y z D Y1 Y2)=>->->.
 Qed.
 
+End SepISeprel.
+
 Canonical sepI_seprel U (R1 R2 : sep_rel U) :=
-  Eval hnf in seprel (sepI R1 R2) (@sepI_seprel_ax U R1 R2).
+  Eval hnf in seprel (sepI R1 R2) (sepI_sepax (sepax R1) (sepax R2)).
 
 (* three-way conjunction is also useful *)
 Definition sep3I U (R1 R2 R3 : rel U) (x y : U) :=
   [&& R1 x y, R2 x y & R3 x y].
 
-Lemma sep3I_seprel_ax (U : pcm) (R1 R2 R3 : sep_rel U) :
-        seprel_axiom (sep3I R1 R2 R3).
+Section Sep3ISeprel.
+Variables (U : pcm) (X Y Z : rel U).
+Hypotheses (pfx : seprel_axiom X) (pfy : seprel_axiom Y) (pfz : seprel_axiom Z).
+
+Lemma sep3I_sepax : seprel_axiom (sep3I X Y Z).
 Proof.
+case: pfx pfy pfz=>X0 Xc Xu Xa [Y0 Yc Yu Ya] [Z0 Zc Zu Za].
 rewrite /sep3I; split=>[|x y|x y|x y z].
-- by rewrite !sep00.
-- by move=>D; rewrite (sepC R1 D) (sepC R2 D) (sepC R3 D).
-- move=>D /and3P [X1 X2 X3].
-  by rewrite (sepx0 D X1) (sepx0 D X2) (sepx0 D X3).
-move=>D /and3P [X11 X12 X13] /and3P [X21 X22 X23].
-by rewrite !(sepAxx D X11 X21) !(sepAxx D X12 X22) !(sepAxx D X13 X23).
+- by rewrite X0 Y0 Z0.
+- by move=>D; rewrite Xc // Yc // Zc.
+- by move=>D /and3P [/Xu -> // /Yu -> // /Zu ->].
+move=>D /and3P [X1 Y1 Z1] /and3P [X2 Y2 Z2].
+case/andP: (Xa x y z D X1 X2)=>->->.
+case/andP: (Ya x y z D Y1 Y2)=>->->.
+by case/andP: (Za x y z D Z1 Z2)=>->->.
 Qed.
 
+End Sep3ISeprel.
+
 Canonical sep3I_seprel U (R1 R2 R3 : sep_rel U) :=
-  Eval hnf in seprel (sep3I R1 R2 R3) (@sep3I_seprel_ax U R1 R2 R3).
+  Eval hnf in seprel (sep3I R1 R2 R3) (sep3I_sepax (sepax R1) (sepax R2) (sepax R3)).
+
+(* and 4-way conjunction *)
+
+Definition sep4I U (R1 R2 R3 R4 : rel U) (x y : U) :=
+  [&& R1 x y, R2 x y, R3 x y & R4 x y].
+
+Section Sep4ISeprel.
+Variables (U : pcm) (X Y Z W : rel U).
+Hypotheses (pfx : seprel_axiom X) (pfy : seprel_axiom Y).
+Hypotheses (pfz : seprel_axiom Z) (pfw : seprel_axiom W).
+
+Lemma sep4I_sepax : seprel_axiom (sep4I X Y Z W).
+Proof.
+case: pfx pfy pfz pfw=>X0 Xc Xu Xa [Y0 Yc Yu Ya] [Z0 Zc Zu Za] [W0 Wc Wu Wa].
+rewrite /sep4I; split=>[|x y|x y|x y z].
+- by rewrite X0 Y0 Z0 W0.
+- by move=>D; rewrite Xc // Yc // Zc // Wc.
+- by move=>D /and4P [/Xu -> // /Yu -> // /Zu -> // /Wu ->].
+move=>D /and4P [X1 Y1 Z1 W1] /and4P [X2 Y2 Z2 W2].
+case/andP: (Xa x y z D X1 X2)=>->->.
+case/andP: (Ya x y z D Y1 Y2)=>->->.
+case/andP: (Za x y z D Z1 Z2)=>->->.
+by case/andP: (Wa x y z D W1 W2)=>->->.
+Qed.
+
+End Sep4ISeprel.
+
+Canonical sep4I_seprel U (R1 R2 R3 R4 : sep_rel U) :=
+  Eval hnf in seprel (sep4I R1 R2 R3 R4)
+                     (sep4I_sepax (sepax R1) (sepax R2)
+                                  (sepax R3) (sepax R4)).
+
 
 (* pairwise product of seprels is seprel *)
 
@@ -908,93 +958,158 @@ Proof. by apply: fin_ext=>a; rewrite !sel_fin. Qed.
 
 End FinProdMorph.
 
+(*************************)
+(* Non-symmetric seprels *)
+(*************************)
+
+(* Often times, we build a seprel out of a non-symmetric relation *)
+(* by taking the symmetric closure of the relation explicitly. *)
+(* This is such a common approach, that its useful *)
+(* to introduce a class of primitive non-symmetric seprels that *)
+(* are made full seprels by closing up. *)
+
+Definition nseprel_axiom (U : pcm) (nsep : rel U) :=
+  [/\ (* unit is separated from unit *)
+      nsep Unit Unit,
+      (* is x is in the domain (i.e., x is considered) *)
+      (* then it is separate from at least Unit *)
+      forall x y, valid (x \+ y) -> nsep x y -> nsep x Unit,
+      (* if the first arguments is Unit, then nsep trivially holds *)
+      forall y, valid y -> nsep Unit y,
+      (* associativity 1 *)
+      forall x y z, valid (x \+ y \+ z) ->
+         nsep x y -> nsep (x \+ y) z -> nsep x (y \+ z) &
+      (* associativity 2 *)
+      forall x y z, valid (x \+ y \+ z) ->
+         nsep x (y \+ z) -> nsep y (x \+ z) -> nsep x y /\ nsep (x \+ y) z].
+
+Lemma orth_nsep (U : pcm) (nsep : rel U) :
+        nseprel_axiom nsep -> seprel_axiom (fun x y => nsep x y && nsep y x).
+Proof.
+case=>H1 H2 H3 H4 H5; split=>[|x y V|x y V|x y z V].
+- by rewrite H1.
+- by rewrite andbC.
+- by case/andP=>/(H2 _ _ V) -> _; rewrite (H3 _ (validL V)).
+case/andP=>X1 X2 /andP [X3 X4].
+move: (H4 x y z V X1 X3)=>X5; rewrite X5 /=.
+rewrite joinC in X3.
+move: (H4 y x z); rewrite (validLE3 V)=>/(_ erefl X2 X3) X6.
+rewrite joinC in X4; rewrite joinC in X6.
+move: (H5 y z x); rewrite (validLE3 V)=>/(_ erefl X6 X4) [->->] /=.
+by move: (H5 z y x); rewrite (validLE3 V)=>/(_ erefl X4 X6) [] ->.
+Qed.
+
+(*********************************)
+(* Guarded non-symmetric seprels *)
+(*********************************)
+
+(* Further optimization, if the nsep has the form forall k, P k x -> Q k x y *)
+(* for some P and Q *)
+
+Section GuardedSeprels.
+Variable (U : pcm) (X : Type) (P : X -> U -> Prop) (Q : X -> U -> U -> Prop).
+Variable (nsep : rel U).
+
+Hypothesis pf1 : forall x y, reflect (forall k, P k x -> Q k x y) (nsep x y).
+
+Definition gseprel_axiom :=
+  [/\ (* P is disjunctive *)
+      forall k x y, valid (x \+ y) -> P k (x \+ y) <-> P k x \/ P k y,
+      (* unit is separated from unit *)
+      forall k, P k Unit -> Q k Unit Unit,
+      (* is x is in the domain (i.e., x is considered) *)
+      (* then it is separate from at least Unit *)
+      forall k x y, valid (x \+ y) -> P k x -> Q k x y -> Q k x Unit,
+      (* if the first arguments is Unit, then nsep trivially holds *)
+      forall k y, valid y -> P k Unit -> Q k Unit y,
+      (* associativity 1 *)
+      forall k x y z, valid (x \+ y \+ z) ->
+        P k x -> Q k x y -> Q k (x \+ y) z -> Q k x (y \+ z) &
+      (* associativity 2 *)
+      forall k x y z, valid (x \+ y \+ z) ->
+        P k x -> Q k x (y \+ z) -> Q k x y /\ Q k (x \+ y) z].
+
+Lemma orth_gsep :
+        gseprel_axiom -> seprel_axiom (fun x y => nsep x y && nsep y x).
+Proof.
+case=>H1 H2 H3 H4 H5 H6; apply: orth_nsep.
+split=>[|x y V|y V|x y z V|x y z V].
+- by apply/pf1.
+- by move/pf1=>H; apply/pf1=>k /[dup] Y /H; apply: H3 V Y.
+- by apply/pf1=>x; apply: H4.
+- move/pf1=>X1 /pf1 X2; apply/pf1=>k H.
+  apply: H5=>//; first by apply: X1 H.
+  by apply: X2; apply/H1; [rewrite (validLE3 V)|left].
+move/pf1=>X1 /pf1 X2; split; apply/pf1=>k H.
+- by case: (H6 k x y z V H (X1 _ H)).
+case/H1: H; first by rewrite (validLE3 V).
+- by move=>H; case: (H6 k x y z V H (X1 _ H)).
+move=>H; rewrite joinC.
+case: (H6 k y x z)=>//; first by rewrite (validLE3 V).
+by apply: X2 H.
+Qed.
+
+End GuardedSeprels.
+
+
 (***********************************************************)
 (* Subpcm comes with an injection pval and retraction psub *)
 (***********************************************************)
 
-Module SubPCM.
-Section ClassDef.
-Variables (V : pcm) (D : rel V).
+Module SubPCM_st.
+Section SubPCM.
+Variables (U V : pcm) (D : rel V).
 
-(* we demand a sep-rel here, because I couldn't prove *)
-(* the sep_pers lemmas in world.v otherwise *)
-(* i.e., for constructing sub-resources, we really want this relation *)
-(* to be a seprel *)
-Record mixin_of (U : pcm) : Type := Mixin {
-  pval_op : {morphism (@sepT U) >-> V};
-  psub_op : {morphism D >-> U};
+Record mixin_of (pval : {morphism (@sepT U) >-> V})
+                (psub : {morphism D >-> U}) := Mixin {
   (* separated in V iff images separated in U *)
-  _ : forall x y, valid (psub_op x \+ psub_op y) ->
+  _ : forall x y, valid (psub x \+ psub y) ->
         valid (x \+ y) && D x y;
   (* inject then retract is id *)
-  _ : forall x, psub_op (pval_op x) = x;
+  _ : forall x, psub (pval x) = x;
   (* retract then inject is id on valids *)
-  _ : forall x, valid x -> D x Unit -> pval_op (psub_op x) = x;
+  _ : forall x, valid x -> D x Unit -> pval (psub x) = x;
   (* injection separates valids from invalids in U *)
   (* this axiom needed so that transitions in subresources *)
   (* don't need to add side-conditions on validity *)
-  _ : forall x, valid (pval_op x) -> valid x}.
+  _ : forall x, valid (pval x) -> valid x}.
 
-(* we base the inheritance on type instead of pcm *)
-(* thus, we can infer the sub_pcm structure out of the type *)
-(* used in the sub_pcm construction *)
-Record class_of (U : Type) := Class {
-  base : PCM.mixin_of U;
-  mixin: mixin_of (PCM.Pack base)}.
-Local Coercion base : class_of >->  PCM.mixin_of.
+Record subpcm_st := Pack {
+   pval : {morphism (@sepT U) >-> V};
+   psub : {morphism D >-> U};
+   _ : mixin_of pval psub}.
 
-Structure type : Type := Pack {sort; _ : class_of sort}.
-Local Coercion sort : type >-> Sortclass.
+Definition mixin (x : subpcm_st) : mixin_of (pval x) (psub x) :=
+  let: Pack _ _ m := x in m.
 
-Variables (T : Type) (cT : type).
-Definition class := let: Pack _ c  as cT' := cT return class_of cT' in c.
-Let xT := let: Pack T _ := cT in T.
-Notation xclass := (class : class_of xT).
-Definition clone c of phant_id class c := @Pack T c.
-Definition pack (b0 : PCM.mixin_of T) (m0 : mixin_of (PCM.Pack b0)) :=
-  fun    m & phant_id m0 m => Pack (@Class T b0 m).
-
-Definition pcmType := @PCM.Pack cT xclass.
-
-End ClassDef.
+End SubPCM.
 
 Module Exports.
-Coercion base : class_of >-> PCM.mixin_of.
-Coercion mixin : class_of >-> mixin_of.
-Coercion sort : type >-> Sortclass.
-Bind Scope pcm_scope with sort.
-Coercion pcmType : type >-> PCM.type.
-Canonical pcmType.
-Notation sub_pcm := type.
-Notation subPCMMix D := (@Mixin _ D).
-Notation subPCM D T m := (@pack _ D T _ m _ id).
+Notation subpcm_st := subpcm_st.
+Notation pval := pval.
+Notation psub := psub.
 
-Definition pval V D (U : @sub_pcm V D) : {morphism (@sepT U) >-> V} :=
-  pval_op (mixin (class U)).
-Definition psub V D (U : @sub_pcm V D) : {morphism D >-> U} :=
-  psub_op (mixin (class U)).
+Notation subPCMMix_st := Mixin.
+Notation subPCM_st := Pack.
 
-Arguments pval {V D U}.
-Arguments psub {V D}.
-Prenex Implicits pval psub.
+Section Repack.
+Variables (U V : pcm) (D : rel V) (X : subpcm_st U D).
 
-Section Lemmas.
-Variables (V : pcm) (D : rel V) (U : sub_pcm D).
-Notation pval := (@pval V D U).
-Notation psub := (@psub V D U).
+Notation pval := (pval X).
+Notation psub := (psub X).
 
 Lemma valid_psubU (x y : V) :
         valid (psub x \+ psub y) = valid (x \+ y) && D x y.
 Proof.
-case: U x y=>U' [b][v s H1] *.
-by apply/idP/idP; [apply: H1 | case/andP; apply: pfV2].
+case: X=>pval psub [H1 H2 H3 H4]; apply/idP/idP; first by apply: H1.
+by case/andP; apply: pfV2.
 Qed.
 
 Lemma psub_pval (x : U) : psub (pval x) = x.
-Proof. by case: U x=>U' [b][v s H1 H2 H3 H4] T; apply: H2. Qed.
+Proof. by case: X=>pval psub [H1 H2 H3 H4]; apply: H2. Qed.
 
 Lemma pval_psub x : valid x -> D x Unit -> pval (psub x) = x.
-Proof. by case: U x=>U' [b][v s H1 H2 H3 H4] T; apply: H3. Qed.
+Proof. by case: X=>pval psub [H1 H2 H3 H4]; apply: H3. Qed.
 
 (* derived lemmas *)
 
@@ -1042,7 +1157,8 @@ Proof. by rewrite valid_sep3. Qed.
 (* thus, if we limit to single variable, we get the following *)
 Lemma valid_pval x : valid (pval x) = valid x.
 Proof.
-apply/idP/idP; first by case: U x=>U' [b][v s H1 H2 H3 H4] T; apply: H4.
+apply/idP/idP.
+- by case: X=>pval psub [H1 H2 H3 H4]; apply: H4.
 move=> Vx; move: (Vx); rewrite -[x]unitL pfjoin //; last by rewrite unitL.
 by rewrite valid_sep => /andP[].
 Qed.
@@ -1069,12 +1185,18 @@ Proof. by rewrite valid_psub; case/andP. Qed.
 Lemma valid_psub2 x : valid (psub x) -> D x Unit.
 Proof. by rewrite valid_psub; case/andP. Qed.
 
+Lemma valid_psubI x : valid (psub x) -> valid x /\ D x Unit.
+Proof. by rewrite valid_psub=>/andP. Qed.
+
 Lemma pval_psub1 x : valid (psub x) -> pval (psub x) = x.
 Proof. by rewrite valid_psub=>/andP [H1 H2]; apply: pval_psub. Qed.
 
 (* this is a convenient composition of the above *)
 Lemma valid_sep1P (x : U) : valid x -> D (pval x) Unit.
 Proof. by rewrite valid_sep1=>/andP []. Qed.
+
+Lemma valid_sep2P (x y : U) : valid (x \+ y) -> D (pval x) (pval y).
+Proof. by rewrite valid_sep; case/andP. Qed.
 
 (* this just uses iff instead of equality *)
 (* i keep both lemmas for convenience (valid_pvalE can use views) *)
@@ -1121,14 +1243,71 @@ Proof.
 by rewrite valid_psubXUn=>/andP [W H]; rewrite pfjoin // psub_pval.
 Qed.
 
-End Lemmas.
+End Repack.
 
-Arguments valid_psubU [V D] U.
-Arguments valid_psub [V D] U.
-Arguments valid_psub1 [V D] U.
-Arguments valid_psub2 [V D] U.
+Arguments valid_psubU [U V D] X.
+Arguments valid_psub [U V D] X.
+Arguments valid_psub1 [U V D] X.
+Arguments valid_psub2 [U V D] X.
 Prenex Implicits valid_psubU valid_psub valid_psub1 valid_psub2 psub_inj.
 Prenex Implicits valid_psubXUn valid_psubUnX pvalXUn pvalUnX psubXUn psubUnX.
+
+Arguments pval {U V D}.
+
+End Exports.
+End SubPCM_st.
+
+Export SubPCM_st.Exports.
+
+Arguments subpcm_st : clear implicits.
+
+(* we can package the subpcm structure into subpcm type *)
+
+Module SubPCM.
+Section ClassDef.
+Variables (V : pcm) (D : rel V).
+
+Record mixin_of (T : Type) (base : PCM.mixin_of T) (U := PCM T base) : Type :=
+  Mixin {subpcm_struct_op : subpcm_st U V D}.
+
+(* we base the inheritance on type instead of pcm *)
+(* thus, we can infer the sub_pcm structure out of the type *)
+(* used in the sub_pcm construction *)
+Record class_of (T : Type) := Class {
+  base : PCM.mixin_of T;
+  mixin: mixin_of base}.
+Local Coercion base : class_of >->  PCM.mixin_of.
+
+Structure type : Type := Pack {sort; _ : class_of sort}.
+Local Coercion sort : type >-> Sortclass.
+
+Variables (T : Type) (cT : type).
+Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
+Let xT := let: Pack T _ := cT in T.
+Definition clone c of phant_id class c := @Pack T c.
+Definition pack :=
+ fun (bT : pcm) (b : PCM.mixin_of T) & phant_id (PCM.class bT) b =>
+ fun m => Pack (@Class T b m).
+Definition pcmType := PCM cT (base class).
+
+Let xc := @subpcm_struct_op cT (base class) (mixin class).
+Definition subpcm_struct : subpcm_st pcmType V D :=
+  SubPCM_st.Pack (SubPCM_st.mixin xc).
+
+End ClassDef.
+
+Module Exports.
+Coercion base : class_of >-> PCM.mixin_of.
+Coercion mixin : class_of >-> mixin_of.
+Coercion sort : type >-> Sortclass.
+Bind Scope pcm_scope with sort.
+Coercion pcmType : type >-> PCM.type.
+Canonical pcmType.
+Notation sub_pcm := type.
+Coercion subpcm_struct : sub_pcm >-> subpcm_st.
+
+Notation subPCMMix D m := (@Mixin _ D _ _ m).
+Notation subPCM D T m := (@pack _ D T _ _ id m).
 
 End Exports.
 End SubPCM.
@@ -1148,8 +1327,8 @@ Variables (V : cpcm) (D : sep_rel V) (U : sub_pcm D).
 Lemma subPCM_cancel (x1 x2 x : U) :
         valid (x1 \+ x) -> x1 \+ x = x2 \+ x -> x1 = x2.
 Proof.
-move=>W E; move: (W) (W); rewrite {1}E !valid_sep=>/andP [W2 D2] /andP [W1 D1].
-move: E; rewrite -(psub_pval x1) -(psub_pval x2) -(psub_pval x).
+move=>W E; move: (W) (W); rewrite {1}E !(valid_sep U)=>/andP [W2 D2] /andP [W1 D1].
+move: E; rewrite -(psub_pval U x1) -(psub_pval U x2) -(psub_pval U x).
 rewrite -pfjoin // -[R in _ = R]pfjoin //; move/psub_inj.
 by rewrite valid_psub W1 sepU0 // => /(_ (erefl _))  /(joinKx W1) ->.
 Qed.
@@ -1158,13 +1337,120 @@ Definition subCPCMMix := CPCMMixin subPCM_cancel.
 Canonical subCPCM := Eval hnf in CPCM U subCPCMMix.
 End SubCPCM.
 
+(* SubTpcm further ensures that pval undef = undef *)
+(* This, along with psub_pval, also ensures psub undef = undef *)
+
+Module SubTPCM_st.
+Section ClassDef.
+Variables (U V : tpcm) (D : rel V).
+
+Record mixin_of (pval : {morphism (@sepT U) >-> V})
+                (psub : {morphism D >-> U}) := Mixin {
+  base : SubPCM_st.mixin_of pval psub;
+  _ : pval undef = undef}.
+
+Record subtpcm_st := Pack {
+  pval_op : {morphism (@sepT U) >-> V};
+  psub_op : {morphism D >-> U};
+  _ : mixin_of pval_op psub_op}.
+
+Definition mixin (x : subtpcm_st) : mixin_of (pval_op x) (psub_op x) :=
+  let: Pack pv ps m := x in m.
+Definition subpcmSt (x : subtpcm_st) : subpcm_st U V D :=
+  SubPCM_st.Pack (base (mixin x)).
+Local Coercion subpcmSt : subtpcm_st >-> subpcm_st.
+
+End ClassDef.
+
+Module Exports.
+Notation subtpcm_st := subtpcm_st.
+Coercion subpcmSt : subtpcm_st >-> subpcm_st.
+Notation subTPCMMix_st := Mixin.
+Notation subTPCM_st := Pack.
+
+Section Repack.
+Variables (U V : tpcm) (S : rel V) (X : subtpcm_st U S).
+
+Lemma pval_undef : pval X undef = undef.
+Proof. by case: X=>pval psub [b]. Qed.
+
+Lemma psub_undef : psub X undef = undef.
+Proof. by rewrite -pval_undef psub_pval. Qed.
+
+End Repack.
+End Exports.
+End SubTPCM_st.
+
+Export SubTPCM_st.Exports.
+
+Arguments subtpcm_st : clear implicits.
+
+(* we can package subtpcm structure into a type *)
+
+Module SubTPCM.
+Section ClassDef.
+Variables (V : tpcm) (D : rel V).
+
+Record mixin_of (T : Type) (base : TPCM.class_of T)
+                (U := TPCM.Pack base) := Mixin {
+  subtpcm_struct_op : subtpcm_st U V D}.
+
+Record class_of (T : Type) := Class {
+  base : TPCM.class_of T;
+  mixin : mixin_of base}.
+
+Structure type : Type := Pack {sort; _ : class_of sort}.
+Local Coercion sort : type >-> Sortclass.
+
+Variables (T : Type) (cT : type).
+Definition class := let: Pack _ c  as cT' := cT return class_of cT' in c.
+Definition clone c of phant_id class c := @Pack T c.
+
+Definition pack :=
+  fun (bT : tpcm) (b : TPCM.class_of T) & phant_id (TPCM.class bT) b =>
+  fun m => Pack (@Class T b m).
+
+Definition tpcmType := TPCM.Pack (base class).
+
+Let xc := @subtpcm_struct_op cT (base class) (mixin class).
+
+Definition subtpcm_struct : subtpcm_st tpcmType V D :=
+  SubTPCM_st.Pack (SubTPCM_st.mixin xc).
+Definition subpcm_mixin : SubPCM.mixin_of D (base class) :=
+  @SubPCM.Mixin V D cT (TPCM.base (base class)) subtpcm_struct.
+Definition subpcm_class : SubPCM.class_of D cT :=
+  @SubPCM.Class V D cT (TPCM.base (base class)) subpcm_mixin.
+Definition subpcmType := @SubPCM.Pack V D cT subpcm_class.
+
+End ClassDef.
+
+Module Exports.
+Coercion base : class_of >-> TPCM.class_of.
+Coercion mixin : class_of >-> mixin_of.
+Coercion sort : type >-> Sortclass.
+Notation sub_tpcm := type.
+Coercion tpcmType : sub_tpcm >-> tpcm.
+Canonical tpcmType.
+Coercion subtpcm_struct : sub_tpcm >-> subtpcm_st.
+Canonical subtpcm_struct.
+Coercion subpcmType : sub_tpcm >-> sub_pcm.
+Canonical subpcmType.
+
+Notation subTPCMMix := Mixin.
+Notation subTPCM D T m := (@pack _ D T _ _ id m).
+
+End Exports.
+End SubTPCM.
+
+Export SubTPCM.Exports.
+
 (* specific construction of a sub-pcm obtained *)
 (* by modding out with a separating relation *)
 (* but requires starting with a tpcm *)
 
 Module SepSubPCM.
 Section SepSubPCM.
-Variables (U : tpcm) (D : sep_rel U).
+Variables (V : tpcm) (D : sep_rel V).
 
 Notation orth1 x := (valid x && D x Unit).
 Notation orth2 x y := (valid (x \+ y) && D x y).
@@ -1182,11 +1468,12 @@ Proof. by move=>E; subst y; congr ex_sep; apply: pf_irr. Qed.
 Lemma xval_inj x y : xval x = xval y -> x = y.
 Proof. by case: x y=>x Hx [y Hy] /= E; subst y; rewrite (pf_irr Hx). Qed.
 
-Lemma xsep_unitP : xsepP (Unit : U).
+Lemma xsep_unitP : xsepP (Unit : V).
 Proof. by rewrite /xsepP valid_unit sep00; left. Qed.
 
-Definition xsep_valid x := locked (orth1 (xval x)).
-Definition xsep_unit := locked (ex_sep xsep_unitP).
+Fact key : unit. Proof. by []. Qed.
+Definition xsep_valid x := locked_with key (orth1 (xval x)).
+Definition xsep_unit := locked_with key (ex_sep xsep_unitP).
 
 Definition xsep_join' x y :=
   if orth2 (xval x) (xval y) then xval x \+ xval y else undef.
@@ -1194,34 +1481,35 @@ Definition xsep_join' x y :=
 Lemma xsep_joinP x y : xsepP (xsep_join' x y).
 Proof.
 rewrite /xsepP /xsep_join'; case: ifP; last by right.
-by case/andP=>V /(sepU0 V) ->; rewrite V; left.
+by case/andP=>W /(sepU0 W) ->; rewrite W; left.
 Qed.
 
-Definition xsep_join x y := locked (ex_sep (xsep_joinP x y)).
+Definition xsep_join x y := locked_with key (ex_sep (xsep_joinP x y)).
 
 (* the subset type is actually a pcm *)
 
 Lemma xsep_joinC : commutative xsep_join.
 Proof.
-case=>x Hx [y Hy]; apply: xval_inj; rewrite /= /xsep_join -!lock /xsep_join' /=.
-by rewrite joinC; case V: (valid _)=>//=; rewrite -sepC.
+case=>x Hx [y Hy]; apply: xval_inj.
+rewrite /= /xsep_join !unlock /= /xsep_join' /=.
+by rewrite joinC; case W: (valid _)=>//=; rewrite -sepC.
 Qed.
 
 Lemma xsep_joinAC : right_commutative xsep_join.
 Proof.
-case=>a Ha [b Hb][c Hc]; apply: xval_inj; rewrite /= /xsep_join -!lock /xsep_join' /=.
+case=>a Ha [b Hb][c Hc]; apply: xval_inj; rewrite /= /xsep_join !unlock /xsep_join' /=.
 case Sab: (orth2 a b); case Sac: (orth2 a c); rewrite ?tpcmE //=; last first.
-- case/andP: Sac=>_ Sac; case: andP=>//; case=>V Sacb.
-  by rewrite (sepAxx V Sac Sacb) andbT (validLE3 V) in Sab.
-- case/andP: Sab=>_ Sab; case: andP=>//; case=>V Sabc.
-  by rewrite (sepAxx V Sab Sabc) andbT (validLE3 V) in Sac.
+- case/andP: Sac=>_ Sac; case: andP=>//; case=>W Sacb.
+  by rewrite (sepAxx W Sac Sacb) andbT (validLE3 W) in Sab.
+- case/andP: Sab=>_ Sab; case: andP=>//; case=>W Sabc.
+  by rewrite (sepAxx W Sab Sabc) andbT (validLE3 W) in Sac.
 case/andP: Sab=>_ Sab; case/andP: Sac=>_ Sac.
 case Sabc: (orth2 (a \+ b) c).
-- case/andP: Sabc=>V Sabc; rewrite sepC (joinAC a c b) V //.
-  by rewrite (sepAxx V Sab Sabc).
+- case/andP: Sabc=>W Sabc; rewrite sepC (joinAC a c b) W //.
+  by rewrite (sepAxx W Sab Sabc).
 case Sacb: (orth2 (a \+ c) b)=>//.
-case/andP: Sacb=>V Sacb; rewrite sepC (joinAC a b c) V // in Sabc.
-by rewrite (sepAxx V Sac Sacb) in Sabc.
+case/andP: Sacb=>W Sacb; rewrite sepC (joinAC a b c) W // in Sabc.
+by rewrite (sepAxx W Sac Sacb) in Sabc.
 Qed.
 
 Lemma xsep_joinA : associative xsep_join.
@@ -1229,20 +1517,21 @@ Proof. by move=>a b c; rewrite !(xsep_joinC a) xsep_joinAC. Qed.
 
 Lemma xsep_unitL : left_id xsep_unit xsep_join.
 Proof.
-case=>x qf; apply: xval_inj; rewrite /= /xsep_join/xsep_join'/xsep_unit -!lock /=.
+case=>x qf; apply: xval_inj=>/=.
+rewrite /xsep_join !unlock /= /xsep_join' /= /xsep_unit unlock /=.
 rewrite unitL; case: qf=>[|->]; last by rewrite tpcmE.
-by case/andP=>V E; rewrite sepC ?unitL // V E.
+by case/andP=>W E; rewrite sepC ?unitL // W E.
 Qed.
 
 Lemma xsep_validL a b : xsep_valid (xsep_join a b) -> xsep_valid a.
 Proof.
-rewrite /xsep_valid /xsep_join -!lock /= /xsep_join'.
+rewrite /xsep_valid/xsep_join !unlock /= /xsep_join'.
 case: ifP; last by rewrite tpcmE.
-by case/andP=>V E; rewrite !(validE2 V) (sepx0 V E).
+by case/andP=>W E; rewrite !(validE2 W) (sepx0 W E).
 Qed.
 
 Lemma xsep_valid_unit : xsep_valid xsep_unit.
-Proof. by rewrite /xsep_valid/xsep_unit /= -!lock valid_unit sep00. Qed.
+Proof. by rewrite /xsep_valid/xsep_unit /= !unlock valid_unit sep00. Qed.
 
 (* the pcm *)
 Definition xsepPCMMix :=
@@ -1256,22 +1545,22 @@ Definition xsep_unitb x := unitb (xval x).
 Lemma xsep_undefP : xsepP undef.
 Proof. by right. Qed.
 
-Definition xsep_undef : xsepPCM := locked (ex_sep xsep_undefP).
+Definition xsep_undef : xsepPCM := locked_with key (ex_sep xsep_undefP).
 
 Lemma xsep_unitbP x : reflect (x = Unit) (xsep_unitb x).
 Proof.
-rewrite /Unit /= /xsep_unit -!lock /xsep_unitb; case: x=>x H /=.
+rewrite /Unit /= /xsep_unit unlock /xsep_unitb; case: x=>x H /=.
 case: unitbP=>X; constructor; last by case=>/X.
 by rewrite X in H *; rewrite (pf_irr H xsep_unitP).
 Qed.
 
 Lemma xsep_valid_undef : ~~ valid xsep_undef.
-Proof. by rewrite pcmE /= /xsep_valid /= /xsep_undef -!lock /= tpcmE. Qed.
+Proof. by rewrite pcmE /= /xsep_valid /= /xsep_undef !unlock /= tpcmE. Qed.
 
 Lemma xsep_undef_join x : xsep_undef \+ x = xsep_undef.
 Proof.
 apply: xval_inj; rewrite /= pcm_joinE /xsep_undef /=.
-by rewrite /xsep_join -!lock /= /xsep_join' !tpcmE.
+by rewrite /xsep_join !unlock /= /xsep_join' !tpcmE.
 Qed.
 
 Definition xsepTPCMMix :=
@@ -1283,9 +1572,9 @@ Canonical xsepTPCM := Eval hnf in TPCM xsep xsepTPCMMix.
 
 Lemma xval_morphP : morph_axiom (sepT_seprel xsepPCM) xval.
 Proof.
-split=>[|x y]; first by rewrite pcmE /= /xsep_unit /= -!lock.
+split=>[|x y]; first by rewrite pcmE /= /xsep_unit /= unlock.
 rewrite {1}/valid /= /xsep_valid /= pcm_joinE /=
-/xsep_join -!lock /xsep_join' /=;
+/xsep_join !unlock /xsep_join' /=;
 by case: ifP; rewrite ?tpcmE //; case/andP.
 Qed.
 
@@ -1297,14 +1586,14 @@ Definition xpsub x :=
 
 Lemma xpsub_morphP : morph_axiom D xpsub.
 Proof.
-rewrite /xpsub; split=>[|x y V E].
+rewrite /xpsub; split=>[|x y W E].
 - by apply: xval_inj; case: decP=>//; rewrite pfunit /= valid_unit sep00.
-case: decP=>Hx; last by rewrite (sep0E V E) (validE2 V) in Hx.
-case: decP=>Hy; last by rewrite (sep0E V E) (validE2 V) in Hy.
-case: decP=>H; last by rewrite V (sepU0 V E) in H.
-rewrite /valid /= /xsep_valid /= !pcm_joinE /= /xsep_join /= -!lock /= /xsep_join' /=.
-rewrite {1 2}V {1 2}E {1}V {1}(sepU0 V E) /=.
-by split=>//; apply: xval_inj; rewrite /= /xsep_join' V E.
+case: decP=>Hx; last by rewrite (sep0E W E) (validE2 W) in Hx.
+case: decP=>Hy; last by rewrite (sep0E W E) (validE2 W) in Hy.
+case: decP=>H; last by rewrite W (sepU0 W E) in H.
+rewrite /valid /= /xsep_valid /= !pcm_joinE /= /xsep_join /= !unlock /= /xsep_join' /=.
+rewrite {1 2}W {1 2}E {1}W {1}(sepU0 W E) /=.
+by split=>//; apply: xval_inj; rewrite /= /xsep_join' W E.
 Qed.
 
 Canonical xpsub_pmorph := Morphism' xpsub xpsub_morphP.
@@ -1312,7 +1601,7 @@ Canonical xpsub_pmorph := Morphism' xpsub xpsub_morphP.
 Lemma valid_xpsubU x y : valid (xpsub x \+ xpsub y) -> orth2 x y.
 Proof.
 rewrite /xpsub {1}/valid /= -?lock /xsep_valid /= !pcm_joinE /= /xsep_join
-       -!lock /xsep_join' /= -pcmE.
+       !unlock /xsep_join' /= -pcmE.
 by case: decP=>Hx; case: decP=>Hy; case H: (orth2 x y) Hx Hy;
 rewrite /= ?tpcmE //=; case/andP: H=>V H.
 Qed.
@@ -1321,28 +1610,53 @@ Lemma xpsub_xval x : xpsub (xval x) = x.
 Proof. by apply: xval_inj; rewrite /xpsub; case: decP; case: x=>// x []. Qed.
 
 Lemma xval_xpsub x : valid x -> D x Unit -> xval (xpsub x) = x.
-Proof. by rewrite /xpsub /= => V H; case: decP=>//=; rewrite V H. Qed.
+Proof. by rewrite /xpsub /= => W H; case: decP=>//=; rewrite W H. Qed.
 
 Lemma xvalid_pval x : valid (xval x) -> valid x.
 Proof.
-rewrite {2}/valid /= /xsep_valid /= -!lock.
+rewrite {2}/valid /= /xsep_valid /= unlock.
 by case: x=>x /= [/andP [->->]|] // ->; rewrite tpcmE.
 Qed.
 
-Definition xsepSubMix := subPCMMix D valid_xpsubU xpsub_xval xval_xpsub xvalid_pval.
-Canonical xsepSubPCM : sub_pcm D := Eval hnf in subPCM D xsepPCM xsepSubMix.
+Definition xsepSubMix_st :=
+  subPCMMix_st valid_xpsubU xpsub_xval xval_xpsub xvalid_pval.
+Definition xsepSubPCM_st := subPCM_st xsepSubMix_st.
+Definition xsepSubMix := subPCMMix D xsepSubPCM_st.
+Definition xsepSubPCM := subPCM D xsep xsepSubMix.
+
+Lemma xval_undef : xval (@undef xsepTPCM) = undef.
+Proof. by rewrite /undef /= /xsep_undef unlock. Qed.
+
+Definition xsepSubTMix_st := subTPCMMix_st xsepSubMix_st xval_undef.
+Definition xsepSubTPCM_st := subTPCM_st xsepSubTMix_st.
+Definition xsepSubTMix := subTPCMMix xsepSubTPCM_st.
+Definition xsepSubTPCM := subTPCM D xsep xsepSubTMix.
 
 End SepSubPCM.
 
 Module Exports.
 Notation xsepPCM := xsepPCM.
 Notation xsepTPCM := xsepTPCM.
+Notation xsepSubMix_st := xsepSubMix_st.
+Notation xsepSubPCM_st := xsepSubPCM_st.
+Notation xsepSubMix := xsepSubMix.
 Notation xsepSubPCM := xsepSubPCM.
+Notation xsepSubTMix_st := xsepSubTMix_st.
+Notation xsepSubTPCM_st := xsepSubTPCM_st.
+Notation xsepSubTMix := xsepSubTMix.
+Notation xsepSubTPCM := xsepSubTPCM.
+
 Canonical xsepPCM.
 Canonical xsepTPCM.
+Canonical xsepSubPCM_st.
 Canonical xsepSubPCM.
+Canonical xsepSubTPCM_st.
+Canonical xsepSubTPCM.
+
 Canonical xval_pmorph.
 Canonical xpsub_pmorph.
+
+Notation xval_undef := xval_undef.
 
 Prenex Implicits xval xpsub.
 Notation xval := xval.
@@ -1351,196 +1665,84 @@ Notation xpsub := xpsub.
 Section Extras.
 Variables (U : tpcm) (D : sep_rel U).
 
-Lemma xval_undef : xval (@undef (xsepTPCM D)) = undef.
-Proof. by case: U D=>U' H' D'; rewrite /undef /= /xsep_undef /= -!lock. Qed.
-
 Lemma xsub_undef : xpsub D undef = undef.
-Proof. by rewrite -xval_undef xpsub_xval. Qed.
+Proof. by rewrite -(xval_undef D) xpsub_xval. Qed.
 
-Lemma xsepP (x : xsepSubPCM D) : x = undef \/ valid x.
+Lemma xsepP_st (x : xsepPCM D) : x = undef \/ valid x.
 Proof.
-rewrite (valid_sep1 x); case: x=>x [H|H]; [right=>//| left].
-by subst x; apply: pval_inj; rewrite /= xval_undef.
+set X := xsepSubPCM_st D; rewrite (valid_sep1 X).
+case: x=>x [H|H]; [right=>//|left]; subst x.
+by apply: (pval_inj (X:=X)); rewrite /= xval_undef.
 Qed.
 
-End Extras.
+Lemma xsepP (x : xsepSubPCM D) : x = undef \/ valid x.
+Proof. by apply: xsepP_st. Qed.
 
+End Extras.
 End Exports.
 End SepSubPCM.
 
-
 (* We want to keep the definition of xsep abstract to improve performance *)
 Module Type SepSubSig.
-Parameter xsep : forall U : tpcm, sep_rel U -> Type.
-Parameter xsepPCMMix : forall (U : tpcm) (D : sep_rel U),
+Parameter xsep : forall V : tpcm, sep_rel V -> Type.
+Parameter xsepPCMMix : forall (V : tpcm) (D : sep_rel V),
                          PCM.mixin_of (xsep D).
-Canonical xsepPCM U D :=
-  Eval hnf in PCM (@xsep U D) (@xsepPCMMix U D).
-Parameter xsepTPCMMix : forall (U : tpcm) (D : sep_rel U),
-                          TPCM.mixin_of (@xsepPCM U D).
-Canonical xsepTPCM U D :=
-  Eval hnf in TPCM (@xsep U D) (@xsepTPCMMix U D).
-Parameter xsepSubMix : forall (U : tpcm) (D : sep_rel U),
-                         SubPCM.mixin_of D (xsepPCM D).
-Canonical xsepSubPCM (U : tpcm) (D : sep_rel U) : sub_pcm D :=
-  Eval hnf in subPCM D (@xsepPCM U D) (@xsepSubMix U D).
-Parameter xsep_undef : forall (U : tpcm) (D : sep_rel U),
-  @pval U D (@xsepSubPCM U D) (@undef (@xsepTPCM U D)) = undef.
-
-Parameter xsepP : forall (U : tpcm) (D : sep_rel U)
-                    (x : @xsepSubPCM U D), x = undef \/ valid x.
+Canonical xsepPCM V D :=
+  Eval hnf in PCM (@xsep V D) (@xsepPCMMix V D).
+Parameter xsepTPCMMix : forall (V : tpcm) (D : sep_rel V),
+                          TPCM.mixin_of (@xsepPCM V D).
+Canonical xsepTPCM V D :=
+  Eval hnf in TPCM (@xsep V D) (@xsepTPCMMix V D).
+Parameter xpval : forall (V : tpcm) (D : sep_rel V),
+  morphism V (sepT_seprel (xsepPCM D)).
+Parameter xpsub : forall (V : tpcm) (D : sep_rel V),
+  morphism (xsepPCM D) D.
+Parameter xsepSubMix_st : forall (V : tpcm) (D : sep_rel V),
+  SubPCM_st.mixin_of (xpval D) (xpsub D).
+Canonical xsepSubPCM_st V D :=
+  Eval hnf in subPCM_st (@xsepSubMix_st V D).
+Definition xsepSubMix (V : tpcm) (D : sep_rel V) :=
+  Eval hnf in subPCMMix D (@xsepSubPCM_st V D).
+Definition xsepSubPCM (V : tpcm) (D : sep_rel V) :=
+  Eval hnf in subPCM D (xsep D) (@xsepSubMix V D).
+Parameter xsepSubTMix_st : forall (V : tpcm) (D : sep_rel V),
+  SubTPCM_st.mixin_of (xpval D) (xpsub D).
+Canonical xsepSubTPCM_st V D :=
+  Eval hnf in subTPCM_st (@xsepSubTMix_st V D).
+Definition xsepSubTMix (V : tpcm) (D : sep_rel V) :=
+  Eval hnf in subTPCMMix (@xsepSubTPCM_st V D).
+Definition xsepSubTPCM (V : tpcm) (D : sep_rel V) :=
+  Eval hnf in subTPCM D (xsep D) (@xsepSubTMix V D).
+Parameter xsepP_st : forall (V : tpcm) (D : sep_rel V)
+  (x : xsepPCM D), x = undef \/ valid x.
+Definition xsepP (V : tpcm) (D : sep_rel V) (x : @xsepSubPCM V D) :=
+  @xsepP_st V D x.
 End SepSubSig.
 
 Module SepSub : SepSubSig.
 Section SepSub.
-Variables (U : tpcm) (D : sep_rel U).
-Definition xsep := @SepSubPCM.xsep U D.
-Definition xsepPCMMix := @SepSubPCM.xsepPCMMix U D.
+Variables (V : tpcm) (D : sep_rel V).
+Definition xsep := @SepSubPCM.xsep V D.
+Definition xsepPCMMix := @SepSubPCM.xsepPCMMix V D.
 Canonical xsepPCM := Eval hnf in PCM xsep xsepPCMMix.
-Definition xsepTPCMMix := @SepSubPCM.xsepTPCMMix U D.
+Definition xsepTPCMMix := @SepSubPCM.xsepTPCMMix V D.
 Canonical xsepTPCM := Eval hnf in TPCM xsep xsepTPCMMix.
-Definition xsepSubMix := @SepSubPCM.xsepSubMix U D.
-Canonical xsepSubPCM : sub_pcm D :=
-  Eval hnf in subPCM D xsepPCM xsepSubMix.
-Lemma xsep_undef : pval (U:=xsepSubPCM) undef = undef.
-Proof. by apply: SepSubPCM.Exports.xval_undef. Qed.
-Lemma xsepP (x : xsepSubPCM) : x = undef \/  valid x.
-Proof. by apply: SepSubPCM.Exports.xsepP. Qed.
+Definition xpval := @SepSubPCM.xval_pmorph.
+Definition xpsub := @SepSubPCM.xpsub_pmorph.
+Definition xsepSubMix_st := @SepSubPCM.xsepSubMix_st V D.
+Canonical xsepSubPCM_st := Eval hnf in subPCM_st xsepSubMix_st.
+Definition xsepSubMix := Eval hnf in subPCMMix D xsepSubPCM_st.
+Definition xsepSubPCM := Eval hnf in subPCM D xsep xsepSubMix.
+Definition xsepSubTMix_st := @SepSubPCM.xsepSubTMix_st V D.
+Canonical xsepSubTPCM_st := Eval hnf in subTPCM_st xsepSubTMix_st.
+Definition xsepSubTMix := Eval hnf in subTPCMMix xsepSubTPCM_st.
+Definition xsepSubTPCM := Eval hnf in subTPCM D xsep xsepSubTMix.
+Definition xsepP_st := @SepSubPCM.Exports.xsepP_st V D.
+Definition xsepP := xsepP_st.
 End SepSub.
 End SepSub.
 
-(* Furthermore, locking U and D improves performance still *)
-(* The following is a version which defines canonicals for *)
-(* the xsep constructor *)
-
-Module SepSub2.
-
-Notation xsep D :=
-  (@SepSub.xsep (locked _)
-                (cast (fun U : tpcm => sep_rel U) (esym (lock _)) D)).
-
-Section SepSubExports.
-Variables (U : tpcm) (D : sep_rel U).
-
-Lemma eq1 : xsep D = SepSub.xsep D.
-Proof. by move: (esym _); rewrite -lock=>eq1'; rewrite eqc. Qed.
-
-Definition xsepPCMMix := cast PCM.mixin_of eq1 (SepSub.xsepPCMMix D).
-Canonical xsepPCM := Eval hnf in PCM (xsep D) xsepPCMMix.
-
-Lemma eq2 : xsepPCM = SepSub.xsepPCM D.
-Proof.
-rewrite /xsepPCM/xsepPCMMix; move: eq1.
-by rewrite eq1=>eq1'; rewrite !eqc.
-Qed.
-
-Definition xsepTPCMMix := cast TPCM.mixin_of eq2 (SepSub.xsepTPCMMix D).
-Canonical xsepTPCM := Eval hnf in TPCM (xsep D) xsepTPCMMix.
-
-Lemma eq3 : (D, xsepTPCM) = (D, SepSub.xsepTPCM D).
-Proof.
-rewrite /xsepTPCM/SepSub.xsepTPCM/xsepTPCMMix/xsepPCMMix; move: eq2.
-rewrite /xsepPCM/xsepPCMMix; move: eq1.
-by rewrite !eq1=>eq1'; rewrite !eqc=>eq2'; rewrite !eqc.
-Qed.
-
-Definition xsepSubMix :=
-  cast (fun W : sep_rel U * tpcm => SubPCM.mixin_of W.1 W.2)
-       eq3
-       (SepSub.xsepSubMix D).
-Canonical xsepSubPCM := Eval hnf in subPCM D xsepPCM xsepSubMix.
-
-Lemma xsep_undef : pval (U:=xsepSubPCM) undef = undef.
-Proof.
-rewrite -(SepSub.xsep_undef D)/pval/undef/xsepSubPCM/xsepSubMix; move: eq3.
-rewrite /xsepTPCM/xsepTPCMMix/xsepPCMMix; move: eq2.
-rewrite /xsepPCM/xsepPCMMix; move: eq1.
-by rewrite !eq1=>eq1'; rewrite !eqc=>eq2'; rewrite !eqc=>eq3'; rewrite !eqc.
-Qed.
-
-Lemma xsepP (x : xsepSubPCM) : x = undef \/  valid x.
-Proof.
-move: x; rewrite /xsepSubPCM/undef/valid /= /xsepTPCMMix /xsepPCMMix /=; move: eq2.
-rewrite /xsepPCM/xsepPCMMix; move: eq1.
-rewrite !eq1=>eq1'; rewrite !eqc=>eq2'; rewrite !eqc.
-by apply: SepSub.xsepP.
-Qed.
-
-Lemma xsep_psub_undef : psub xsepSubPCM undef = undef.
-Proof. by rewrite -xsep_undef psub_pval. Qed.
-
-End SepSubExports.
-End SepSub2.
-
-
-Module SepSub3.
-
-Notation xsep D := (locked (@SepSub.xsep _ D)).
-
-Section SepSubExports.
-Variables (U : tpcm) (D : sep_rel U).
-
-Lemma eq1 : xsep D = SepSub.xsep D.
-Proof. by rewrite -lock. Qed.
-
-Definition xsepPCMMix := cast PCM.mixin_of eq1 (SepSub.xsepPCMMix D).
-Definition xsepPCM := Eval hnf in PCM (xsep D) xsepPCMMix.
-
-Lemma eq2 : xsepPCM = SepSub.xsepPCM D.
-Proof.
-rewrite /xsepPCM/xsepPCMMix; move: eq1.
-by rewrite eq1=>eq1'; rewrite !eqc.
-Qed.
-
-Definition xsepTPCMMix := cast TPCM.mixin_of eq2 (SepSub.xsepTPCMMix D).
-Definition xsepTPCM := Eval hnf in TPCM (xsep D) xsepTPCMMix.
-
-Lemma eq3 : (D, xsepTPCM) = (D, SepSub.xsepTPCM D).
-Proof.
-rewrite /xsepTPCM/SepSub.xsepTPCM/xsepTPCMMix/xsepPCMMix; move: eq2.
-rewrite /xsepPCM/xsepPCMMix; move: eq1.
-by rewrite !eq1=>eq1'; rewrite !eqc=>eq2'; rewrite !eqc.
-Qed.
-
-Definition xsepSubMix :=
-  cast (fun W : sep_rel U * tpcm => SubPCM.mixin_of W.1 W.2)
-       eq3
-       (SepSub.xsepSubMix D).
-Definition xsepSubPCM := Eval hnf in subPCM D xsepPCM xsepSubMix.
-
-Lemma xsep_undef : pval (U:=xsepSubPCM) (@undef xsepTPCM) = undef.
-Proof.
-rewrite -(SepSub.xsep_undef D)/pval/undef/xsepSubPCM/xsepSubMix; move: eq3.
-rewrite /xsepTPCM/xsepTPCMMix/xsepPCMMix; move: eq2.
-rewrite /xsepPCM/xsepPCMMix; move: eq1.
-by rewrite !eq1=>eq1'; rewrite !eqc=>eq2'; rewrite !eqc=>eq3'; rewrite !eqc.
-Qed.
-
-Lemma xsepP (x : xsepSubPCM) : x = @undef xsepTPCM \/  valid x.
-Proof.
-move: x; rewrite /xsepSubPCM/undef/valid /= /xsepTPCMMix /xsepPCMMix /=; move: eq2.
-rewrite /xsepPCM/xsepPCMMix; move: eq1.
-rewrite !eq1=>eq1'; rewrite !eqc=>eq2'; rewrite !eqc.
-by apply: SepSub.xsepP.
-Qed.
-
-Lemma xsep_psub_undef : psub xsepSubPCM undef = undef :> xsepTPCM.
-Proof. by rewrite -xsep_undef psub_pval. Qed.
-
-End SepSubExports.
-End SepSub3.
-
-(* In general, typechecking is fastest if each individual *)
-(* type defined using either of the 3 versions of xsep above, *)
-(* is itself hidden using the module system. Thus, the xsep *)
-(* type should probably never be used directly itself, without the hiding *)
-(* so it doesn't matter which of the three versions we export *)
-
-(* We will export SepSub2 for those rare (or unexpected) cases *)
-(* when we want to have canonicals on xsep, but we want to be *)
-(* faster than the nakes SepSub *)
-
-Export SepSub2.
+Export SepSub.
 
 
 (* We can use the xsep construction to provide a product TPCM *)
@@ -1558,11 +1760,17 @@ Parameter pprodPCMMix : PCM.mixin_of (pprod U1 U2).
 Canonical pprodPCM := Eval hnf in PCM (pprod U1 U2) pprodPCMMix.
 Parameter pprodTPCMMix : TPCM.mixin_of pprodPCM.
 Canonical pprodTPCM := Eval hnf in TPCM (pprod U1 U2) pprodTPCMMix.
-Parameter pprodSubMix :
-  SubPCM.mixin_of (sepT_seprel (prodPCM U1 U2)) pprodPCM.
-Canonical pprodSubPCM :=
-  Eval hnf in subPCM (sepT_seprel (prodPCM U1 U2)) (pprod U1 U2) pprodSubMix.
-Parameter pprod_pval_undef : pval (@undef pprodTPCM) = undef.
+Parameter pprod_val : {morphism (@sepT (pprod U1 U2)) >-> prodPCM U1 U2}.
+Parameter pprod_sub : {morphism (@sepT (prod U1 U2)) >-> pprodTPCM}.
+Parameter pprodSubMix_st : SubPCM_st.mixin_of pprod_val pprod_sub.
+Canonical pprodSubPCM_st := Eval hnf in subPCM_st pprodSubMix_st.
+Definition pprodSubMix := Eval hnf in subPCMMix (@sepT (prod U1 U2)) pprodSubPCM_st.
+Definition pprodSubPCM := Eval hnf in subPCM (@sepT (prod U1 U2)) (pprod U1 U2) pprodSubMix.
+Parameter pprodSubTMix_st : SubTPCM_st.mixin_of pprod_val pprod_sub.
+Canonical pprodSubTPCM_st := Eval hnf in subTPCM_st pprodSubTMix_st.
+Definition pprodSubTMix := Eval hnf in subTPCMMix pprodSubTPCM_st.
+Definition pprodSubTPCM :=
+  Eval hnf in subTPCM (@sepT (prod U1 U2)) (pprod U1 U2) pprodSubTMix.
 Parameter pprodP : forall x : pprod U1 U2, x = undef \/ valid x.
 End PairingSig.
 End PairingSig.
@@ -1575,21 +1783,24 @@ Variables U1 U2 : tpcm.
 Local Definition Uraw := [tpcm of U1 * U2].
 Local Definition Draw := [seprel of @sepT Uraw].
 
-Definition pprod := @SepSubPCM.xsep Uraw Draw.
-Definition pprodPCMMix := @SepSubPCM.xsepPCMMix Uraw Draw.
+Definition pprod := @xsep Uraw Draw.
+Definition pprodPCMMix := @xsepPCMMix Uraw Draw.
 Canonical pprodPCM := Eval hnf in PCM pprod pprodPCMMix.
-Definition pprodTPCMMix := @SepSubPCM.xsepTPCMMix Uraw Draw.
+Definition pprodTPCMMix := @xsepTPCMMix Uraw Draw.
 Canonical pprodTPCM := Eval hnf in TPCM pprod pprodTPCMMix.
-Definition pprodSubMix := @SepSubPCM.xsepSubMix Uraw Draw.
-Canonical pprodSubPCM : sub_pcm Draw :=
-  Eval hnf in subPCM Draw pprod pprodSubMix.
-
-Lemma pprod_pval_undef : pval (@undef pprodTPCM) = undef.
-Proof. by apply: SepSubPCM.Exports.xval_undef. Qed.
-
-Lemma pprodP (x : pprod) : x = undef \/ valid x.
-Proof. by apply: SepSubPCM.Exports.xsepP. Qed.
-
+Definition pprod_val : {morphism (@sepT pprod) >-> Uraw} :=
+  xpval Draw.
+Definition pprod_sub : {morphism (@sepT Uraw) >-> pprod} :=
+  xpsub Draw.
+Definition pprodSubMix_st := xsepSubMix_st Draw.
+Canonical pprodSubPCM_st := Eval hnf in subPCM_st pprodSubMix_st.
+Definition pprodSubMix := Eval hnf in subPCMMix Draw pprodSubPCM_st.
+Definition pprodSubPCM := Eval hnf in subPCM Draw pprod pprodSubMix.
+Definition pprodSubTMix_st := xsepSubTMix_st Draw.
+Canonical pprodSubTPCM_st := Eval hnf in subTPCM_st pprodSubTMix_st.
+Definition pprodSubTMix := Eval hnf in subTPCMMix pprodSubTPCM_st.
+Definition pprodSubTPCM := Eval hnf in subTPCM Draw pprod pprodSubTMix.
+Definition pprodP := @xsepP Uraw Draw.
 End Pairing.
 End Pairing.
 
@@ -1600,13 +1811,17 @@ Variables U1 U2 : tpcm.
 
 Notation U := (pprod U1 U2).
 
+Let X := pprodSubPCM U1 U2.
+Notation pval := (pval X).
+Notation psub := (psub X).
+
 Definition pfst : U -> _ := fst \o pval.
 Canonical pfst_morph := [morphism of pfst].
 
 Definition psnd : U -> _ := snd \o pval.
 Canonical psnd_morph := [morphism of psnd].
 
-Definition ppair : U1 * U2 -> U := psub (pprodSubPCM U1 U2).
+Definition ppair : U1 * U2 -> U := psub.
 Lemma ppair_morph_ax : morph_axiom (@sepT _) ppair.
 Proof. by split; [apply: pfunit | apply: pfjoinV]. Qed.
 Canonical ppair_morph := Morphism' ppair ppair_morph_ax.
@@ -1616,7 +1831,7 @@ Lemma pairing_undef :
         (psnd undef = undef) *
         (forall x, ~~ valid x -> ppair x = undef).
 Proof.
-split; first by rewrite /pfst/psnd /= pprod_pval_undef.
+split; first by rewrite /pfst/psnd /= pval_undef.
 case=>a b Vab; case: (pprodP (ppair (a, b)))=>//.
 by rewrite valid_psub (negbTE Vab).
 Qed.
@@ -1626,18 +1841,17 @@ Lemma pairing_valid :
         (forall x, valid (psnd x) = valid x) *
         (forall x, valid (ppair x) = valid x).
 Proof.
-split=>[|x].
-- split=>x; (case: (pprodP x)=>[->|V]; first by rewrite pairing_undef !tpcmE);
-  by case/valid_pvalE/andP: V (V)=>/= E1 E2 ->; rewrite ?(E1,E2).
-by rewrite valid_psub andbT.
+split=>[|x]; last by rewrite valid_psub andbT.
+split=>x; (case: (pprodP x)=>[->|V]; first by rewrite pairing_undef !tpcmE);
+by case/(valid_pvalE X)/andP: V (V)=>/= E1 E2 ->; rewrite ?(E1,E2).
 Qed.
 
 Lemma pprojPV1 x : valid x = valid (pfst x) && valid (psnd x).
-Proof. by rewrite valid_sep1 pcmPV andbT. Qed.
+Proof. by rewrite (valid_sep1 X) pcmPV andbT. Qed.
 
 Lemma pprojPV2 x y :
         valid (x \+ y) = valid (pfst x \+ pfst y) && valid (psnd x \+ psnd y).
-Proof. by rewrite valid_sep pcmPV andbT. Qed.
+Proof. by rewrite (valid_sep X) pcmPV andbT. Qed.
 
 Lemma ppairPV1 x : valid (ppair x) = valid x.
 Proof. by rewrite valid_psub andbT. Qed.
@@ -1661,3 +1875,90 @@ Definition pprodPE := (pfst_ppair, psnd_ppair, pprodPV).
 End PairingLemmas.
 
 Prenex Implicits pfst psnd ppair.
+
+(* Locality and Sub-PCMs *)
+
+Section LocalitySubPCM.
+Variable V : pcm.
+
+Section BackForth.
+Variables (D : rel V) (U : sub_pcm D).
+Variables (P : V -> V -> Prop) (cond : V -> Prop).
+Hypothesis pf_cond : forall s, cond s -> valid s.
+
+Notation pval := (pval U).
+
+Lemma sublocal_pvalI :
+        sublocal_rel P cond D ->
+        local_rel (fun x y => P (pval x) (pval y)) (fun x => cond (pval x)).
+Proof.
+move=>L p x y /[dup] C /pf_cond; rewrite valid_pval=>W.
+move: (validL W) (validAR W)=>W1 W2; rewrite !pfjoin //; apply: L.
+- by rewrite -!pfjoin.
+- by apply: valid_sep2P.
+by rewrite -pfjoin //; apply: valid_sep2P.
+Qed.
+
+End BackForth.
+
+(* If D is a seprel, we can prove equivalence *)
+Section BackForthSep.
+Variables (D : sep_rel V) (U : sub_pcm D).
+Variables (P : V -> V -> Prop) (cond : V -> Prop).
+Hypothesis pf_cond : forall s, cond s -> valid s.
+
+Notation pval := (pval U).
+
+Lemma sublocal_pval :
+        sublocal_rel P cond [eta D] <->
+        local_rel (fun x y => P (pval x) (pval y)) (fun x => cond (pval x)).
+Proof.
+split; first by apply: sublocal_pvalI.
+move=>L p x y C Sxp Sy H; move: (pf_cond C)=>W.
+move: (validL W) (validAR W) (validR W)=>W1 W2 W3; move: (validL W1)=>Wx.
+have Spy : D p y by rewrite (sepAxx _ Sxp Sy).
+suff : P (pval (psub U x \+ psub U p)) (pval (psub U y)).
+- by rewrite -pfjoin ?(pval_psub,sep0E _ Spy,sep0E _ Sy).
+apply: L; first by rewrite -!pfjoin // pval_psub ?(sepU0 W Sy).
+by rewrite -pfjoin ?(pval_psub,sepU0 _ Spy,sep0E _ Sxp).
+Qed.
+
+End BackForthSep.
+
+Section ForthBack.
+Variables (D : rel V) (U : sub_pcm D).
+Variables (P : U -> U -> Prop) (cond : U -> Prop).
+Hypothesis pf_cond : forall s, cond s -> @valid U s.
+
+Lemma sublocal_psubE :
+        sublocal_rel (fun x y => P (psub U x) (psub U y))
+                     (fun x => cond (psub U x)) D ->
+        local_rel P cond.
+Proof.
+have pf s : cond (psub U s) -> valid s by move/pf_cond/valid_psub1.
+move/(sublocal_pvalI (U:=U) pf)=>L p x y C H.
+by move: (L p x y); rewrite !psub_pval; apply.
+Qed.
+
+End ForthBack.
+
+(* if D is a seprel, we can prove equivalence *)
+Section ForthBackSep.
+Variables (D : sep_rel V) (U : sub_pcm D).
+Variables (P : U -> U -> Prop) (cond : U -> Prop).
+Hypothesis pf_cond : forall s, cond s -> @valid U s.
+
+Lemma sublocal_psub :
+        local_rel P cond <->
+        sublocal_rel (fun x y => P (psub U x) (psub U y))
+                     (fun x => cond (psub U x)) [eta D].
+Proof.
+split; last by apply: sublocal_psubE.
+have pf s : cond (psub U s) -> valid s by move/pf_cond/valid_psub1.
+move=>L; apply/(sublocal_pval U _ pf).
+by move=>p x y; rewrite !psub_pval; apply: L.
+Qed.
+
+End ForthBackSep.
+
+End LocalitySubPCM.

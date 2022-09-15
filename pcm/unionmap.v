@@ -979,6 +979,14 @@ Lemma dom_inNR k f1 f2 :
         valid (f1 \+ f2) -> k \in dom f2 -> k \notin dom f1.
 Proof. by rewrite joinC; apply: dom_inNL. Qed.
 
+Lemma dom_inNLX k f1 f2 :
+        valid (f1 \+ f2) -> k \in dom f1 -> ~ k \in dom f2.
+Proof. by move=>W /(dom_inNL W)/negbTE ->. Qed.
+
+Lemma dom_inNRX k f1 f2 :
+        valid (f1 \+ f2) -> k \in dom f2 -> ~ k \in dom f1.
+Proof. by move=>W /(dom_inNR W)/negbTE ->. Qed.
+
 End ValidLemmas.
 
 
@@ -1573,6 +1581,10 @@ rewrite (fcat_inss _ (@nil K V) D) fcat0s.
 case: g H2 D H3=>//= g P H2 D H3.
 by apply: last_ins'; rewrite path_min_sorted //.
 Qed.
+
+Lemma assocsF f x :
+        assocs (free f x) = filter (fun kv => kv.1 != x) (assocs f).
+Proof. by rewrite !umEX /UM.assocs; case: (UMC.from f)=>//=; case. Qed.
 
 Lemma assocs_perm f1 f2 :
         valid (f1 \+ f2) -> perm (assocs (f1 \+ f2)) (assocs f1 ++ assocs f2).
@@ -2279,7 +2291,7 @@ Qed.
 Lemma In_domY k f : k \in dom f -> sigT (fun v => (k, v) \In f).
 Proof. by case: dom_find=>// v /In_find; exists v. Qed.
 
-Lemma umemE f x : x \In assocs f <-> x \In f.
+Lemma In_assocs f x : x \In assocs f <-> x \In f.
 Proof.
 move: f; apply: um_indf=>[||k v f IH W /(order_path_min (@trans K)) P].
 - by rewrite assocs_undef; split=>// /In_undef.
@@ -2309,6 +2321,16 @@ Proof.
 move=>V1 V2 E H; apply: umem_eq=>//; case=>k v; split; first by apply: H.
 move=>H2; move: (In_dom H2); rewrite -E /= =>/In_domX [w H1].
 by move/H/(In_fun H2): (H1)=>->.
+Qed.
+
+Lemma umem_eq_assocs f1 f2 :
+        valid f1 -> valid f2 ->
+        assocs f1 = assocs f2 ->
+        f1 = f2.
+Proof.
+move=>V1 V2 E; apply: umem_eqD V1 V2 _ _.
+- by rewrite !assocs_dom E.
+by move=>x /In_assocs; rewrite E=>/In_assocs.
 Qed.
 
 Lemma InU x k v f :
@@ -2450,7 +2472,7 @@ case W : (valid f); last first.
 case H : (uniq (range f)); constructor; last first.
 - move=>H'; move/negbT/negP: H; elim.
   rewrite map_inj_in_uniq; first by apply: uniq_assocs.
-  case=>/= k1 v [k2 v'] /mem_seqP/umemE H1 /mem_seqP/umemE H2 /= H3.
+  case=>/= k1 v [k2 v'] /mem_seqP/In_assocs H1 /mem_seqP/In_assocs H2 /= H3.
   by rewrite -H3 in H2 *; rewrite (H' _ _ _ H1 H2).
 move/uniqP: H=>H k1 k2 v H1 H2.
 set j1 := index k1 (dom f).
@@ -2462,7 +2484,7 @@ have [R1 R2] : j1 < size (assocs f) /\ j2 < size (assocs f).
 have [M1 M2] : j1 < size (dom f) /\ j2 < size (dom f).
 - by rewrite !index_mem.
 have [A1 A2] : (k1, v) \in assocs f /\ (k2, v) \in assocs f.
-- by move/umemE/mem_seqP: H1=>->; move/umemE/mem_seqP: H2=>->.
+- by move/In_assocs/mem_seqP: H1=>->; move/In_assocs/mem_seqP: H2=>->.
 have InjF : {in assocs f &, injective fst}.
 - case=>a1 v1 [a2 v2] /mem_seqP X1 /mem_seqP X2 /= E.
   by move: E X1 X2 => -> X1 /(assocs_map X1) ->.
@@ -2598,12 +2620,12 @@ apply/(equivP idP); elim/um_indf: f=>[||k v f IH W P].
 - by rewrite assocs0; split=>// _ ???? /In0.
 rewrite assocsPtUn ?(order_path_min (@trans _) P) //=; split=>H; last first.
 - rewrite path_min_sorted; first by apply/IH=>??????; apply: H; apply/InR.
-  apply/allP=>x /mapP [[y w]] /mem_seqP/umemE X ->.
+  apply/allP=>x /mapP [[y w]] /mem_seqP/In_assocs X ->.
   by apply: H (path_mem (@trans K) P (In_dom X)); [apply/InPtUnL|apply/InR].
 move=>x x' w w'; rewrite !InPtUnE //.
 case=>[[->->]|H1]; case=>[[->->]|H2]; first by rewrite irr.
 - suff: w' \in [seq i.2 | i <- assocs f] by move/(path_mem (@trans V) H).
-  by move/umemE/mem_seqP: H2=>H2; apply/mapP; exists (x',w').
+  by move/In_assocs/mem_seqP: H2=>H2; apply/mapP; exists (x',w').
 - by move/In_dom/(path_mem (@trans K) P): H1; case: ordP.
 by move/path_sorted/IH: H; apply.
 Qed.
@@ -2952,6 +2974,96 @@ by move: E W=>-> W; apply/InL.
 Qed.
 
 End FoldMap.
+
+(**************)
+(* Map prefix *)
+(**************)
+
+Section MapPrefix.
+Variables (K : ordType) (C : pred K) (V : Type).
+Variables (U : union_map_class C V).
+
+Definition um_prefix (h1 h2 : U) := prefix (assocs h1) (assocs h2).
+
+Lemma umpfx_undef h : um_prefix undef h.
+Proof.
+by rewrite /um_prefix assocs_undef; apply/prefixP; exists (assocs h).
+Qed.
+
+Lemma umpfx0 h : um_prefix Unit h.
+Proof.
+by rewrite /um_prefix assocs0; apply/prefixP; exists (assocs h).
+Qed.
+
+Lemma umpfxD h1 h2 : um_prefix h1 h2 -> prefix (dom h1) (dom h2).
+Proof.
+by case/prefixP=>x E; rewrite !assocs_dom E map_cat; apply: prefix_cat.
+Qed.
+
+(* we next need a helper lemma, which should be in assocs section *)
+(* but couldn't be proved there, because um_indf appears later *)
+Lemma assocsUn (h1 h2 : U) :
+        valid (h1 \+ h2) ->
+        (forall k1 k2, k1 \in dom h1 -> k2 \in dom h2 -> ord k1 k2) ->
+        assocs (h1 \+ h2) = assocs h1 ++ assocs h2.
+Proof.
+move: h1 h2; apply: um_indf=>[h1|h2 W H|
+  k v f IH W1 /(order_path_min (@trans _)) P h2 W2 H].
+- by rewrite undef_join valid_undef.
+- by rewrite assocs0 unitL.
+rewrite -joinA in W2; rewrite -joinA !assocsPtUn //= ?IH //.
+- by rewrite (validR W2).
+- by move=>k1 k2 K1 K2; apply: H=>//; rewrite domPtUn inE K1 orbT W1.
+apply/allP=>x; rewrite domUn inE (validR W2) /=.
+by case/orP=>[/(allP P)//|]; apply: H; rewrite domPtUnE.
+Qed.
+
+Lemma umpfxI h1 h2 :
+        valid (h1 \+ h2) ->
+        (forall x y, x \in dom h1 -> y \in dom h2 -> ord x y) ->
+        um_prefix h1 (h1 \+ h2).
+Proof. by move=>W X; rewrite /um_prefix assocsUn //; apply: prefix_cat. Qed.
+
+Lemma umpfxE h1 h :
+        valid h1 ->
+        um_prefix h1 h ->
+        exists2 h2, h = h1 \+ h2 &
+                    forall x y, x \in dom h1 -> y \in dom h2 -> ord x y.
+Proof.
+move=>V1; case W : (valid h); last first.
+- move/invalidE: (negbT W)=>-> _.
+  exists undef; first by rewrite join_undef.
+  by rewrite dom_undef.
+move: h1 h V1 W; apply: um_indf=>[h|h _ W|
+k v h1 IH W1 /(order_path_min (@trans _)) P h _ W].
+- by rewrite valid_undef.
+- by exists h; [rewrite unitL | rewrite dom0].
+case/prefixP=>h2'; rewrite assocsPtUn //= => Eh.
+set h' := free h k; have W' : valid h' by rewrite validF.
+have : um_prefix h1 h'.
+- rewrite /um_prefix assocsF Eh /= eq_refl filter_cat /=.
+  have : forall kv, kv \In assocs h1 -> kv.1 != k.
+  - move=>kv /In_assocs/In_dom H; move/allP/(_ _ H): P.
+    by case: eqP=>// ->; rewrite irr.
+  by move/eq_In_filter=>->; rewrite filter_predT; apply: prefix_cat.
+case/(IH _ (validR W1) W')=>h2 Eh' H; exists h2.
+- rewrite -joinA -Eh'; apply/um_eta2/In_find/In_assocs.
+  by rewrite Eh In_cons; left.
+move=>x y; rewrite domPtUn inE W1 /=; case/orP; last by apply: H.
+move/eqP=><-{x} Dy.
+have : y \in dom h' by rewrite Eh' domUn inE -Eh' W' /= Dy orbT.
+rewrite domF inE; case: (k =P y)=>// /eqP N.
+rewrite assocs_dom Eh /= inE eq_sym (negbTE N) /=.
+case/mem_seqP/MapP; case=>a b X -> /=.
+have {}P : path ord k (map fst (assocs h1 ++ h2')).
+- by move: (sorted_dom h); rewrite assocs_dom Eh /=.
+suff {X} : forall x, x \In assocs h1 ++ h2' -> ord k x.1 by move/(_ _ X).
+apply/AllP/(order_path_min (x:=(k,v)) (leT:=fun k x=>ord k.1 x.1)).
+- by move=>???; apply: trans.
+by rewrite -path_map.
+Qed.
+
+End MapPrefix.
 
 
 (********)
@@ -4985,7 +5097,7 @@ rewrite umfilt_mem0L ?(inE,valid_umfilt,validR W) //=; first last.
 - by move=>?? /In_umfilt [] _ /In_dom Df; rewrite inE; case: eqP Df D=>// ->->.
 rewrite unitR domPtK Ck /= findPt Ck -frame unitL.
 rewrite -(oev_sub_filter (p:=mem (dom f))) //.
-rewrite -dom_umfiltkE  umfiltPtUn /= valid_umfiltUnR // (negbTE D).
+rewrite -dom_umfiltkE umfiltPtUn /= valid_umfiltUnR // (negbTE D).
 congr (a (oeval a (dom _) f z0) k v).
 by rewrite -subdom_umfiltkE; apply: dom_umfilt_subset.
 Qed.
@@ -5379,8 +5491,8 @@ case W : (valid (inverse f)); last first.
 rewrite /range map_inj_in_uniq.
 - by apply: (@map_uniq _ _ fst); rewrite -assocs_dom; apply: uniq_dom.
 case=>x1 x2 [y1 y] /= H1 H2 E; rewrite {x2}E in H1 *.
-move/mem_seqP/umemE/(In_inverse _ _ W): H1=>H1.
-move/mem_seqP/umemE/(In_inverse _ _ W): H2=>H2.
+move/mem_seqP/In_assocs/(In_inverse _ _ W): H1=>H1.
+move/mem_seqP/In_assocs/(In_inverse _ _ W): H2=>H2.
 by rewrite (In_fun H1 H2).
 Qed.
 

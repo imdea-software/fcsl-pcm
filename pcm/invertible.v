@@ -117,12 +117,12 @@ Qed.
 
 Lemma inv_comp_sub (U : tpcm) (V : pcm) (D : sep_rel U) (W : sub_pcm D)
                    (f : {morphism D >-> V}) :
-        inv_morph f -> inv_morph [morphism of f \o @pval U D W].
+        inv_morph f -> inv_morph [morphism of f \o pval W].
 Proof.
 case=>HD Hf; split=>[a1 a2 a' V1|].
 - by rewrite !sepE !pfjoin ?(validLE3 V1) //; apply: HD; apply: pfV3.
 move=>a b1 b2 V1; rewrite !sepE pfunit /= => H1.
 case/(Hf _ _ _ (pfV _ V1 (erefl _)) H1)=>c1 [c2][Eq Vc H2 F1 F2].
-exists (psub _ c1), (psub _ c2); rewrite !sepE -!pfjoin // -Eq psub_pval //=.
+exists (psub W c1), (psub W c2); rewrite !sepE -!pfjoin // -Eq psub_pval //=.
 by rewrite !pval_psub ?(validL Vc, validR Vc, sep0E Vc).
 Qed.
