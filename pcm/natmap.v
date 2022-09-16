@@ -4217,3 +4217,475 @@ Lemma lastval_indom v h :
 Proof. by rewrite /last_val /atval; case: dom_find=>// ->. Qed.
 
 End AtVal.
+
+(* Continuous maps with binary range *)
+
+Section Continuous.
+Variable A : Type.
+Implicit Type h : natmap (A * A).
+
+Definition continuous v h :=
+  forall k x, find k.+1 h = Some x -> oapp snd v (find k h) = x.1.
+
+Lemma cn_undef v : continuous v undef.
+Proof. by move=>x w; rewrite find_undef. Qed.
+
+Lemma cn0 v : continuous v Unit.
+Proof. by move=>x w; rewrite find0E. Qed.
+
+Lemma cn_fresh v h x :
+        valid h ->
+        continuous v (fresh h \-> x \+ h) <->
+        continuous v h /\ last_val v h = x.1.
+Proof.
+rewrite -(valid_fresh x (leqnn _))=>V; split; last first.
+- case=>C H k y; rewrite !findPtUn2 // eqSS; case: ltngtP=>N.
+  - by rewrite ltn_eqF; [apply: C | apply: (ltn_trans N _)].
+  - by move/find_some /dom_ordfresh /(ltn_trans N); rewrite ltnn.
+  by case=><-; rewrite N ltn_eqF.
+move=>C; split; last first.
+- move: (C (last_key h) x).
+  by rewrite !findPtUn2 // eq_refl ltn_eqF //; apply.
+move=>k w; case: (ltnP k (last_key h))=>N; last first.
+- by move/find_some /dom_ordfresh /(leq_ltn_trans N); rewrite ltnn.
+by move: (C k w); rewrite !findPtUn2 // eqSS !ltn_eqF // (ltn_trans N _).
+Qed.
+
+Lemma cn_sub v h x y k :
+        valid (k.+1 \-> (x, y) \+ h) -> continuous v (k.+1 \-> (x, y) \+ h) ->
+        oapp snd v (find k h) = x.
+Proof.
+by move=>V /(_ k (x, y)); rewrite !findPtUn2 // eq_refl ltn_eqF //; apply.
+Qed.
+
+End Continuous.
+
+Arguments cn_fresh [A][v][h][x] _.
+
+(* Complete natmaps with binary range *)
+
+Section Complete.
+Variable A : Type.
+Implicit Type h : natmap (A * A).
+
+Definition complete v0 h vn :=
+  [/\ valid h, gapless h, continuous v0 h & last_val v0 h = vn].
+
+Lemma cm_valid v0 h vn : complete v0 h vn -> valid h.
+Proof. by case. Qed.
+
+Lemma cm0 v : complete v Unit v.
+Proof. by split=>//; [apply: gp0 | apply: cn0 | rewrite lastval0]. Qed.
+
+Lemma cm_fresh v0 vn h x :
+        complete v0 (fresh h \-> x \+ h) vn <-> vn = x.2 /\ complete v0 h x.1.
+Proof.
+split.
+- by case=>/validR V /gp_fresh G /(cn_fresh V) []; rewrite lastval_fresh.
+case=>-> [V] /(gp_fresh x) G C E; split=>//;
+by [rewrite valid_fresh | apply/(cn_fresh V) | rewrite lastval_fresh].
+Qed.
+
+Lemma cmPtUn v0 vn h k x :
+        complete v0 (k \-> x \+ h) vn -> last_key h < k -> k = fresh h.
+Proof. by case=>V /(gpPtUn V). Qed.
+
+Lemma cmPt v0 vn k x : complete v0 (k \-> x) vn -> k = 1 /\ x = (v0, vn).
+Proof.
+case; rewrite validPt; case: k=>//= k _ /(_ 1).
+rewrite lastkeyPt //= domPt inE /= => /(_ (erefl _))/eqP ->.
+move/(_ 0 x); rewrite findPt findPt2 /= => -> //.
+by rewrite /last_val lastkeyPt // /atval findPt /= => <-; case: x.
+Qed.
+
+Lemma cmCons v0 vn k x h :
+        complete v0 (k \-> x \+ h) vn -> last_key h < k ->
+         [/\ k = fresh h, vn = x.2 & complete v0 h x.1].
+Proof. by move=>C H; move: {C} (cmPtUn C H) (C)=>-> /cm_fresh []. Qed.
+
+End Complete.
+
+Prenex Implicits cm_valid cmPt.
+
+(************************)
+(************************)
+(************************)
+(* Surgery on histories *)
+(* using leq filtering  *)
+(************************)
+(************************)
+(************************)
+
+(* DEVCOM: used but only in obsolete examples *)
+
+Notation le t := [pts k _ | k <= t].
+Notation lt t := [pts k _ | k < t].
+
+Lemma pts_sub V t1 t2 : t1 <= t2 -> subpred (T:=nat*V) (le t1) (le t2).
+Proof. by move=>T [k v] /leq_trans; apply. Qed.
+
+Lemma pts_sub_lt V t1 t2 : t1 < t2 -> subpred (T:=nat*V) (le t1) (lt t2).
+Proof. by move=>T [k v] /leq_ltn_trans; apply. Qed.
+
+
+Lemma ptsD V t1 t2 :
+        t1 <= t2 -> predD (le t2) (le t1) =1 [pts k (v : V) | t1 < k <= t2].
+Proof. by move=>T [k v] /=; rewrite -ltnNge. Qed.
+
+Lemma ptsD_lt V t1 t2 :
+        t1 < t2 -> predD (lt t2) (le t1) =1 [pts k (v : V) | t1 < k < t2].
+Proof. by move=>T [k v] /=; rewrite -ltnNge. Qed.
+
+Lemma lastkey_umfilt_leq A (h : natmap A) t : last_key (um_filterk (leq^~ t) h) <= t.
+Proof.
+case V : (valid h); last first.
+- by move/negbT/invalidE: V=>->; rewrite umfilt_undef lastkey_undef.
+have V' : valid (um_filterk (leq^~ t) h) by rewrite valid_umfilt.
+case E : (unitb (um_filterk (leq^~ t) h)).
+- by move/unitbP: E=>->; rewrite lastkey0.
+by case/dom_umfilt: (dom_lastkey V' (negbT E))=>v [].
+Qed.
+
+Lemma lastkey_umfilt_dom A (h : natmap A) t :
+        last_key (um_filterk (leq^~ t) h) <= last_key h.
+Proof. by apply: lastkey_mono; apply: dom_umfilt_subset. Qed.
+
+Lemma umfilt_le_last A (h : natmap A) t :
+        last_key h <= t -> um_filter (le t) h = h.
+Proof.
+case V : (valid h); last first.
+- by move/invalidE: (negbT V)=>->; rewrite umfilt_undef.
+move=>N; rewrite -{2}[h]umfilt_predT; apply/eq_in_umfilt.
+by case=>k v /In_dom/lastkey_max/leq_trans; apply.
+Qed.
+
+Lemma umfilt_last A (h : natmap A) : um_filter (le (last_key h)) h = h.
+Proof. by apply: umfilt_le_last. Qed.
+
+Lemma umfilt_le_fresh A (h : natmap A) : um_filter (le (fresh h)) h = h.
+Proof. by apply: umfilt_le_last; apply: ltnW. Qed.
+
+Lemma umfilt_le0 A (h : natmap A) t :
+        valid h -> {in dom h, forall k, t < k} -> um_filter (le t) h = Unit.
+Proof.
+move=>V D; rewrite -(umfilt_pred0 V).
+apply/eq_in_umfilt; case=>k v [/= _][z E]; subst h.
+rewrite leqNgt; apply: contraTF (D k _)=>//.
+by rewrite domPtUn inE V eq_refl.
+Qed.
+
+Lemma umfilt_le_split A (h : natmap A) t1 t2 :
+        t1 <= t2 ->
+        um_filter (le t2) h =
+        um_filter (le t1) h \+ um_filter [pts k _ | t1 < k <= t2] h.
+Proof.
+move=>T; rewrite -umfilt_dpredU; last first.
+- by case=>x y /= N; rewrite negb_and -leqNgt N.
+apply/eq_in_umfilt; case=>k v _ => /=.
+by case: (leqP k t1)=>//= /leq_trans; apply.
+Qed.
+
+Lemma umfilt_lt_split A (h : natmap A) t1 t2 k :
+        t1 <= k <= t2 ->
+        um_filter [pts x _ | t1 < x <= t2] h =
+        um_filter [pts x _ | t1 < x <= k] h \+
+        um_filter [pts x _ | k < x <= t2] h.
+Proof.
+move=>/andP [T1 T2]; rewrite -umfilt_dpredU; last first.
+- by case=>x y /andP [N1 N2]; rewrite /= negb_and -leqNgt N2.
+apply/eq_in_umfilt; case=>k1 v1 _ /=.
+case: (leqP k1 k)=>//=; last by move/(leq_ltn_trans T1)=>->.
+by move/leq_trans=>-> //; rewrite orbF.
+Qed.
+
+Lemma umfilt_pt_split A (h : natmap A) k v :
+        (k, v) \In h -> um_filter [pts x _ | k.-1 < x <= k] h = k \-> v.
+Proof.
+move=>H; have W : valid h by case: H.
+have N: 0 < k by move/In_dom/dom_cond: H; case: k.
+have subX : forall m n, 0 < n -> (m < n) = (m <= n.-1) by move=>? [].
+rewrite (In_eta H) umfiltPtUn -(In_eta H) /= subX // W !leqnn /=.
+rewrite umfilt_mem0L ?unitR ?validF //.
+move=>k1 v1 /InF [_ /=]; rewrite andbC; case: (ltngtP k k1) =>//=.
+by rewrite subX //; case: (ltngtP k1 k.-1).
+Qed.
+
+Lemma umfilt_leUn A (h1 h2 : natmap A) t :
+        valid (h1 \+ h2) -> t <= last_key h1 ->
+        {in dom h2, forall k, k > last_key h1} ->
+        um_filter (le t) (h1 \+ h2) = um_filter (le t) h1.
+Proof.
+move=>V K D; rewrite umfiltUn // (umfilt_le0 (validR V)) ?unitR //.
+by move=>k /D /(leq_ltn_trans K).
+Qed.
+
+Lemma umfilt_le_gapless A (h1 h2 : natmap A) t :
+        gapless h1 -> valid h2 -> [pcm h1 <= h2] -> t <= last_key h1 ->
+        um_filter (le t) h2 = um_filter (le t) h1.
+Proof.
+move=>G V H K; case: (gapless_pleq G V H)=>h [? D].
+by subst h2; rewrite umfilt_leUn.
+Qed.
+
+Lemma dom_umfilt_le_eq A (h : natmap A) t1 t2 :
+        t1 \in 0::dom h -> t2 \in 0::dom h ->
+        um_filter (le t1) h = um_filter (le t2) h ->
+        t1 = t2.
+Proof.
+rewrite !inE; case/orP=>[/eqP ->|/In_domX [v1 T1]].
+- case/orP=>[/eqP ->|/In_domX [v2 T2]] //.
+  move/eq_in_umfilt=>/(_ (t2, v2) T2) /=.
+  by rewrite leqnn leqn0 eq_sym=>/eqP.
+case/orP=>[/eqP ->|/In_domX [v2 T2] L].
+- move/eq_in_umfilt=>/(_ (t1, v1) T1) /=.
+  by rewrite leqnn leqn0=>/esym/eqP.
+move/eq_in_umfilt: (L)=>/(_ (t1, v1) T1).
+move/eq_in_umfilt: (L)=>/(_ (t2, v2) T2) /=.
+by rewrite !leqnn; case: ltngtP.
+Qed.
+
+Lemma eval_leUn A R a (h1 h2 : [pcm of natmap A]) t (z0 : R) :
+        valid (h1 \+ h2) -> t <= last_key h1 ->
+        {in dom h2, forall k, k > last_key h1} ->
+        eval a (le t) (h1 \+ h2) z0 = eval a (le t) h1 z0.
+Proof. by move=>V K D; apply: eq_filt_eval; apply: umfilt_leUn. Qed.
+
+Lemma eval_le_gapless A R a (h1 h2 : [pcm of natmap A]) t (z0 : R) :
+        gapless h1 -> valid h2 -> [pcm h1 <= h2] -> t <= last_key h1 ->
+        eval a (le t) h2 z0 = eval a (le t) h1 z0.
+Proof. by move=>G V H K; apply: eq_filt_eval; apply: umfilt_le_gapless. Qed.
+
+Lemma eval_le0 A R a (h : natmap A) (z0 : R) : eval a (le 0) h z0 = z0.
+Proof.
+case W : (valid h); last first.
+- by move/negbT/invalidE: W=>->; rewrite eval_undef.
+rewrite eval_umfilt umfilt_mem0L ?eval0 //.
+by move=>k v /In_dom/dom_cond; rewrite /=; case: ltngtP.
+Qed.
+
+Lemma eval_le_split A R a (h : natmap A) t1 t2 (z0 : R) :
+        t1 <= t2 ->
+        eval a (le t2) h z0 =
+        eval a [pts k _ | t1 < k <= t2] h (eval a (le t1) h z0).
+Proof.
+move=>T; case V : (valid h); last first.
+- by move/invalidE: (negbT V)=>->; rewrite !eval_undef.
+rewrite eval_umfilt (umfilt_predD h (pts_sub T)) evalUn; last first.
+- move=>x y /dom_umfilt [vx][X _] /dom_umfilt [wy][/= /andP][].
+  by rewrite /= -ltnNge; move/(leq_ltn_trans X).
+- by rewrite -(umfilt_predD h (pts_sub T)) valid_umfilt.
+by rewrite -!eval_umfilt; apply: eq_in_eval=>kv _; apply: (ptsD T).
+Qed.
+
+Lemma eval_lt_split A R a (h : natmap A) t1 t2 (z0 : R) :
+        t1 < t2 ->
+        eval a (lt t2) h z0 =
+        eval a [pts k v | t1 < k < t2] h (eval a (le t1) h z0).
+Proof.
+move=>T; case V : (valid h); last first.
+- by move/invalidE: (negbT V)=>->; rewrite !eval_undef.
+rewrite eval_umfilt (umfilt_predD h (pts_sub_lt T)) evalUn; last first.
+- move=>x y /dom_umfilt [vx][X _] /dom_umfilt [wy][/= /andP][].
+  by rewrite /= -ltnNge; move/(leq_ltn_trans X).
+- by rewrite -(umfilt_predD h (pts_sub_lt T)) valid_umfilt.
+by rewrite -!eval_umfilt; apply: eq_in_eval=>kv _; apply: (ptsD_lt T).
+Qed.
+
+Lemma eval_le_lt_split A R a (h : natmap A) t (z0 : R) :
+        eval a (le t) h z0 =
+        eval a [pts k v | k == t] h (eval a (lt t) h z0).
+Proof.
+case V : (valid h); last first.
+- by move/invalidE: (negbT V)=>->; rewrite !eval_undef.
+have D : subpred (T:=nat*A) (lt t) (le t) by case=>k v /ltnW.
+rewrite eval_umfilt (umfilt_predD h D) evalUn; last first.
+- move=>x y /dom_umfilt [vx][X _] /dom_umfilt [wy][/= /andP][].
+  by rewrite /= -ltnNge; move/(leq_ltn_trans X).
+- by rewrite -(umfilt_predD h D) valid_umfilt.
+rewrite -!eval_umfilt; apply: eq_in_eval; case=>k v _ /=.
+by case: ltngtP.
+Qed.
+
+Lemma eval_eq A R a (h : natmap A) t v (z0 : R) :
+        (t, v) \In h -> eval a [pts k _ | k == t] h z0 = a z0 t v.
+Proof.
+move=>H; rewrite eval_umfilt; have N : t != 0 by move/In_dom/dom_cond: H.
+suff -> : um_filter [pts k _ | k == t] h = t \-> v by rewrite evalPt /= N.
+apply/umem_eq=>[||[k w]]; first by rewrite valid_umfilt; case: H.
+- by rewrite validPt.
+rewrite In_umfilt; split; last by move/InPt =>[[->->]].
+by move=>[/eqP -> H1]; rewrite (In_fun H H1); apply: In_condPt.
+Qed.
+
+Lemma eval_le_last A R a (h : natmap A) t (z0 : R) :
+        last_key h <= t -> eval a (le t) h z0 = eval a xpredT h z0.
+Proof.
+by move=>H; apply: eq_in_eval; case=>k v /In_dom/lastkey_max/leq_trans; apply.
+Qed.
+
+Lemma eval_fresh_le A R a (h : natmap A) t v (z0 : R) :
+        eval a (le t) (fresh h \-> v \+ h) z0 =
+        if t <= last_key h then eval a (le t) h z0 else
+          if valid h then a (eval a predT h z0) (fresh h) v else z0.
+Proof.
+case V: (valid h); last first.
+- by move/invalidE: (negbT V)=>->; rewrite join_undef !eval_undef; case: ifP.
+case: ifP=>H.
+- by rewrite eval_umfilt umfiltPtUn valid_fresh // V ltnNge H -eval_umfilt.
+rewrite joinC evalUnPt; last first.
+- by apply/allP=>x; apply: lastkey_max.
+- by rewrite joinC valid_fresh.
+rewrite ltnNge H; congr a; apply: eq_in_eval.
+case=>k w /In_dom/lastkey_max /=.
+by case: ltngtP H=>// /ltnW H _ /leq_trans; apply.
+Qed.
+
+Lemma eval_fresh_lt A R a (h : natmap A) t v (z0 : R) :
+        eval a (lt t) (fresh h \-> v \+ h) z0 =
+        if t <= fresh h then eval a (lt t) h z0 else
+          if valid h then a (eval a predT h z0) (fresh h) v else z0.
+Proof.
+case V: (valid h); last first.
+- by move/invalidE: (negbT V)=>->; rewrite join_undef !eval_undef; case: ifP.
+case: ifPn=>H.
+- by rewrite eval_umfilt umfiltPtUn valid_fresh // V ltnNge H -eval_umfilt.
+rewrite joinC evalUnPt; last first.
+- by apply/allP=>x; apply: lastkey_max.
+- by rewrite joinC valid_fresh.
+rewrite ltnNge H; congr a; apply: eq_in_eval.
+case=>k w /In_dom/lastkey_max /=; rewrite /fresh -ltnNge in H.
+by case: ltngtP H=>// /ltnW H _ /leq_ltn_trans; apply.
+Qed.
+
+Lemma eval_le_fresh A R a (h : natmap A) t v (z0 : R) :
+        t <= last_key h ->
+        eval a (le t) (fresh h \-> v \+ h) z0 = eval a (le t) h z0.
+Proof. by move=>H; rewrite eval_fresh_le H. Qed.
+
+Lemma eval_lt_fresh A R a (h : natmap A) t v (z0 : R) :
+        t <= fresh h ->
+        eval a (lt t) (fresh h \-> v \+ h) z0 = eval a (lt t) h z0.
+Proof. by move=>H; rewrite eval_fresh_lt H. Qed.
+
+Lemma eval_le_ind A R a (P : R -> Prop) (h : natmap A) t1 t2 (z0 : R) :
+         t1 <= t2 ->
+         P (eval a (le t1) h z0) ->
+         (forall k v z0, (k, v) \In h -> t1 < k <= t2 -> P z0 -> P (a z0 k v)) ->
+         P (eval a (le t2) h z0).
+Proof.
+by move=>T P0 H; rewrite (eval_le_split a h z0 T); apply: eval_ind.
+Qed.
+
+Lemma eval_lt_ind A R a (P : R -> Prop) (h : natmap A) t1 t2 (z0 : R) :
+         t1 < t2 ->
+         P (eval a (le t1) h z0) ->
+         (forall k v z0, (k, v) \In h -> t1 < k < t2 -> P z0 -> P (a z0 k v)) ->
+         P (eval a (lt t2) h z0).
+Proof.
+by move=>T P0 H; rewrite (eval_lt_split a h z0 T); apply: eval_ind.
+Qed.
+
+(* common case: functional version of the above le_lemma *)
+Lemma eval_leF A R X a (f : R -> X) (h : natmap A) t1 t2 (z0 : R) :
+         t1 <= t2 ->
+         (forall k v z0, (k, v) \In h -> t1 < k <= t2 -> f (a z0 k v) = f z0) ->
+         f (eval a (le t1) h z0) = f (eval a (le t2) h z0).
+Proof.
+move=>T H.
+apply: (eval_le_ind (P := fun x => f (eval a (le t1) h z0) = f x)) T _ _=>//.
+by move=>k v z1 H1 /H ->.
+Qed.
+
+(* common case: functional version of the above lt_lemma *)
+Lemma eval_ltF A R X a (f : R -> X) (h : natmap A) t1 t2 (z0 : R) :
+         t1 < t2 ->
+         (forall k v z0, (k, v) \In h -> t1 < k < t2 -> f (a z0 k v) = f z0) ->
+         f (eval a (le t1) h z0) = f (eval a (lt t2) h z0).
+Proof.
+move=>T H.
+apply: (eval_lt_ind (P := fun x => f (eval a (le t1) h z0) = f x)) T _ _=>//.
+by move=>k v z1 H1 /H ->.
+Qed.
+
+Lemma umcnt_le_split A p (h : natmap A) t1 t2 :
+        t1 <= t2 ->
+        um_count (predI p (le t2)) h =
+        um_count (predI p (le t1)) h +
+        um_count (predI p [pts k v | t1 < k <= t2]) h.
+Proof.
+move=>T; rewrite -!umcnt_umfilt !(umcnt_umfiltC p).
+by rewrite (umcnt_predD _ (pts_sub T)) (eq_in_umcnt2 _ (ptsD T)).
+Qed.
+
+Lemma umcnt_le0 A p (h : natmap A) t :
+        valid h -> {in dom h, forall k, t < k} ->
+        um_count (predI p (le t)) h = 0.
+Proof. by rewrite -umcnt_umfilt=>V /(umfilt_le0 V) ->; rewrite umcnt0. Qed.
+
+Lemma umcnt_leUn A p (h1 h2 : natmap A) t :
+        valid (h1 \+ h2) -> t <= last_key h1 ->
+        {in dom h2, forall k, k > last_key h1} ->
+        um_count (predI p (le t)) (h1 \+ h2) =
+        um_count (predI p (le t)) h1.
+Proof. by move=>V K D; rewrite -!umcnt_umfilt umfilt_leUn. Qed.
+
+Lemma umcnt_le_gapless A p (h1 h2 : natmap A) t :
+        gapless h1 -> valid h2 -> [pcm h1 <= h2] -> t <= last_key h1 ->
+        um_count (predI p (le t)) h2 = um_count (predI p (le t)) h1.
+Proof. by move=>G V K D; rewrite -!umcnt_umfilt (umfilt_le_gapless G). Qed.
+
+Lemma umcnt_le_last A p (h : natmap A) t :
+        last_key h <= t -> um_count (predI p (le t)) h = um_count p h.
+Proof. by move=>K; rewrite -!umcnt_umfilt umfilt_le_last. Qed.
+
+Lemma umcnt_fresh_le A p (h : natmap A) t v :
+        um_count (predI p (le t)) (fresh h \-> v \+ h) =
+        if t <= last_key h then um_count (predI p (le t)) h else
+        if p (fresh h, v) && valid h then 1 + um_count p h else um_count p h.
+Proof.
+case V: (valid h); last first.
+- move/invalidE: (negbT V)=>->; rewrite join_undef !umcnt_undef.
+  by rewrite lastkey_undef andbF; case: ifP.
+case: ifP=>H.
+- by rewrite -!umcnt_umfilt umfiltPtUn valid_fresh // V ltnNge H.
+rewrite umcntPtUn ?valid_fresh //= ltnNge H /=.
+by rewrite umcnt_le_last; [case: ifP | case: ltngtP H].
+Qed.
+
+Lemma umcnt_le_fresh A p (h : natmap A) t v :
+        t <= last_key h ->
+        um_count (predI p (le t)) (fresh h \-> v \+ h) =
+        um_count (predI p (le t)) h.
+Proof. by move=>H; rewrite umcnt_fresh_le H. Qed.
+
+Definition fresh_le := (umcnt_fresh_le, eval_fresh_le).
+Definition le_last := (umcnt_le_last, eval_le_last).
+Definition le_fresh := (umcnt_le_fresh, eval_le_fresh).
+Definition lt_fresh := (eval_lt_fresh).
+
+(*********************************)
+(* Some notational abbreviations *)
+(*********************************)
+
+(* DEVCOMMENT: used but only in obsolete examples *)
+
+(* exec is evaluating a history up to a timestamp *)
+(* run is evaluating a history up to the end *)
+
+(* In exec and run, the timestamp shouldn't influence *)
+(* the val of the operation. So we need a coercion to *)
+(* account for the timestamp, which is then ignored *)
+Notation exec a t h z0 := (evalv a (le t) h z0).
+Notation run a h z0 := (evalv a xpredT h z0).
+
+Section Exec.
+Variables (V R : Type).
+
+Lemma exec0 a (h : natmap V) (z0 : R) : exec a 0 h z0 = z0.
+Proof.
+have /(eq_in_eval _) -> : forall kv, kv \In h -> le 0 kv = pred0 kv.
+- by case=>k v /In_cond; case: k.
+by rewrite eval_pred0.
+Qed.
+
+End Exec.
