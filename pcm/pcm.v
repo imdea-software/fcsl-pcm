@@ -848,9 +848,22 @@ Proof. by move=>p x y _ V [<-]; rewrite -joinA. Qed.
 (* modding out U by a local rel to obtain a subPCM *)
 (* Also, we don't require any special behavior wrt unit. *)
 (* And no commutativity (for now) *)
+(* Also, its sometimes useful to have a condition under *)
+(* which the relation is local *)
+(* In practice, it frequently happens that some relation is a seprel *)
+(* only if some other seprel already holds. Thus, it makes sense to *)
+(* consider locality under a binary condition too. *)
 
-Definition local_rel (U : pcm) (R : U -> U -> Prop) :=
-  forall p x y, valid (x \+ p \+ y) -> R x (p \+ y) -> R (x \+ p) y.
+Definition local_rel (U : pcm) (R : U -> U -> Prop) (cond : U -> Prop) :=
+  forall p x y, cond (x \+ p \+ y) -> R x (p \+ y) -> R (x \+ p) y.
+
+Definition sublocal_rel (U : pcm) (R : U -> U -> Prop)
+                        (cond : U -> Prop) (scond : U -> U -> Prop) :=
+  forall p x y, cond (x \+ p \+ y) ->
+                scond x p -> scond (x \+ p) y -> R x (p \+ y) -> R (x \+ p) y.
+
+Definition valid2 {U : pcm} (x y : U) := valid (x \+ y).
+
 
 (******************)
 (* Tuples of PCMs *)
@@ -1296,7 +1309,6 @@ apply: fin_ext=>a; rewrite !sel_fin; case: decP=>// ?.
 by subst a; rewrite !eqc.
 Qed.
 
-
 (********************)
 (* PCMs and folding *)
 (********************)
@@ -1332,7 +1344,9 @@ Proof. by elim: s x y=>[|k s IH] x y //=; rewrite H IH. Qed.
 
 End PCMfold.
 
+(***********************************)
 (* separating conjunction aka star *)
+(***********************************)
 
 Section Star.
 Variable U : pcm.

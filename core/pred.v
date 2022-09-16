@@ -498,6 +498,79 @@ Qed.
 
 Prenex Implicits Mem_map_inv.
 
+Lemma MapP T1 T2 (f : T1 -> T2) (s : seq T1) (y : T2) :
+        y \In map f s <-> exists2 x, x \In s & y = f x.
+Proof.
+elim: s => [|x s IHs] /=; first by split=>//; case.
+rewrite In_cons; split.
+- case=>[->|]; first by exists x=>//; apply/In_cons; left.
+  by case/IHs=>k H ->; exists k=>//; apply/In_cons; right.
+case=>k /In_cons [->|H E]; first by left.
+by right; apply/IHs; exists k.
+Qed.
+
+Lemma Mem_filter (T : Type) (a : pred T) (x : T) (s : seq T) :
+        x \In filter a s <-> a x /\ x \In s.
+Proof.
+elim: s; first by split; case.
+move=>y s IHs /=; rewrite 2!fun_if /=.
+case E: (a y).
+- rewrite InE IHs; split; last first.
+  - by case=>H1 /In_cons [->|]; [left | right].
+  case=>[->|]; first by split=>//; apply/In_cons; left.
+  by case=>H1 H2; split=>//; apply/In_cons; right.
+rewrite IHs; split.
+- by case=>H1 H2; split=>//; apply/In_cons; right.
+by case=>H1 /In_cons [] // ?; subst y; rewrite E in H1.
+Qed.
+
+Lemma eq_In_filter (T : Type) a1 a2 (s : seq T) :
+        (forall x, x \In s -> a1 x = a2 x) ->
+        filter a1 s = filter a2 s.
+Proof.
+elim: s => //= x s IHs eq_a.
+rewrite eq_a; last by rewrite InE; left.
+rewrite IHs // => y s_y; apply: eq_a.
+by rewrite InE; right.
+Qed.
+
+Lemma AllP T (a : pred T) (s : seq T) :
+        reflect (forall x, x \In s -> a x) (all a s).
+Proof.
+elim: s=>[|x s IHs] /=; first by left.
+case: andP=>[[H1 H2]|H]; constructor.
+- by move=>z /In_cons [->|/(IHs H2)].
+move=>H1; elim: H; split; first by apply/H1/In_cons; left.
+by apply/IHs=>z H; apply/H1/In_cons; right.
+Qed.
+
+Lemma AllPn T (a : pred T) (s : seq T) :
+        reflect (exists2 x, x \In s & ~~ a x) (~~ all a s).
+Proof.
+elim: s => [|x s IHs]; first by right=> [[x Hx _]].
+rewrite /= andbC negb_and; case: IHs => IHs /=.
+  by left; case: IHs => y Hy Hay; exists y=>//; apply/In_cons; right.
+apply: (iffP idP) => [|[y]]; first by exists x=>//; apply/In_cons; left.
+by case/In_cons=>[->//|H1 H2]; elim: IHs; exists y.
+Qed.
+
+Lemma HasP T (a : pred T) (s : seq T) :
+        reflect (exists2 x, x \In s & a x) (has a s).
+Proof.
+elim: s => [|y s IHs] /=; first by right; case.
+case ay: (a y); first by left; exists y=>//; apply/In_cons; left.
+apply: (iffP IHs)=>[] [x ysx ax]; exists x => //; first by apply/In_cons; right.
+by case/In_cons: ysx ax ay=>[->->|].
+Qed.
+
+Lemma HasPn T (a : pred T) (s : seq T) :
+        reflect (forall x, x \In s -> ~~ a x) (~~ has a s).
+Proof.
+apply: (iffP idP) => not_a_s => [x s_x|].
+- by apply: contra not_a_s => a_x; apply/HasP; exists x.
+by apply/HasP=> [[x s_x]]; apply/negP; apply: not_a_s.
+Qed.
+
 (* for equality types, membership predicates coincide *)
 Lemma mem_seqP (A : eqType) x (s : seq A) : reflect (x \In s) (x \in s).
 Proof.

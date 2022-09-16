@@ -131,6 +131,10 @@ Proof. exact: subrelUl. Qed.
 Lemma sorted_oleq s : sorted (@ord T) s -> sorted (@oleq T) s.
 Proof. by case: s=>//= x s; apply/sub_path/subrel_ord. Qed.
 
+Lemma path_filter (r : rel T) (tr : transitive r) s (p : pred T) x :
+        path r x s -> path r x (filter p s).
+Proof. exact: (subseq_path tr (filter_subseq p s)). Qed.
+
 Lemma ord_sorted_eq (s1 s2 : seq T) :
         sorted ord s1 -> sorted ord s2 -> s1 =i s2 -> s1 = s2.
 Proof. by exact/irr_sorted_eq/irr/trans. Qed.

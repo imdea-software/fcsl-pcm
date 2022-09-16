@@ -11,6 +11,7 @@ core/ordtype.v
 core/seqperm.v
 core/finmap.v
 core/rtc.v
+core/seqint.v
 pcm/pcm.v
 pcm/autopcm.v
 pcm/morphism.v
