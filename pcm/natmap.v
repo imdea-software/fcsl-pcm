@@ -1610,6 +1610,8 @@ Qed.
 
 Arguments oexlt_consec_find [V R a t1 t2 h ks z0].
 
+(* The lemmas past this point are useful for some examples *)
+(* but will be deprecated in future releases *)
 
 (*******************)
 (*******************)
@@ -1858,8 +1860,6 @@ Prenex Implicits cm_valid cmPt.
 (************************)
 (************************)
 (************************)
-
-(* DEVCOM: used but only in obsolete examples *)
 
 Notation le t := [pts k _ | k <= t].
 Notation lt t := [pts k _ | k < t].
@@ -2210,8 +2210,6 @@ Definition lt_fresh := (eval_lt_fresh).
 (* Some notational abbreviations *)
 (*********************************)
 
-(* DEVCOMMENT: used but only in obsolete examples *)
-
 (* exec is evaluating a history up to a timestamp *)
 (* run is evaluating a history up to the end *)
 
@@ -2232,3 +2230,129 @@ by rewrite eval_pred0.
 Qed.
 
 End Exec.
+
+Section Growing.
+Variables (V R : Type) (X : ordType) (a : R -> V -> R) (f : R -> X).
+Implicit Types p : pred (nat*V).
+
+Definition growing (h : natmap V) :=
+  forall k v z0, (k, v) \In h -> oleq (f z0) (f (a z0 v)).
+
+Lemma growL h1 h2 : valid (h1 \+ h2) -> growing (h1 \+ h2) -> growing h1.
+Proof. by move=>W G k v z0 H; apply: (G k); apply/InL. Qed.
+
+Lemma growR h1 h2 : valid (h1 \+ h2) -> growing (h1 \+ h2) -> growing h2.
+Proof. by rewrite joinC; apply: growL. Qed.
+
+Lemma helper0 p h z0 : growing h -> oleq (f z0) (f (evalv a p h z0)).
+Proof.
+elim/um_indf: h z0=>[||k v h IH W /(order_path_min (@trans _)) T] z0 G;
+rewrite ?eval_undef ?eval0 // evalPtUn //.
+have K: (k, v) \In pts k v \+ h by apply/InPtUnE=>//; left.
+have Gh: growing h.
+- by move=>k1 v1 z1 X1; apply: (G k1); apply/InPtUnE=>//; right.
+case: ifP=>// P; last by apply: IH.
+by apply: otrans (IH _ Gh); apply: (G k).
+Qed.
+
+Lemma helper1 p h z0 k v :
+        growing (k \-> v \+ h) ->
+        valid (k \-> v \+ h) ->
+        all (ord k) (dom h) ->
+        p (k, v) ->
+        f (evalv a p (k \-> v \+ h) z0) = f z0 ->
+        f (a z0 v) = f z0.
+Proof.
+move=>G W D P; move: (growR W G)=>Gh.
+have K: (k, v) \In k \-> v \+ h by apply/InPtUnE=>//; left.
+rewrite evalPtUn // P => E; apply/eqP; case: ordP=>//.
+- by move/(G k v z0): K; rewrite /oleq eq_sym; case: ordP.
+by move: (helper0 p (a z0 v) Gh); rewrite -E /oleq eq_sym; case: ordP.
+Qed.
+
+Lemma helper2 p h1 h2 z0 k v :
+        growing (h1 \+ (k \-> v \+ h2)) ->
+        valid (h1 \+ (k \-> v \+ h2)) ->
+        {in dom h1, forall x, x < k} ->
+        all (ord k) (dom h2) ->
+        p (k, v) ->
+        f (evalv a p (h1 \+ (k \-> v \+ h2)) z0) = f z0 ->
+        f (a (evalv a p h1 z0) v) = f (evalv a p h1 z0).
+Proof.
+move=>G W D1 D2 P E1; rewrite evalUn ?W // in E1; last first.
+- move=>x y /D1 X1; rewrite domPtUn inE (validR W).
+  by case/orP=>[/eqP <-|/(allP D2)] //; apply: ltn_trans.
+suff E2 : f (evalv a p h1 z0) = f z0.
+- by apply: helper1 (growR W G) (validR W) D2 P _; rewrite E1 E2.
+apply/eqP; case: ordP=>//.
+- by move: (helper0 p z0 (growL W G)); rewrite /oleq eq_sym; case: ordP.
+move: (helper0 p (evalv a p h1 z0) (growR W G)).
+by rewrite -E1 /oleq eq_sym; case: ordP.
+Qed.
+
+(* "introducing" growth *)
+Lemma growI h t1 t2 z0 :
+        growing h -> t1 <= t2 ->
+        oleq (f (exec a t1 h z0)) (f (exec a t2 h z0)).
+Proof.
+move=>G N; case W: (valid h); last first.
+- by move/negbT/invalidE: W=>->; rewrite !eval_undef.
+rewrite eval_umfilt [in X in oleq _ X]eval_umfilt (umfilt_le_split h N).
+rewrite evalUn; first by apply: helper0=>x y z /In_umfilt [_ /G].
+- by rewrite -(umfilt_le_split h N) valid_umfilt.
+by move=>??/dom_umfilt[?][/leq_ltn_trans Y _]/dom_umfilt[?][/andP[/Y]].
+Qed.
+
+(* "eliminating" growth *)
+Lemma growE h t1 t2 z0 k v :
+        growing h -> (k, v) \In h -> t1 < k <= t2 ->
+        f (exec a t2 h z0) = f (exec a t1 h z0) ->
+        f (a (exec a k.-1 h z0) v) = f (exec a k.-1 h z0).
+Proof.
+move=>G H /andP [N1 N2] E; have W : valid h by case: H.
+pose h0 : natmap V := um_filter (le t1) h.
+pose h1 : natmap V := um_filter [pts x _ | t1 < x <= k.-1] h.
+pose h2 : natmap V := um_filter [pts x _ | k < x <= t2] h.
+have subX : forall k m n, k < n -> (m < n) = (m <= n.-1) by move=>?? [].
+have K1 : k.-1 <= k by rewrite ltnW // (subX t1).
+have K2 : t1 <= k.-1 by rewrite -(subX t1).
+have K3 : k.-1 <= k <= t2 by rewrite K1 N2.
+have K4 : t1 <= k.-1 <= t2 by rewrite K2 (leq_trans K1 N2).
+have Eh: um_filter (le t2) h = h0 \+ (h1 \+ (k \-> v \+ h2)).
+- rewrite (umfilt_le_split h N2) (umfilt_le_split h K1).
+  by rewrite (umfilt_le_split h K2) (umfilt_pt_split H) -!joinA.
+have W1 : valid (h0 \+ (h1 \+ (k \-> v \+ h2))) by rewrite -Eh valid_umfilt.
+rewrite eval_umfilt (umfilt_le_split h K2) evalUn ?(validAL W1) //; last first.
+- by move=>??/dom_umfilt[?][/leq_ltn_trans Y] _ /dom_umfilt[?][] /andP [/Y].
+rewrite -(eval_umfilt (le t1)); apply: helper2 (validR W1) _ _ _ _ =>//.
+- by apply: growR W1 _; rewrite -Eh=>k1 v1 z1 /In_umfilt [] _ /G.
+- by move=>x /dom_umfilt; rewrite (subX t1 x) //; case=>v0 [] /andP [].
+- by apply/allP=>x /dom_umfilt; case=>v0 [] /andP [].
+rewrite eval_umfilt Eh evalUn ?(validX W1) -?eval_umfilt // in E.
+move=>x y /dom_umfilt; case=>v1 [/leq_ltn_trans Y _].
+rewrite -(umfilt_pt_split H) -(umfilt_lt_split h K3).
+by rewrite -(umfilt_lt_split h K4) =>/dom_umfilt; case=>v0 [/andP][/Y].
+Qed.
+
+End Growing.
+
+(* The common case of growI and growE is when X = nat. *)
+
+Section GrowingNat.
+Variables (V R : Type) (X : ordType) (a : R -> V -> R) (f : R -> nat).
+Implicit Types p : pred (nat*V).
+
+Lemma growIn h t1 t2 z0 :
+        growing a f h -> t1 <= t2 ->
+        f (exec a t1 h z0) <= f (exec a t2 h z0).
+Proof.
+by move=>G N; move: (growI z0 G N); rewrite leq_eqVlt /oleq/ord orbC.
+Qed.
+
+Lemma growEn h t1 t2 z0 k v :
+        growing a f h -> (k, v) \In h -> t1 < k <= t2 ->
+        f (exec a t2 h z0) = f (exec a t1 h z0) ->
+        f (a (exec a k.-1 h z0) v) = f (exec a k.-1 h z0).
+Proof. by apply: growE. Qed.
+
+End GrowingNat.
