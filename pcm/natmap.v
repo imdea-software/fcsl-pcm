@@ -1610,8 +1610,10 @@ Qed.
 
 Arguments oexlt_consec_find [V R a t1 t2 h ks z0].
 
-(* The lemmas past this point are useful for some examples *)
-(* but will be deprecated in future releases *)
+
+
+(* The lemmas past this point are currently used for some examples, *)
+(* but will be deprecated and removed in future releases *)
 
 (*******************)
 (*******************)
