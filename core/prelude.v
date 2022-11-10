@@ -18,8 +18,7 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun Eqdep.
 From mathcomp Require Import ssrnat seq choice fintype eqtype.
-From fcsl Require Import axioms.
-From fcsl Require Import options.
+From pcm Require Import options axioms.
 
 (***********)
 (* Prelude *)

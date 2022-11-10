@@ -13,9 +13,9 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq.
-From fcsl Require Import options pred prelude.
-From fcsl Require Export auto.
-From fcsl Require Import pcm unionmap natmap.
+From pcm Require Import options pred prelude.
+From pcm Require Export auto.
+From pcm Require Import pcm unionmap natmap.
 
 (**************************************************************************)
 (**************************************************************************)

@@ -92,9 +92,9 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path.
-From fcsl Require Import options prelude finmap seqperm pred.
-From fcsl Require Export ordtype.
-From fcsl Require Import pcm morphism.
+From pcm Require Import options prelude finmap seqperm pred.
+From pcm Require Export ordtype.
+From pcm Require Import pcm morphism.
 
 (* I decided to have union_map_class be a class, rather than a
 structure. The class packages a condition on keys. Ordinary union_maps
@@ -2131,6 +2131,18 @@ Proof. by move=>x; rewrite /um_preim find_undef. Qed.
 Lemma umpreim0 p : um_preim p Unit =1 pred0.
 Proof. by move=>x; rewrite /um_preim find0E. Qed.
 
+Lemma umpreim_cond p f k : um_preim p f k -> C k.
+Proof.
+rewrite /um_preim; case E: (find k f)=>[v|] //= _.
+by move/find_some/dom_cond: E.
+Qed.
+
+Lemma umpreimPt p k v : C k -> um_preim p (pts k v) =1 [pred x | (x == k) && p v].
+Proof.
+move=>Hk x; rewrite /um_preim /= findPt2.
+by case: eqP=>//= _; rewrite Hk.
+Qed.
+
 Lemma umpreimUn p f1 f2 :
         valid (f1 \+ f2) ->
         um_preim p (f1 \+ f2) =1 predU (um_preim p f1) (um_preim p f2).
@@ -3208,20 +3220,20 @@ by case=>v [w][X /(In_omap X) Y]; elim: H; exists v.
 Qed.
 
 (* if the map is total, we have some stronger lemmas *)
-Lemma dom_omap_some a f :
-        (forall x, x \In f -> oapp predT false (a x)) -> dom (omap a f) = dom f.
+Lemma dom_omap_some (a : K * V -> option V') f :
+        (forall x, x \In f -> a x) -> dom (omap a f) = dom f.
 Proof.
 move=>H; apply/domE=>k; apply/idP/idP=>/In_domX [w].
-- by case/In_omapX=>// v /In_dom.
-case A : (a (k, w)) {H} (H (k, w))=>[v|] // H1 H2; last by move/H1: H2.
+- by case/In_omapX => v /In_dom.
+move/[dup]/H; case A: (a (k, w))=>[v|] // _ {}H.
 suff : (k, v) \In omap a f by apply: In_dom.
 by apply/In_omapX=>//; exists w.
 Qed.
 
 (* if the map is total on f1, f2, don't need validity condition for union *)
-Lemma omapUn_some a f1 f2 :
-        (forall x, x \In f1 -> oapp predT false (a x)) ->
-        (forall x, x \In f2 -> oapp predT false (a x)) ->
+Lemma omapUn_some (a : K * V -> option V') f1 f2 :
+        (forall x, x \In f1 -> a x) ->
+        (forall x, x \In f2 -> a x) ->
         omap a (f1 \+ f2) = omap a f1 \+ omap a f2.
 Proof.
 move=>H1 H2; have Ev : valid (omap a f1 \+ omap a f2) = valid (f1 \+ f2).
@@ -5885,7 +5897,7 @@ Qed.
 
 Lemma umall2_umfilt_ord f1 f2 t :
         um_all2 (um_filter (fun kv => ord kv.1 t) f1)
-                (um_filter (fun kv=>ord kv.1 t) f2) <->
+                (um_filter (fun kv => ord kv.1 t) f2) <->
         forall k, ord k t -> optionR P (find k f1) (find k f2).
 Proof.
 split=>[H k X|H k]; last first.
@@ -5901,7 +5913,7 @@ Qed.
 
 Lemma umall2_umfilt_oleq f1 f2 t :
         um_all2 (um_filter (fun kv => oleq kv.1 t) f1)
-                (um_filter (fun kv=>oleq kv.1 t) f2) <->
+                (um_filter (fun kv => oleq kv.1 t) f2) <->
         forall k, oleq k t -> optionR P (find k f1) (find k f2).
 Proof.
 split=>[H k X|H k]; last first.

@@ -20,7 +20,7 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path fintype.
-From fcsl Require Import options.
+From pcm Require Import options.
 
 Module Ordered.
 
@@ -44,24 +44,20 @@ Record class_of (T : Type) := Class {
 
 Local Coercion base : class_of >-> Equality.class_of.
 
-(* The polymorphism annotations here and below are needed for storing *)
-(* ordType instances in finMaps which have an ordType constraint of *)
-(* their own. An example of this is KVMap from HTT. *)
-Polymorphic Cumulative Structure type : Type := Pack {sort : Type; _ : class_of sort}.
+Structure type : Type := Pack {sort : Type; _ : class_of sort}.
 Local Coercion sort : type >-> Sortclass.
 
-Polymorphic Universe ou.
-Polymorphic Variables (T : Type@{ou}) (cT : type@{ou}).
-Polymorphic Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
-Polymorphic Definition clone c of phant_id class c := @Pack T c.
+Variables (T : Type) (cT : type).
+Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
+Definition clone c of phant_id class c := @Pack T c.
 
 (* produce an ordered type out of the inherited mixins *)
 (* equalize m0 and m by means of a phantom; will be exploited *)
 (* further down in the definition of OrdType *)
-Polymorphic Definition pack b (m0 : mixin_of (EqType T b)) :=
+Definition pack b (m0 : mixin_of (EqType T b)) :=
   fun m & phant_id m0 m => Pack (@Class T b m).
 
-Polymorphic Definition eqType := Eval hnf in EqType cT class.
+Definition eqType := Eval hnf in EqType cT class.
 
 End ClassDef.
 
@@ -214,6 +210,57 @@ Lemma oleq_total x y: oleq x y || oleq y x.
 Proof. by case:oleqP=>// /ordW ->//. Qed.
 
 End Weakening.
+
+Section Cancel.
+Variables (T : eqType) (T' : ordType) (f : T -> T').
+
+Section PCan.
+Variables (f' : T' -> option T) (f_can : pcancel f f').
+
+Definition pord (x y : T) := ord (f x) (f y).
+
+Fact pirr : irreflexive pord. Proof. by move=>?; apply: irr. Qed.
+Fact ptrans : transitive pord. Proof. by move=> y x z xy /(trans xy). Qed.
+Fact psemiconn x y : x != y -> pord x y || pord y x.
+Proof.
+move=>H; apply: semiconnex.
+by rewrite (inj_eq (pcan_inj f_can)).
+Qed.
+
+Definition PcanOrd := OrdMixin pirr ptrans psemiconn.
+
+End PCan.
+
+Definition CanOrd f' (f_can : cancel f f') := PcanOrd (can_pcan f_can).
+
+End Cancel.
+
+Module SubOrder.
+Section SubOrdType.
+
+Variables (T : ordType) (P : pred T) (sT : subType P).
+
+Definition sub_ordMixin := PcanOrd (@valK _ _ sT).
+Canonical sub_ordType := Eval hnf in OrdType sT sub_ordMixin.
+
+Lemma ordEsub (x y : sT) : (ord x y) = (ord (val x) (val y)). Proof. by []. Qed.
+Lemma oleqEsub (x y : sT) : (oleq x y) = (oleq (val x) (val y)). Proof. by []. Qed.
+
+End SubOrdType.
+
+Module Exports.
+
+Notation "[ 'ordMixin' 'of' T 'by' <: ]" :=
+  (sub_ordMixin _ :  Ordered.mixin_of [eqType of T])
+  (at level 0, format "[ 'ordMixin'  'of'  T  'by'  <: ]") : form_scope.
+
+Canonical sub_ordType.
+
+Definition ordEsub := @ordEsub.
+Definition oleqEsub := @oleqEsub.
+End Exports.
+End SubOrder.
+Export SubOrder.Exports.
 
 (* A trivial total ordering for Unit *)
 Section unitOrd.

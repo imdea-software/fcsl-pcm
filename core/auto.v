@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq eqtype.
-From fcsl Require Import options prelude.
+From pcm Require Import options prelude.
 
 (***************************************************************************)
 (* Common infrastructure for syntactifying expressions in automated lemmas *)

@@ -22,7 +22,7 @@ limitations under the License.
 (******************************************************************************)
 
 From Coq Require Import ssreflect ssrfun Eqdep ClassicalFacts.
-From fcsl Require Import options.
+From pcm Require Import options.
 
 (*****************************)
 (* Axioms and extensionality *)

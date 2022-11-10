@@ -22,8 +22,8 @@ limitations under the License.
 From Coq Require Import ssreflect ssrbool ssrfun.
 From Coq Require Setoid.
 From mathcomp Require Import ssrnat eqtype seq.
-From fcsl Require Import options prelude pred.
-From fcsl Require Import pcm morphism natmap.
+From pcm Require Import options prelude pred.
+From pcm Require Import pcm morphism natmap.
 
 (***********************)
 (* Generalized mutexes *)

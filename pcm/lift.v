@@ -19,8 +19,8 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype.
-From fcsl Require Import options prelude.
-From fcsl Require Import pcm morphism.
+From pcm Require Import options prelude.
+From pcm Require Import pcm morphism.
 
 Module Unlifted.
 

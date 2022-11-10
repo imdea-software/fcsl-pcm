@@ -32,7 +32,7 @@ This library relies on propositional and functional extentionality axioms.
 - Compatible Coq versions: Coq 8.14 to 8.16
 - Additional dependencies:
   - [MathComp ssreflect 1.13 to 1.15](https://math-comp.github.io)
-- Coq namespace: `fcsl`
+- Coq namespace: `pcm`
 - Related publication(s): none
 
 ## Building and installation instructions

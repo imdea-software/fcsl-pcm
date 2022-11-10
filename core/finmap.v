@@ -19,8 +19,8 @@ limitations under the License.
 From Coq Require Import ssreflect ssrbool ssrfun.
 From Coq Require Setoid.
 From mathcomp Require Import ssrnat eqtype seq path.
-From fcsl Require Export ordtype seqperm.
-From fcsl Require Import options.
+From pcm Require Export ordtype seqperm.
+From pcm Require Import options.
 
 Section Def.
 Variables (K : ordType) (V : Type).

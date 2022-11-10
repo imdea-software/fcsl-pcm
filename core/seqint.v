@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path.
-From fcsl Require Import options prelude ordtype.
+From pcm Require Import options prelude ordtype.
 
 (* there always exists a nat not in a given list *)
 Lemma not_memX (ks : seq nat) : exists k, k \notin ks.

@@ -13,8 +13,7 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq path eqtype.
-From fcsl Require Import pred.
-From fcsl Require Import options.
+From pcm Require Import options pred.
 
 (****************************************************)
 (* A theory of permutations over non-equality types *)

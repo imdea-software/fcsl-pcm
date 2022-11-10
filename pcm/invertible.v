@@ -18,8 +18,8 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype.
-From fcsl Require Import options axioms prelude.
-From fcsl Require Import pcm morphism.
+From pcm Require Import options axioms prelude.
+From pcm Require Import pcm morphism.
 
 Section Invertible.
   Variables (U V : pcm) (D : rel U).

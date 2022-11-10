@@ -1,4 +1,4 @@
--Q . fcsl
+-Q . pcm
 -arg -w -arg -notation-overridden
 -arg -w -arg -redundant-canonical-projection
 

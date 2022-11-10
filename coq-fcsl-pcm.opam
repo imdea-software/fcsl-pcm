@@ -34,7 +34,7 @@ tags: [
   "keyword:partial commutative monoids"
   "keyword:separation logic"
   "keyword:concurrency"
-  "logpath:fcsl"
+  "logpath:pcm"
 ]
 authors: [
   "Aleksandar Nanevski"

@@ -20,8 +20,8 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path.
-From fcsl Require Import options prelude pred finmap rtc seqint.
-From fcsl Require Export pcm morphism unionmap.
+From pcm Require Import options prelude pred finmap rtc seqint.
+From pcm Require Export pcm morphism unionmap.
 
 (************************)
 (************************)

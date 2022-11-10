@@ -58,7 +58,7 @@ dependencies:
   description: |-
     [MathComp ssreflect 1.13 to 1.15](https://math-comp.github.io)
 
-namespace: fcsl
+namespace: pcm
 
 keywords:
 - name: partial commutative monoids

@@ -19,7 +19,7 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq bigop fintype finset.
-From fcsl Require Import axioms prelude seqperm pred options.
+From pcm Require Import axioms prelude seqperm pred options.
 
 Declare Scope pcm_scope.
 Delimit Scope pcm_scope with pcm.
@@ -1429,6 +1429,38 @@ rewrite big_cons zip_cat //=; split=>//.
 by apply/bigand_cat.
 Qed.
 
+Lemma sepit_perm s1 s2 (f : A -> Pred U) :
+        perm s1 s2 -> sepit s1 f =p sepit s2 f.
+Proof.
+elim: s1 s2 =>[|x s1 IH] s2 /=; first by move/pperm_nil=>->.
+move=>H; have Hx: x \In s2 by apply/(pperm_in H)/In_cons; left.
+case: (In_split Hx)=>s21[s22] E; rewrite {s2 Hx}E in H *.
+move/pperm_cons_cat_cons: H=>/IH {}IH.
+rewrite sepit_cons sepit_cat /= =>h; split.
+- case=>h1[h2][{h}-> H1]; rewrite IH sepit_cat.
+  case=>_[_][{h2}-> [hs3][E3 -> H3] [hs4][E4 -> H4]]; rewrite joinCA.
+  exists (bigjoin hs3), (h1 \+ bigjoin hs4); split=>//; first by exists hs3.
+  by rewrite sepit_cons; exists h1, (bigjoin hs4); split=>//; exists hs4.
+case=>_[h2][{h}-> [hs1][Hs1 -> H1]]; rewrite sepit_cons.
+case=>h3[_][{h2}-> H3 [hs2][Hs2 -> H2]]; rewrite joinCA.
+exists h3, (bigjoin hs1 \+ bigjoin hs2); split=>//.
+rewrite IH; exists (hs1 ++ hs2); split.
+- by rewrite !size_cat Hs1 Hs2.
+- by rewrite /bigjoin big_cat.
+by rewrite /bigand zip_cat //; apply/bigand_cat.
+Qed.
+
+Lemma sepitF s (f1 f2 : A -> Pred U) :
+        (forall x, x \In s -> f1 x =p f2 x) -> sepit s f1 =p sepit s f2.
+Proof.
+elim: s=>[|x s IH] H h; first by rewrite !sepit0.
+have /IH {IH}H': forall x : A, x \In s -> f1 x =p f2 x.
+  by move=>? H0; apply: H; apply/In_cons; right.
+have Hx : x \In x :: s by apply/In_cons; left.
+by rewrite !sepit_cons; split; case=>h1[h2][{h}-> H1 H2]; exists h1, h2;
+split=>//; [rewrite -H | rewrite -H' | rewrite H | rewrite H'].
+Qed.
+
 End IterStar.
 
 (* iterated star on eqType *)
@@ -1438,8 +1470,9 @@ Variables (U : pcm) (A : eqType).
 
 Lemma sepitP x s (f : A -> Pred U) :
         uniq s ->
-        sepit s f =p if x \in s then f x # sepit (filter (predC1 x) s) f
-                     else sepit s f.
+        sepit s f =p if x \in s
+                       then f x # sepit (filter (predC1 x) s) f
+                       else sepit s f.
 Proof.
 case E: (x \in s)=>//.
 elim: s E=>[|y s IH] //= /[swap]; case/andP=>Hy Hu; rewrite sepit_cons inE; case/orP.
@@ -1451,39 +1484,13 @@ case=>hb[h][{h1}-> Hb H]; rewrite joinCA; exists hb, (ha \+ h); split=>//;
 [rewrite sepit_cons | rewrite (IH Hx Hu)]; exists ha, h.
 Qed.
 
-Lemma eq_sepitF s (f1 f2 : A -> Pred U) :
+Corollary eq_sepitF s (f1 f2 : A -> Pred U) :
         (forall x, x \in s -> f1 x =p f2 x) -> sepit s f1 =p sepit s f2.
-Proof.
-elim: s=>[|x s IH] H h; first by rewrite !sepit0.
-have /IH {IH}H': forall x : A, x \in s -> f1 x =p f2 x
-  by move=>? H0; apply: H; rewrite !inE H0 orbT.
-have Hx : x \in x :: s by rewrite inE eq_refl.
-by rewrite !sepit_cons; split; case=>h1[h2][{h}-> H1 H2]; exists h1, h2;
-split=>//; [rewrite -H | rewrite -H' | rewrite H | rewrite H'].
-Qed.
+Proof. by move=>H; apply: sepitF=>x Hx; apply/H/mem_seqP. Qed.
 
-Lemma perm_sepit s1 s2 (f : A -> Pred U) :
-        perm_eq s1 s2 -> sepit s1 f =p sepit s2 f.
-Proof.
-elim: s1 s2 =>[|x s1 IH] s2 /=.
-- by rewrite perm_sym=>/perm_size/size0nil->.
-move/[dup]; rewrite perm_sym =>/perm_mem/(_ x); rewrite inE eq_refl /= =>Hx.
-case: (path.splitP Hx)=>t1 t2; rewrite -cats1 -catA =>H.
-have {H Hx s2}Hp : perm_eq s1 (t1 ++ t2).
-- by rewrite perm_catCA perm_cons perm_sym in H.
-rewrite sepit_cons sepit_cat /= =>h0; split.
-- case=>h1[h2][{h0}-> H1]; rewrite (IH _ Hp) sepit_cat.
-  case=>_[_][{h2}-> [hs3][E3 -> H3] [hs4][E4 -> H4]]; rewrite joinCA.
-  exists (bigjoin hs3), (h1 \+ bigjoin hs4); split=>//; first by exists hs3.
-  by rewrite sepit_cons; exists h1, (bigjoin hs4); split=>//; exists hs4.
-case=>_[h2][{h0}-> [hs1][Hs1 -> H1]]; rewrite sepit_cons.
-case=>h3[_][{h2}-> H3 [hs2][Hs2 -> H2]]; rewrite joinCA.
-exists h3, (bigjoin hs1 \+ bigjoin hs2); split=>//.
-rewrite (IH _ Hp); exists (hs1 ++ hs2); split.
-- by rewrite !size_cat Hs1 Hs2.
-- by rewrite /bigjoin big_cat.
-by rewrite /bigand zip_cat //; apply/bigand_cat.
-Qed.
+Corollary perm_sepit s1 s2 (f : A -> Pred U) :
+            perm_eq s1 s2 -> sepit s1 f =p sepit s2 f.
+Proof. by move/perm_eq_perm; exact: sepit_perm. Qed.
 
 End IterStarEq.
 

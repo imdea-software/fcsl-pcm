@@ -17,8 +17,7 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun Setoid.
 From mathcomp Require Import ssrnat seq eqtype.
-From fcsl Require Import prelude.
-From fcsl Require Import options.
+From pcm Require Import options prelude.
 Set Warnings "-projection-no-head-constant".
 
 (* First some basic propositional equalities *)

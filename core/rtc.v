@@ -13,8 +13,7 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq choice fintype path fingraph.
-From fcsl Require Import axioms pred prelude finmap.
-From fcsl Require Import options.
+From pcm Require Import options axioms pred prelude finmap.
 
 (* Reflexive and Transitive closures of a relation with finite domain *)
 (* The domain is currently taken to a finite set of nats *)
