@@ -213,7 +213,7 @@ Lemma oleq_total x y: oleq x y || oleq y x.
 Proof. by case:oleqP=>// /ordW ->//. Qed.
 
 End Weakening.
-
+(*
 Section Cancel.
 Variables (T : eqType) (T' : ordType) (f : T -> T').
 
@@ -264,7 +264,7 @@ Definition oleqEsub := @oleqEsub.
 End Exports.
 End SubOrder.
 Export SubOrder.Exports.
-
+*)
 (* A trivial total ordering for Unit *)
 Section unitOrd.
 Let ordtt (x y : unit) := false.
