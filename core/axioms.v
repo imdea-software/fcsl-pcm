@@ -108,8 +108,8 @@ Variables (A : Type) (P : A -> Type).
 (** eta expand definitions to prevent universe inconsistencies when using
     the injectivity of constructors of datatypes depending on [[dynamic]] *)
 
-Definition dynamic := @sigT _ P.
-Definition dyn := @existT _ P.
+Definition dynamic := sigT P.
+Definition dyn := existT P.
 Definition dyn_tp := @projT1 _ P.
 Definition dyn_val := @projT2 _ P.
 Definition dyn_eta := @sigT_eta _ P.
