@@ -92,7 +92,7 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path.
-From pcm Require Import options prelude finmap seqperm pred.
+From pcm Require Import options prelude finmap seqperm pred seqext.
 From pcm Require Export ordtype.
 From pcm Require Import pcm morphism.
 
@@ -2563,6 +2563,15 @@ Lemma rangeUnPtK k v f :
         range (f \+ pts k v) = rcons (range f) v.
 Proof. by move=>W H; rewrite /range assocsUnPt // map_rcons. Qed.
 
+Lemma rangeF k (f : U) : {subset range (free f k) <= range f}.
+Proof.
+case W: (valid f); last first.
+- by move/negbT/invalidE: W=>->; rewrite free_undef !range_undef.
+case D: (k \in dom f); last by move/negbT/dom_free: D=>->.
+case: (um_eta D) W=>x [_] {1 3}-> Vf p.
+by rewrite rangePtUn inE Vf=>->; rewrite orbT.
+Qed.
+
 Lemma uniq_rangeUn f1 f2 :
         valid (f1 \+ f2) ->
         uniq (range (f1 \+ f2)) = uniq (range f1 ++ range f2).
@@ -3246,7 +3255,7 @@ Qed.
 Lemma path_omap a f x : path ord x (dom f) -> path ord x (dom (omap a f)).
 Proof.
 apply: subseq_path; first by apply: trans.
-apply: (sorted_subset_subseq (leT := ord)); last by apply: dom_omap_sub.
+apply: (sorted_subset_subseq (ltT := ord)); last by apply: dom_omap_sub.
 - by apply: irr.
 - by apply: trans.
 - by apply: sorted_dom.
@@ -3781,6 +3790,13 @@ Proof.
 move=>D; rewrite umfilt_predU.
 suff : forall kv, kv \In f -> predD q p kv = q kv by move/eq_in_umfilt=>->.
 by move=>kv _ /=; case X: (p _)=>//=; move/D/negbTE: X.
+Qed.
+
+Corollary umfilt_predC f p : f = um_filter p f \+ um_filter (predC p) f.
+Proof.
+rewrite -umfilt_dpredU; last by move=>? /=; rewrite negbK.
+rewrite -[LHS]umfilt_predT; apply: eq_in_umfiltE=>kv /=.
+by rewrite orbN.
 Qed.
 
 Lemma umfiltUnK p f1 f2 :

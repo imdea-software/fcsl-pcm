@@ -19,7 +19,7 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq bigop fintype finset.
-From pcm Require Import axioms prelude seqperm pred options.
+From pcm Require Import options axioms prelude seqperm pred seqext.
 
 Declare Scope pcm_scope.
 Delimit Scope pcm_scope with pcm.
