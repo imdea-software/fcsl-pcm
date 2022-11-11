@@ -1485,7 +1485,7 @@ case=>hb[h][{h1}-> Hb H]; rewrite joinCA; exists hb, (ha \+ h); split=>//;
 Qed.
 
 Corollary eq_sepitF s (f1 f2 : A -> Pred U) :
-        (forall x, x \in s -> f1 x =p f2 x) -> sepit s f1 =p sepit s f2.
+            (forall x, x \in s -> f1 x =p f2 x) -> sepit s f1 =p sepit s f2.
 Proof. by move=>H; apply: sepitF=>x Hx; apply/H/mem_seqP. Qed.
 
 Corollary perm_sepit s1 s2 (f : A -> Pred U) :

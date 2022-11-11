@@ -2,9 +2,9 @@ From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq path eqtype choice.
 From pcm Require Import options.
 
-(********************)
+(*********************)
 (* Extensions to seq *)
-(********************)
+(*********************)
 
 (* With A : Type, we have the In_split lemma. *)
 (* With A : eqType, the lemma can be strenghtened to *)
@@ -64,6 +64,10 @@ Proof.
 split; first by exact: memNindex.
 by move=>E; rewrite -index_mem E ltnn.
 Qed.
+
+Corollary index_sizeE (A : eqType) (s : seq A) x :
+            reflect (index x s = size s) (x \notin s).
+Proof. by apply/(equivP idP)/index_memN. Qed.
 
 Lemma size0nilP (A : eqType) (xs : seq A) :
         reflect (xs = [::]) (size xs == 0).
@@ -174,7 +178,7 @@ Qed.
 
 (* Interaction of filter/last/index *)
 
-Section LastFilter.
+Section FilterLastIndex.
 Variables (A : eqType).
 
 (* if s has an element, last returns one of them *)
@@ -438,9 +442,102 @@ move=>H1 H2; apply/idP/idP.
 by apply: index_filter_leL.
 Qed.
 
-End LastFilter.
+(* index and masking *)
 
-Section EqSort.
+Lemma index_mask (s : seq A) m a b  :
+         uniq s ->
+         a \in mask m s -> b \in mask m s ->
+         index a (mask m s) < index b (mask m s) <->
+         index a s < index b s.
+Proof.
+elim: m s=>[|x m IH][|k s] //= /andP [K U]; case: x=>[|Ma Mb] /=.
+- rewrite !inE; case/orP=>[/eqP <-|Ma].
+  - by case/orP=>[/eqP ->|]; rewrite eq_refl //; case: eqP.
+  case/orP=>[/eqP ->|Mb]; first by rewrite eq_refl.
+  by case: eqP; case: eqP=>//; rewrite ltnS IH.
+case: eqP Ma K=>[-> /mem_mask -> //|Ka].
+case: eqP Mb=>[-> /mem_mask -> //|Kb Mb Ma].
+by rewrite ltnS IH.
+Qed.
+
+Lemma index_subseq (s1 s2 : seq A) a b :
+         subseq s1 s2 -> uniq s2 -> a \in s1 -> b \in s1 ->
+         index a s1 < index b s1 <-> index a s2 < index b s2.
+Proof. by case/subseqP=>m _ ->; apply: index_mask. Qed.
+
+End FilterLastIndex.
+
+(* index and mapping *)
+
+Section IndexPmap.
+Variables (A B : eqType).
+
+Lemma index_pmap_inj (s : seq A) (f : A -> option B) a1 a2 b1 b2 :
+        injective f -> f a1 = Some b1 -> f a2 = Some b2 ->
+        index b1 (pmap f s) < index b2 (pmap f s) <-> index a1 s < index a2 s.
+Proof.
+move=>Inj E1 E2; elim: s=>[|k s IH] //=; rewrite /oapp.
+case: eqP=>[->{k}|].
+- rewrite E1 /= eq_refl.
+  case: (a1 =P a2) E1 E2=>[-> -> [/eqP ->] //|].
+  by case: (b1 =P b2)=>[-> Na <- /Inj /esym/Na|].
+case: eqP=>[->{k} Na|N2 N1]; first by rewrite E2 /= eq_refl !ltn0.
+case E : (f k)=>[b|] //=.
+case: eqP E1 E=>[-><- /Inj/N1 //|_ _].
+by case: eqP E2=>[-><- /Inj/N2 //|_ _ _]; rewrite IH.
+Qed.
+
+Lemma index_pmap_inj_mem (s : seq A) (f : A -> option B) a1 a2 b1 b2 :
+        {in s &, injective f} ->
+        a1 \in s -> a2 \in s ->
+        f a1 = Some b1 -> f a2 = Some b2 ->
+        index b1 (pmap f s) < index b2 (pmap f s) <-> index a1 s < index a2 s.
+Proof.
+move=>Inj A1 A2 E1 E2.
+elim: s Inj A1 A2=>[|k s IH] //= Inj; rewrite /oapp !inE !(eq_sym k).
+case: eqP Inj=>[<-{k} /= Inj _|].
+- rewrite E1 /= !eq_refl eq_sym.
+  case: eqP E1 E2=>[->-> [->]|]; first by rewrite eq_refl.
+  case: eqP=>[-> Na <- E /= A2|//].
+  by move/Inj: E Na=>-> //; rewrite inE ?(eq_refl,A2,orbT).
+case eqP=>[<-{k} Na Inj /= A1 _|]; first by rewrite E2 /= eq_refl !ltn0.
+move=>N2 N1 Inj /= A1 A2.
+have Inj1 : {in s &, injective f}.
+- by move=>x y X Y; apply: Inj; rewrite inE ?X ?Y ?orbT.
+case E : (f k)=>[b|] /=; last by rewrite IH.
+case: eqP E1 E=>[-> <- E|_ _].
+- by move/Inj: E N1=>-> //; rewrite inE ?(eq_refl,A1,orbT).
+case: eqP E2=>[-><- E|_ _ _]; last by rewrite IH.
+by move/Inj: E N2=>-> //; rewrite inE ?(eq_refl,A2,orbT).
+Qed.
+
+(* we can relax the previous lemma a bit *)
+(* the relaxation will be more commonly used than the previous lemma *)
+(* because the option type gives us the implication that the second *)
+(* element is in the map *)
+Lemma index_pmap_inj_in (s : seq A) (f : A -> option B) a1 a2 b1 b2 :
+        {in s & predT, injective f} ->
+        f a1 = Some b1 -> f a2 = Some b2 ->
+        index b1 (pmap f s) < index b2 (pmap f s) <-> index a1 s < index a2 s.
+Proof.
+move=>Inj E1 E2.
+case A1 : (a1 \in s); last first.
+- move/negbT/index_sizeE: (A1)=>->.
+  suff /index_sizeE -> : b1 \notin pmap f s by rewrite !ltnNge !index_size.
+  rewrite mem_pmap; apply/mapP; case=>x X /esym; rewrite -E1=>E.
+  by move/(Inj _ _ X): E A1=><- //; rewrite X.
+case A2 : (a2 \in s).
+- by apply: index_pmap_inj_mem=>// x y X _; apply: Inj.
+move/negbT/index_sizeE: (A2)=>->.
+suff /index_sizeE -> : b2 \notin pmap f s.
+- by rewrite !index_mem /= A1 mem_pmap; split=>// _; apply/mapP; exists a1.
+rewrite mem_pmap; apply/mapP; case=>x X /esym; rewrite -E2=>E.
+by move/(Inj _ _ X): E A2=><- //; rewrite X.
+Qed.
+
+End IndexPmap.
+
+Section SeqRel.
 Variable (A : eqType).
 Implicit Type (ltT leT : rel A).
 
@@ -815,101 +912,7 @@ apply: H; rewrite ?(inE,Xa,Xb,orbT) //.
 by case: eqP U=>[->|]; case: eqP=>[->|]; rewrite ?(Xa,Xb).
 Qed.
 
-(* index and masking *)
-
-Lemma index_mask (s : seq A) m a b  :
-         uniq s ->
-         a \in mask m s -> b \in mask m s ->
-         index a (mask m s) < index b (mask m s) <->
-         index a s < index b s.
-Proof.
-elim: m s=>[|x m IH][|k s] //= /andP [K U]; case: x=>[|Ma Mb] /=.
-- rewrite !inE; case/orP=>[/eqP <-|Ma].
-  - by case/orP=>[/eqP ->|]; rewrite eq_refl //; case: eqP.
-  case/orP=>[/eqP ->|Mb]; first by rewrite eq_refl.
-  by case: eqP; case: eqP=>//; rewrite ltnS IH.
-case: eqP Ma K=>[-> /mem_mask -> //|Ka].
-case: eqP Mb=>[-> /mem_mask -> //|Kb Mb Ma].
-by rewrite ltnS IH.
-Qed.
-
-Lemma index_subseq (s1 s2 : seq A) a b :
-         subseq s1 s2 -> uniq s2 -> a \in s1 -> b \in s1 ->
-         index a s1 < index b s1 <-> index a s2 < index b s2.
-Proof. by case/subseqP=>m _ ->; apply: index_mask. Qed.
-
-End EqSort.
-
-(* index and mapping *)
-
-Lemma index_sizeE (A : eqType) (s : seq A) x :
-        reflect (index x s = size s) (x \notin s).
-Proof.
-by rewrite -index_mem ltn_neqAle negb_and negbK index_size orbF; apply: eqP.
-Qed.
-
-Lemma index_pmap_inj (A B : eqType) (s : seq A) (f : A -> option B) a1 a2 b1 b2 :
-        injective f -> f a1 = Some b1 -> f a2 = Some b2 ->
-        index b1 (pmap f s) < index b2 (pmap f s) <-> index a1 s < index a2 s.
-Proof.
-move=>Inj E1 E2; elim: s=>[|k s IH] //=; rewrite /oapp.
-case: eqP=>[->{k}|].
-- rewrite E1 /= eq_refl.
-  case: (a1 =P a2) E1 E2=>[-> -> [/eqP ->] //|].
-  by case: (b1 =P b2)=>[-> Na <- /Inj /esym/Na|].
-case: eqP=>[->{k} Na|N2 N1]; first by rewrite E2 /= eq_refl !ltn0.
-case E : (f k)=>[b|] //=.
-case: eqP E1 E=>[-><- /Inj/N1 //|_ _].
-by case: eqP E2=>[-><- /Inj/N2 //|_ _ _]; rewrite IH.
-Qed.
-
-Lemma index_pmap_inj_mem (A B : eqType) (s : seq A) (f : A -> option B) a1 a2 b1 b2 :
-        {in s &, injective f} ->
-        a1 \in s -> a2 \in s ->
-        f a1 = Some b1 -> f a2 = Some b2 ->
-        index b1 (pmap f s) < index b2 (pmap f s) <-> index a1 s < index a2 s.
-Proof.
-move=>Inj A1 A2 E1 E2.
-elim: s Inj A1 A2=>[|k s IH] //= Inj; rewrite /oapp !inE !(eq_sym k).
-case: eqP Inj=>[<-{k} /= Inj _|].
-- rewrite E1 /= !eq_refl eq_sym.
-  case: eqP E1 E2=>[->-> [->]|]; first by rewrite eq_refl.
-  case: eqP=>[-> Na <- E /= A2|//].
-  by move/Inj: E Na=>-> //; rewrite inE ?(eq_refl,A2,orbT).
-case eqP=>[<-{k} Na Inj /= A1 _|]; first by rewrite E2 /= eq_refl !ltn0.
-move=>N2 N1 Inj /= A1 A2.
-have Inj1 : {in s &, injective f}.
-- by move=>x y X Y; apply: Inj; rewrite inE ?X ?Y ?orbT.
-case E : (f k)=>[b|] /=; last by rewrite IH.
-case: eqP E1 E=>[-> <- E|_ _].
-- by move/Inj: E N1=>-> //; rewrite inE ?(eq_refl,A1,orbT).
-case: eqP E2=>[-><- E|_ _ _]; last by rewrite IH.
-by move/Inj: E N2=>-> //; rewrite inE ?(eq_refl,A2,orbT).
-Qed.
-
-(* we can relax the previous lemma a bit *)
-(* the relaxation will be more commonly used than the previous lemma *)
-(* because the option type gives us the implication that the second *)
-(* element is in the map *)
-Lemma index_pmap_inj_in (A B : eqType) (s : seq A) (f : A -> option B) a1 a2 b1 b2 :
-        {in s & predT, injective f} ->
-        f a1 = Some b1 -> f a2 = Some b2 ->
-        index b1 (pmap f s) < index b2 (pmap f s) <-> index a1 s < index a2 s.
-Proof.
-move=>Inj E1 E2.
-case A1 : (a1 \in s); last first.
-- move/negbT/index_sizeE: (A1)=>->.
-  suff /index_sizeE -> : b1 \notin pmap f s by rewrite !ltnNge !index_size.
-  rewrite mem_pmap; apply/mapP; case=>x X /esym; rewrite -E1=>E.
-  by move/(Inj _ _ X): E A1=><- //; rewrite X.
-case A2 : (a2 \in s).
-- by apply: index_pmap_inj_mem=>// x y X _; apply: Inj.
-move/negbT/index_sizeE: (A2)=>->.
-suff /index_sizeE -> : b2 \notin pmap f s.
-- by rewrite !index_mem /= A1 mem_pmap; split=>// _; apply/mapP; exists a1.
-rewrite mem_pmap; apply/mapP; case=>x X /esym; rewrite -E2=>E.
-by move/(Inj _ _ X): E A2=><- //; rewrite X.
-Qed.
+End SeqRel.
 
 (* there always exists a nat not in a given list *)
 Lemma not_memX (ks : seq nat) : exists k, k \notin ks.
