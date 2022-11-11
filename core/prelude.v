@@ -507,6 +507,226 @@ Lemma Side_enumP : Finite.axiom [:: LL; RR]. Proof. by case. Qed.
 Definition Side_finMixin := Eval hnf in FinMixin Side_enumP.
 Canonical Side_finType := Eval hnf in FinType Side Side_finMixin.
 
+Section FindLast.
+
+Variables (T : Type).
+Implicit Types (x : T) (p : pred T) (s : seq T).
+
+(* helper function for finding the last occurrence in a single pass *)
+(* calculates index and size *)
+Definition find_last_aux oi0 p s : option nat * nat :=
+  foldl (fun '(o,i) x => (if p x then Some i else o, i.+1)) oi0 s.
+
+Lemma find_last_auxE oi0 p s :
+        find_last_aux oi0 p s =
+        let k := seq.find p (rev s) in
+        (if k == size s then oi0.1
+           else Some (oi0.2 + (size s - k).-1), oi0.2 + size s).
+Proof.
+rewrite /find_last_aux; elim: s oi0=>/= [|x s IH] [o0 i0] /=; first by rewrite addn0.
+rewrite IH /= rev_cons -cats1 find_cat /= has_find.
+move: (find_size p (rev s)); rewrite size_rev; case: ltngtP=>// H _.
+- case: eqP=>[E|_]; first by rewrite E ltnNge leqnSn in H.
+  apply: injective_projections=>/=; [congr Some | rewrite addSnnS]=>//.
+  by rewrite !predn_sub /= -predn_sub addSnnS prednK // subn_gt0.
+case: ifP=>_; rewrite addSnnS; last by rewrite addn1 eqxx.
+by rewrite addn0 eqn_leq leqnSn /= ltnn subSnn addn0.
+Qed.
+
+Definition find_last p s : nat :=
+  let '(o, i) := find_last_aux (None, 0) p s in odflt i o.
+
+(* finding last is finding first in reversed list and flipping indices *)
+Corollary find_lastE p s :
+            find_last p s =
+            if has p s then (size s - seq.find p (rev s)).-1
+                       else size s.
+Proof.
+rewrite /find_last find_last_auxE /= !add0n -has_rev; case/boolP: (has p (rev s)).
+- by rewrite has_find size_rev; case: ltngtP.
+by move/hasNfind=>->; rewrite size_rev eqxx.
+Qed.
+
+Lemma find_last_size p s : find_last p s <= size s.
+Proof.
+rewrite find_lastE; case: ifP=>// _.
+by rewrite -subnS; apply: leq_subr.
+Qed.
+
+Lemma has_find_last p s : has p s = (find_last p s < size s).
+Proof.
+symmetry; rewrite find_lastE; case: ifP=>H /=; last by rewrite ltnn.
+by rewrite -subnS /= ltn_subrL /=; case: s H.
+Qed.
+
+Lemma hasNfind_last p s : ~~ has p s -> find_last p s = size s.
+Proof. by rewrite has_find_last; case: ltngtP (find_last_size p s). Qed.
+
+Lemma find_last0 p x : find_last p [::] = 0.
+Proof. by []. Qed.
+
+Lemma find_last1 p x : find_last p [::x] = ~~ p x.
+Proof. by rewrite find_lastE /= orbF; case: ifP=>// ->. Qed.
+
+Lemma find_last_cat p s1 s2 :
+        find_last p (s1 ++ s2) =
+        if has p s1 && ~~ has p s2
+          then find_last p s1
+          else size s1 + find_last p s2.
+Proof.
+rewrite !find_lastE has_cat rev_cat find_cat has_rev size_cat size_rev.
+case/boolP: (has p s2)=>H2; last first.
+- rewrite orbF; case/boolP: (has p s1)=>//= H1.
+  by rewrite addnC subnDl.
+have H2' : find p (rev s2) < size s2.
+- by rewrite -size_rev -has_find has_rev.
+rewrite /= orbT andbF -addnBA; last by apply: ltnW.
+rewrite -!subn1 -subnDA -addnBA; last by rewrite subn_gt0.
+by rewrite subnDA.
+Qed.
+
+Lemma find_last_cons p x s :
+        find_last p (x::s) =
+        if p x && ~~ has p s then 0 else (find_last p s).+1.
+Proof.
+rewrite -cat1s find_last_cat /= !add1n orbF find_last1.
+by case: ifP=>// /andP [->].
+Qed.
+
+Lemma find_last_rcons p x s :
+        find_last p (rcons s x) =
+        if p x then size s
+          else if has p s then find_last p s
+                          else (size s).+1.
+Proof.
+rewrite -cats1 find_last_cat /= orbF find_last1.
+case: (p x)=>/=; first by rewrite andbF addn0.
+by rewrite andbT addn1.
+Qed.
+
+Lemma nth_find_last x0 p s : has p s -> p (nth x0 s (find_last p s)).
+Proof.
+rewrite find_lastE=>/[dup] E ->; rewrite -has_rev in E.
+rewrite -subnS -nth_rev; last by rewrite -size_rev -has_find.
+by apply: nth_find.
+Qed.
+
+Lemma has_drop p s i : has p s -> has p (drop i s) = (i <= find_last p s).
+Proof.
+rewrite find_lastE=>/[dup] E ->; rewrite -has_rev in E.
+have Hh: 0 < size s - find p (rev s).
+- by rewrite -size_rev subn_gt0 -has_find.
+rewrite -size_rev; move/(has_take (size s - i)): (E).
+rewrite take_rev -subnS size_rev.
+case/boolP: (i < size s)=>[Hi|].
+- rewrite subnA //; last by apply: ltnW.
+  rewrite subnn add0n has_rev=>->.
+  rewrite ltn_subRL addnC -ltn_subRL subnS.
+  by case: (size s - find p (rev s)) Hh.
+rewrite -ltnNge ltnS => Hi _.
+rewrite drop_oversize //=; symmetry; apply/negbTE.
+rewrite -ltnNge subnS prednK //.
+by apply/leq_trans/Hi; exact: leq_subr.
+Qed.
+
+Lemma find_geq p s i : has p (drop i s) -> i <= find_last p s.
+Proof.
+case/boolP: (has p s)=>Hp; first by rewrite (has_drop _ Hp).
+suff: ~~ has p (drop i s) by move/negbTE=>->.
+move: Hp; apply: contra; rewrite -{2}(cat_take_drop i s) has_cat=>->.
+by rewrite orbT.
+Qed.
+
+Variant split_find_last_nth_spec p : seq T -> seq T -> seq T -> T -> Type :=
+  FindLastNth x s1 s2 of p x & ~~ has p s2 :
+    split_find_last_nth_spec p (rcons s1 x ++ s2) s1 s2 x.
+
+Lemma split_find_last_nth x0 p s (i := find_last p s) :
+        has p s ->
+        split_find_last_nth_spec p s (take i s) (drop i.+1 s) (nth x0 s i).
+Proof.
+move=> p_s; rewrite -[X in split_find_last_nth_spec _ X](cat_take_drop i s).
+rewrite (drop_nth x0 _); last by rewrite -has_find_last.
+rewrite -cat_rcons; constructor; first by apply: nth_find_last.
+by rewrite has_drop // ltnn.
+Qed.
+
+Variant split_find_last_spec p : seq T -> seq T -> seq T -> Type :=
+  FindLastSplit x s1 s2 of p x & ~~ has p s2 :
+    split_find_last_spec p (rcons s1 x ++ s2) s1 s2.
+
+Lemma split_find_last p s (i := find_last p s) :
+        has p s ->
+        split_find_last_spec p s (take i s) (drop i.+1 s).
+Proof.
+by case: s => // x ? in i * =>?; case: split_find_last_nth=>//; constructor.
+Qed.
+
+End FindLast.
+
+Section FindLastEq.
+
+Variables (T : eqType).
+Implicit Type p : seq T.
+
+Definition index_last (x : T) : seq T -> nat := find_last (pred1 x).
+
+Lemma memNindex_last x s : x \notin s -> index_last x s = size s.
+Proof. by rewrite -has_pred1=>/hasNfind_last. Qed.
+
+Lemma index_last0 x : index_last x [::] = 0.
+Proof. by []. Qed.
+
+Lemma index_last1 x y : index_last x [::y] = (x != y).
+Proof. by rewrite /index_last find_last1 /= eq_sym. Qed.
+
+Lemma index_last_cat x s1 s2 :
+        index_last x (s1 ++ s2) =
+        if (x \in s1) && (x \notin s2)
+          then index_last x s1
+          else size s1 + index_last x s2.
+Proof. by rewrite /index_last find_last_cat !has_pred1. Qed.
+
+Lemma index_last_cons x y s :
+        index_last x (y::s) =
+        if (x == y) && (x \notin s) then 0 else (index_last x s).+1.
+Proof. by rewrite /index_last find_last_cons has_pred1 eq_sym. Qed.
+
+Lemma index_last_rcons x y s :
+        index_last x (rcons s y) =
+        if x == y then size s
+          else if x \in s then index_last x s
+                          else (size s).+1.
+Proof. by rewrite /index_last find_last_rcons has_pred1 eq_sym. Qed.
+
+Lemma index_geq x s i : x \in drop i s -> i <= index_last x s.
+Proof. by rewrite -has_pred1; apply: find_geq. Qed.
+
+Lemma index_last_uniq x s : uniq s -> index_last x s = index x s.
+Proof.
+move=>H; case/boolP: (x \in s)=>Hx; last first.
+- by rewrite (memNindex_last Hx) (memNindex Hx).
+elim: s x H Hx=>//= h t IH x; rewrite index_last_cons inE.
+case/andP=>Hh Ht; case/orP.
+- by move/eqP=>{x}->; rewrite (negbTE Hh) eqxx.
+move=>Hx; rewrite IH // Hx andbF.
+by case: eqP=>// E; rewrite E Hx in Hh.
+Qed.
+
+Variant splitLast x : seq T -> seq T -> seq T -> Type :=
+  SplitLast p1 p2 of x \notin p2 : splitLast x (rcons p1 x ++ p2) p1 p2.
+
+Lemma splitLastP s x (i := index_last x s) :
+        x \in s ->
+        splitLast x s (take i s) (drop i.+1 s).
+Proof.
+case: s => // y s in i * => H.
+case: split_find_last_nth=>//; first by rewrite has_pred1.
+move=>_ s1 s2 /= /eqP->; rewrite has_pred1 => H2.
+by constructor.
+Qed.
+
+End FindLastEq.
 
 (* sequence prefixes *)
 
