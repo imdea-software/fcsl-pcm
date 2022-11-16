@@ -747,14 +747,39 @@ Definition prefix s1 s2 : Prop :=
 
 (* Lemmas *)
 
+Variant onth_spec s n : bool -> Type :=
+| onth_none   : onth s n = None   -> onth_spec s n false
+| onth_some v : onth s n = Some v -> onth_spec s n true.
+
+Lemma onth_sizeP s n : onth_spec s n (n < size s).
+Proof.
+elim: s n=>/= [|a s IH] n; first by rewrite ltn0; constructor.
+case: n=>[|n] /=; first by apply: (@onth_some _ _ a).
+rewrite ltnS; case: (IH n)=>[|v] H.
+- by constructor.
+by apply: (@onth_some _ _ v).
+Qed.
+
 Lemma size_onth s n : n < size s -> exists x, onth s n = Some x.
 Proof.
-elim: s n=>[//|a s IH] [|n] /=; first by exists a.
-by rewrite -(addn1 n) -(addn1 (size s)) ltn_add2r; apply: IH.
+by case: onth_sizeP=>// v H _; exists v.
 Qed.
 
 Lemma onth_size s n x : onth s n = Some x -> n < size s.
-Proof. by elim: s n=>[//|a s IH] [//|n]; apply: IH. Qed.
+Proof.
+by case: onth_sizeP=>//->.
+Qed.
+
+Lemma size_onthPn s n : reflect (onth s n = None) (size s <= n).
+Proof.
+by rewrite leqNgt; apply: (iffP idP); case: onth_sizeP=>//= v ->.
+Qed.
+
+Lemma nth_onth x0 n s : nth x0 s n = odflt x0 (onth s n).
+Proof.
+elim: s n=>/= [|a s IH] n /=; first by apply: nth_nil.
+by case: n.
+Qed.
 
 Lemma prefix_refl s : prefix s s.
 Proof. by move=>n x <-. Qed.
