@@ -6,8 +6,26 @@ Open Scope order_scope.
 Import Order.Theory.
 
 (* TODO move to prelude *)
+Lemma if_triv b : (if b then true else false) = b.
+Proof. by case: b. Qed.
+
 Lemma drop_take_id {A} x (s : seq A) : drop x (take x s) = [::].
 Proof. by rewrite -{2}(add0n x) -take_drop take0. Qed.
+
+Lemma drop_take_mask {A} (s : seq A) x y :
+        drop x (take y s) = mask (nseq x false ++ nseq (y-x) true) s.
+Proof.
+case: (ltnP x (size s))=>Hx; last first.
+- rewrite drop_oversize; last by rewrite size_take_min geq_min Hx orbT.
+  rewrite -{1}(subnKC Hx) nseqD -catA -{3}(cats0 s) mask_cat; last by rewrite size_nseq.
+  by rewrite mask0 mask_false.
+have Hx': size (nseq x false) = size (take x s).
+- by rewrite size_nseq size_take_min; symmetry; apply/minn_idPl/ltnW.
+rewrite -{2}(cat_take_drop x s) mask_cat // mask_false /= -takeEmask take_drop.
+case: (leqP x y)=>[Hxy|/ltnW Hxy]; first by rewrite subnK.
+move: (Hxy); rewrite -subn_eq0=>/eqP->; rewrite add0n drop_take_id.
+by rewrite drop_oversize // size_take_min geq_min Hxy.
+Qed.
 
 (* convert bound to nat *)
 (* maps -oo -> 0, +oo -> m *)
@@ -470,4 +488,37 @@ rewrite -cats1 slice_cat /= slice1 mem_shl add0n.
 by case: ifP=>_; [rewrite cats1 | rewrite cats0].
 Qed.
 
+(* mask *)
+
+Lemma slice_mask s i :
+        &s i = let x := bnd i.1 (size s) in
+               let y := bnd i.2 (size s) in
+               mask (nseq x false ++
+                     nseq (y-x) true) s.
+Proof. by rewrite /slice /=; case: i=>i j /=; rewrite drop_take_mask. Qed.
+
 End Lemmas.
+
+Section LemmasEq.
+Variable (A : eqType).
+Implicit Type (s : seq A).
+
+(* membership *)
+
+Lemma slice_mem (x : A) s i :
+        uniq s ->
+        (x \in &s i) = (x \in s) && (bnd i.1 (size s) <= index x s < bnd i.2 (size s)).
+Proof.
+move=>H; rewrite slice_mask; case: i=>i j /=.
+rewrite (in_mask _ _ H); case Hx: (x \in s)=>//=.
+rewrite ltEnat leEnat /= nth_cat size_nseq; case: ltngtP=>Hi /=.
+- by rewrite nth_nseq Hi.
+- rewrite nth_nseq if_triv; case: (ltnP (index _ _))=>Hj.
+  - by apply: ltn_sub2r=>//; apply/ltn_trans/Hj.
+  - by apply/negbTE; rewrite -leqNgt; apply/leq_sub2r.
+rewrite -Hi subnn nth0; case: ltnP.
+- by rewrite -subn_gt0; set q := bnd j (size s) - index x s; case: q.
+by rewrite -subn_eq0=>/eqP->.
+Qed.
+
+End LemmasEq.
