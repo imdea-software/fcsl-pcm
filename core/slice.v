@@ -329,98 +329,89 @@ Lemma slice1 (k : A) i :
         &[::k] i = if 0 \in i then [::k] else [::].
 Proof.
 rewrite /slice in_itv /=.
-case: i=>[[[] av|[]]]; case=>[[] bv|[]] //=;
+case: i=>[[[] i|[]][[] j|[]]] //=;
 rewrite ?drop0 ?addn0 ?addn1 ?andbF ?andbT //=.
-- case: bv=>[|bv]/=; first by rewrite ltxx andbF.
-  by rewrite andbT; case: av.
-- by case: av.
-- by case: av.
-- by apply: drop_oversize; rewrite size_take /=; case: ifP=>//; case: bv.
-- by case: bv.
-by case: bv.
+- case: j=>[|j]/=; first by rewrite ltxx andbF.
+  by rewrite andbT; case: i.
+- by case: i.
+- by case: i.
+- by apply: drop_oversize; rewrite size_take /=; case: ifP=>//; case: j.
+- by case: j.
+by case: j.
 Qed.
 
 (* slice and constructors *)
 
 Lemma slice_cat s1 s2 i :
-        &(s1++s2) i = if size s1 \in i
-                        then &s1 i ++ &s2 (shl_itv i (size s1))
-                        else if bnd i.2 (size s1 + size s2) <= size s1
-                          then &s1 i
-                          else &s2 (shl_itv i (size s1)).
+        &(s1++s2) i = &s1 i ++ &s2 (shl_itv i (size s1)).
 Proof.
-rewrite /slice !in_itv /=.
-case: i=>[[[] i|[]]]; case=>[[] j|[]] //=;
-rewrite ?addn0 ?addn1 ?drop0 ?take0 ?take_size ?drop_size
-  ?size_cat ?andbF ?andbT ?leEnat ?ltEnat /= ?if_same //.
+rewrite /slice; case: i=>[[[] i|[]][[] j|[]]] /=;
+rewrite ?addn0 ?addn1 ?take0 ?drop0 ?take_size ?drop_size
+  ?size_cat ?leEnat ?ltEnat //.
 - (* [i, j[ *)
-  case: ifP.
-  - case/andP=>Hi Hj; rewrite take_cat ltnNge (ltnW Hj) /=
-      (take_oversize (n:=j)); last by apply/ltnW.
-    rewrite drop_cat ltn_neqAle Hi andbT /= drop0 leqNgt Hj /= addn0.
-    by case: eqP=>//= ->; rewrite subnn drop0 drop_size.
-  move/negbT; rewrite negb_and -ltnNge -leqNgt take_cat; case/orP=>H.
-  - rewrite (leqNgt i) H /= addn0; case: ltngtP=>//=; last first.
-    - by move=>->; rewrite subnn take0 take_size cats0.
-    by move=>Hj; rewrite addn0 drop_cat ltnNge (ltnW H).
-  rewrite ltn_neqAle H andbT; case: eqP=>//= ->.
-  by rewrite subnn take0 take_size cats0.
+  rewrite take_cat; case: ltnP=>Hj; first by rewrite (ltnW Hj) /= take0 /= cats0.
+  rewrite (leqNgt j) ltn_neqAle Hj andbT negbK (take_oversize (n:=j)) // drop_cat.
+  case: eqP=>[->|_].
+  - rewrite subnn /= take0 /=; case: ltnP=>// Hji.
+    by rewrite cats0 drop_oversize //; apply/leq_trans/Hji.
+  case: ltnP=>Hi; first by rewrite (ltnW Hi) /= addn0 drop0.
+  rewrite (drop_oversize (n:=i)) //= addn0 (leqNgt i) ltn_neqAle Hi andbT negbK.
+  case: eqP=>[->|_] /=; last by rewrite addn0.
+  by rewrite subnn drop0.
 - (* [i, j] *)
-  case: ifP.
-  - case/andP=>Hi Hj; rewrite take_cat subSn // ltnNge (ltnW (n:=j.+1) Hj) /=
-     (take_oversize (n:=j.+1)); last by apply/ltnW.
-    rewrite drop_cat ltn_neqAle Hi andbT /= drop0 leqNgt ltnS Hj /= addn1.
-    by case: eqP=>//=->; rewrite subnn drop0 drop_size.
-  move/negbT; rewrite negb_and -!ltnNge take_cat; case/orP=>H.
-  - rewrite (leqNgt i) H /= addn0; case: ltngtP=>//=; last first.
-    - by move=>->; rewrite subnn take0 take_size cats0.
-    by move=>Hj; rewrite addn1 drop_cat ltnNge (ltnW H) /= subSn.
-  rewrite ltn_neqAle H andbT; case: eqP=>//= ->.
-  by rewrite subnn take0 take_size cats0.
+  rewrite take_cat; case: ltnP=>Hj; first by rewrite (ltnW Hj) /= take0 /= cats0.
+  rewrite (ltnNge j) (take_oversize (n:=j.+1)) // drop_cat.
+  move: Hj; rewrite leq_eqVlt ltnS; case/orP=>[/eqP E|Hj].
+  - rewrite E subnn ltnn take0 /= ltnS; case: leqP=>// Hji.
+    by rewrite cats0 drop_oversize // E.
+  rewrite Hj /= addn1 subSn //; case: ltnP=>Hi; first by rewrite (ltnW Hi) /= drop0.
+  rewrite (drop_oversize (n:=i)) //= (leqNgt i) ltn_neqAle Hi andbT negbK.
+  case: eqP=>[->|_] /=; last by rewrite addn0.
+  by rewrite subnn drop0.
 - (* [i, +oo[ *)
-  rewrite drop_cat; case: ltngtP=>/=[_|Hi|->]; first by rewrite drop0.
-  - rewrite -{3}(addn0 (size s1)) leq_add2l leqn0.
-    case: eqP=>[/eqP/nilP->/=|_]; last by rewrite addn0.
-    by rewrite drop_oversize //; apply: ltnW.
-  by rewrite subnn drop0 drop_size.
+  rewrite drop_cat; case: ltnP=>Hi; first by rewrite (ltnW Hi) /= drop0.
+  rewrite (drop_oversize (n:=i)) //= (leqNgt i) ltn_neqAle Hi andbT negbK.
+  case: eqP=>[->|_] /=; last by rewrite addn0.
+  by rewrite subnn drop0.
 - (* ]i, j[ *)
-  case: ifP.
-  - case/andP=>Hi Hj; rewrite take_cat ltnNge (ltnW Hj) /=
-      (take_oversize (n:=j)); last by apply/ltnW.
-    rewrite drop_cat ltn_neqAle Hi andbT /= drop0 leqNgt Hj /= addn0.
-    by case: eqP=>//= ->; rewrite subnn drop0 drop_size.
-  move/negbT; rewrite negb_and -ltnNge -leqNgt take_cat ltnS; case/orP=>H.
-  - rewrite (ltnNge i) H /= addn1; case: ltngtP=>//=; last first.
-    - by move=>->; rewrite subnn take0 take_size cats0.
-    by move=>Hj; rewrite addn0 drop_cat ltnNge (ltnW (n:=i.+1) H) /= subSn.
-  rewrite ltn_neqAle H andbT; case: eqP=>//= ->.
-  by rewrite subnn take0 take_size cats0.
+  rewrite take_cat; case: ltnP=>Hj; first by rewrite (ltnW Hj) /= take0 /= cats0.
+  rewrite (leqNgt j) (ltn_neqAle _ j) Hj andbT negbK (take_oversize (n:=j)) // drop_cat.
+  case: eqP=>[->|_].
+  - rewrite subnn /= take0 /=; case: ltnP=>// Hji.
+    by rewrite cats0 drop_oversize //; apply/leq_trans/Hji.
+  case: ltnP=>Hi; first by rewrite (ltnW Hi) /= addn0 drop0.
+  rewrite (drop_oversize (n:=i.+1)) //= addn0.
+  move: Hi; rewrite leq_eqVlt ltnS; case/orP=>[/eqP ->|Hi].
+  - by rewrite subnn ltnS leqnn /= drop0.
+  by rewrite ltnNge Hi /= addn1 subSn.
 - (* ]i, j] *)
-  case: ifP.
-  - case/andP=>Hi Hj; rewrite take_cat subSn // ltnNge (ltnW (n:=j.+1) Hj) /=
-     (take_oversize (n:=j.+1)); last by apply/ltnW.
-    rewrite drop_cat ltn_neqAle Hi andbT /= drop0 leqNgt ltnS Hj /= addn1.
-    by case: eqP=>//=->; rewrite subnn drop0 drop_size.
-  move/negbT; rewrite negb_and -!ltnNge take_cat ltnS; case/orP=>H.
-  - rewrite (ltnNge i) H /= addn1; case: ltngtP=>//=; last first.
-    - by move=>->; rewrite subnn take0 take_size cats0.
-    by move=>Hj; rewrite addn1 drop_cat ltnNge (ltnW (n:=i.+1) H) /= !subSn.
-  rewrite ltn_neqAle H andbT; case: eqP=>//= ->.
-  by rewrite subnn take0 take_size cats0.
+  rewrite take_cat; case: ltnP=>Hj; first by rewrite (ltnW Hj) /= take0 /= cats0.
+  rewrite (ltnNge j) (take_oversize (n:=j.+1)) // drop_cat.
+  move: Hj; rewrite leq_eqVlt ltnS; case/orP=>[/eqP E|Hj].
+  - rewrite E subnn ltnn take0 /= ltnS; case: leqP=>// Hji.
+    by rewrite cats0 drop_oversize // E.
+  rewrite Hj /= addn1 subSn //; case: ltnP=>Hi; first by rewrite (ltnW Hi) /= drop0.
+  rewrite (drop_oversize (n:=i.+1)) //=.
+  move: Hi; rewrite leq_eqVlt ltnS; case/orP=>[/eqP ->|Hi].
+  - by rewrite subnn ltnS leqnn /= drop0.
+  by rewrite ltnNge Hi /= addn1 subSn.
 - (* ]i, +oo[ *)
-  rewrite drop_cat; case: ltngtP=>/=[_|Hi|->]; first by rewrite drop0.
-  - rewrite -{3}(addn0 (size s1)) leq_add2l leqn0; case: eqP=>[/eqP/nilP->/=|_].
-    - by rewrite drop_oversize //; apply: ltnW.
-    by rewrite addn1 subSn.
-  by rewrite subnn drop0 drop_size.
+  rewrite drop_cat; case: ltnP=>Hi; first by rewrite (ltnW Hi) /= drop0.
+  rewrite (drop_oversize (n:=i.+1)) //=.
+  move: Hi; rewrite leq_eqVlt ltnS; case/orP=>[/eqP ->|Hi].
+  - by rewrite subnn ltnS leqnn /= drop0.
+  by rewrite ltnNge Hi /= addn1 subSn.
 - (* ]-oo, j[ *)
-  rewrite take_cat; case: ltngtP=>//=[Hj|->].
-  - by rewrite addn0 (take_oversize (n:=j)) //; apply: ltnW.
-  by rewrite subnn take0 take_size cats0.
+  rewrite take_cat; case: ltnP=>Hj; first by rewrite (ltnW Hj) /= take0 /= cats0.
+  rewrite (leqNgt j) (ltn_neqAle _ j) Hj andbT negbK (take_oversize (n:=j)) //.
+  case: eqP=>/= [->|_]; last by rewrite addn0.
+  by rewrite subnn take0.
 - (* ]-oo, j] *)
-  rewrite -ltnS take_cat; case: ltngtP=>//= [Hj|->].
-  - by rewrite addn1 subSn // (take_oversize (n:=j.+1)) //; apply: ltnW.
-  by rewrite subnn take0 take_size cats0.
+  rewrite take_cat; case: ltnP=>Hj; first by rewrite (ltnW Hj) /= take0 /= cats0.
+  rewrite (ltnNge j) (take_oversize (n:=j.+1)) //.
+  move: Hj; rewrite leq_eqVlt ltnS; case/orP=>[/eqP ->|Hj].
+  - by rewrite subnn ltnn take0.
+  by rewrite Hj /= addn1 subSn.
 - (* ]+oo, j[ *)
   rewrite !drop_oversize ?if_same // size_take; case: ltnP=>//=;
   rewrite ?size_cat; try by move/ltnW.
@@ -431,76 +422,52 @@ rewrite ?size_cat; try by move/ltnW.
 by rewrite leqnn.
 Qed.
 
-Lemma slice_cat_inf s1 s2 i :
+Lemma slice_cat_piecewise s1 s2 i :
         &(s1++s2) i = if size s1 \in i
                         then &s1 (Interval i.1 +oo) ++ &s2 (Interval -oo (shl_bnd i.2 (size s1)))
                         else if bnd i.2 (size s1 + size s2) <= size s1
                                then &s1 i
                                else &s2 (shl_itv i (size s1)).
 Proof.
-rewrite slice_cat; case: ifP=>//; case: i=>i j /=.
-rewrite in_itv; case/andP=>Hi Hj.
-rewrite (itv_overR _ (j:=j)); last first.
+rewrite slice_cat; case: i=>i j /=; case: ifP.
+- rewrite in_itv; case/andP=>Hi Hj.
+  rewrite (itv_overR _ (j:=j)); last first.
+  - case: j Hj=>[[] j|[]] //=.
+    - by rewrite addn0; move/ltnW.
+    by rewrite addn1 leEnat; move/(ltnW (n:=j.+1)).
+  rewrite (itv_underL (i:=shl_bnd i _)) //.
+  case: i Hi=>[[] i|[]] //=.
+  - by rewrite addn0 => ->.
+  by rewrite addn1 leEnat ltEnat /= =>->.
+rewrite in_itv=>/negbT; rewrite negb_and=>H.
+case: ifP=>Hj.
+- rewrite (itv_underR (s:=s2)); first by rewrite cats0.
+  case: {H}j Hj=>[[] j|[]] //=.
+  - by rewrite addn0=>->.
+  - by rewrite addn1=>->.
+  by rewrite leEnat -{2}(addn0 (size s1)) leq_add2l leqn0 => /eqP.
+case/orP: H; last first.
 - case: j Hj=>[[] j|[]] //=.
-  - by rewrite addn0; move/ltnW.
-  by rewrite addn1 leEnat; move/(ltnW (n:=j.+1)).
-rewrite (itv_underL (i:=shl_bnd i _)) //.
-case: i Hi=>[[] i|[]] //=.
-- by rewrite addn0 => ->.
-by rewrite addn1 leEnat ltEnat /= =>->.
+  - by rewrite addn0 -leNgt=>->.
+  by rewrite leEnat addn1 -ltnNge =>->.
+case: i=>[[] i|[]] //=; last by rewrite !itv_pinfL.
+- rewrite leEnat addn0 -ltnNge => Hi.
+  rewrite (leqNgt i) Hi /= itv_overL //= addn0 leEnat.
+  by apply: ltnW.
+rewrite ltEnat leEnat /= addn1 -leqNgt => Hi.
+rewrite ltnNge Hi /= itv_overL //= addn1 leEnat.
+by apply: ltnW.
 Qed.
 
 Lemma slice_cons x s i :
         &(x::s) i = if 0 \in i then x::&s (shl_itv i 1) else &s (shl_itv i 1).
-Proof.
-rewrite -cat1s slice_cat /= slice1 add1n.
-case: ifP; first by case: ifP.
-move/negbT; case: i=>i j /=.
-rewrite !in_itv negb_and; case/orP.
-- case: i=>[[] i|[]] //=; last by rewrite itv_pinfL if_same.
-  - (* 1 < i *)
-    rewrite leEnat -ltnNge addn0 leqn0 (leqNgt i)=> Hi.
-    rewrite Hi /= (_ : i == 0 = false) /=; last by case: i Hi.
-    case: ifP=>// Hj; rewrite itv_underR //=.
-    case: j Hj=>/=[[] j|[]]=>//=; last by [case: s];
-    by rewrite leEnat; move=>->.
-  (* 1 <= i *)
-  rewrite ltEnat leEnat /= -leqNgt addn1 (ltnNge i) => Hi /=.
-  rewrite Hi /=; case: ifP=>// Hj.
-  rewrite itv_underR //=.
-  case: j Hj=>/=[[] j|[]]=>//=; last by [case: s];
-  by rewrite leEnat; move=>->.
-case: j=>[[] j|[]] //=; last by move=>_; rewrite andbF itv_minfR.
-- (* j <= 1 *)
-  rewrite leEnat -ltnNge addn0 ltnS; case: j=>/=.
-  - by rewrite ltxx andbF; rewrite itv_minfR.
-  by case=>//= _; rewrite andbT itv_minfR.
-(* j = 0 *)
-rewrite leEnat -ltnNge addn1; case: j=>//= _.
-by rewrite leqnn andbT itv_minfR.
-Qed.
+Proof. by rewrite -cat1s slice_cat /= slice1; case: ifP. Qed.
 
 Lemma slice_rcons x s i :
         &(rcons s x) i = if size s \in i then rcons (&s i) x else &s i.
 Proof.
-rewrite -cats1 slice_cat /= slice1 mem_shl add0n addn1.
-case: ifP; first by move=>->; rewrite cats1.
-move/negbT; case: i=>i j /=.
-rewrite !in_itv negb_and; case/orP.
-- case: i=>[[] i|[]] //=; last by rewrite itv_pinfL if_same.
-  - (* size s < i *)
-    rewrite leEnat -ltnNge (leqNgt i) => Hi.
-    rewrite Hi /=; case: ifP=>// _.
-    by rewrite itv_overL //= addn0; apply/ltnW.
-  (* sizes <= i *)
-  rewrite leEnat ltEnat /= -leqNgt (ltnNge i) => Hi.
-  rewrite Hi /=; case: ifP=>// _.
-  by rewrite itv_overL //= addn1; apply/ltnW.
-case: j=>[[] j|[]] //=.
-- (* j <= size s *)
-  by rewrite ltEnat leEnat /= -leqNgt (ltnNge _ j) addn0 => ->.
-(* j = 0 *)
-by rewrite leEnat -ltnNge (leqNgt _ j) addn1 =>->.
+rewrite -cats1 slice_cat /= slice1 mem_shl add0n.
+by case: ifP=>_; [rewrite cats1 | rewrite cats0].
 Qed.
 
 End Lemmas.
