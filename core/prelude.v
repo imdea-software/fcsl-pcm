@@ -671,6 +671,12 @@ Implicit Type p : seq T.
 
 Definition index_last (x : T) : seq T -> nat := find_last (pred1 x).
 
+Lemma index_last_size x s : index_last x s <= size s.
+Proof. by rewrite /index_last; apply: find_last_size. Qed.
+
+Lemma index_last_mem x s : (index_last x s < size s) = (x \in s).
+Proof. by rewrite /index_last -has_find_last has_pred1. Qed.
+
 Lemma memNindex_last x s : x \notin s -> index_last x s = size s.
 Proof. by rewrite -has_pred1=>/hasNfind_last. Qed.
 
@@ -702,15 +708,19 @@ Proof. by rewrite /index_last find_last_rcons has_pred1 eq_sym. Qed.
 Lemma index_geq x s i : x \in drop i s -> i <= index_last x s.
 Proof. by rewrite -has_pred1; apply: find_geq. Qed.
 
-Lemma index_last_uniq x s : uniq s -> index_last x s = index x s.
+Lemma index_last_count x s : count_mem x s <= 1 -> index_last x s = index x s.
 Proof.
 move=>H; case/boolP: (x \in s)=>Hx; last first.
 - by rewrite (memNindex_last Hx) (memNindex Hx).
-elim: s x H Hx=>//= h t IH x; rewrite index_last_cons inE.
-case/andP=>Hh Ht; case/orP.
-- by move/eqP=>{x}->; rewrite (negbTE Hh) eqxx.
-move=>Hx; rewrite IH // Hx andbF.
-by case: eqP=>// E; rewrite E Hx in Hh.
+elim: s x H Hx=>//= h t IH x; rewrite eq_sym index_last_cons inE.
+case: eqP=>/=?; last by rewrite add0n=> H1 H2; rewrite IH.
+by rewrite -{2}(addn0 1%N) leq_add2l leqn0 =>/eqP /count_memPn ->.
+Qed.
+
+Corollary index_last_uniq x s : uniq s -> index_last x s = index x s.
+Proof.
+move=>H; apply: index_last_count.
+by rewrite count_uniq_mem //; apply: leq_b1.
 Qed.
 
 Variant splitLast x : seq T -> seq T -> seq T -> Type :=
@@ -816,7 +826,7 @@ elim:s t x =>[//|a s IH] [|b t] x H1 H2; first by move: (H2 0 a (erefl _)).
 by case/prefix_cons': H2=><- H2; case: x H1=>[|n] //= H1; apply: IH.
 Qed.
 
-Lemma prefixP s1 s2 : prefix s1 s2 <-> exists s3, s2 = s1 ++ s3.
+Lemma prefixE s1 s2 : prefix s1 s2 <-> exists s3, s2 = s1 ++ s3.
 Proof.
 split; last by case=>s3 ->; apply: prefix_cat.
 elim: s1 s2=>[|x xs IH] s2; first by exists s2.
@@ -834,6 +844,12 @@ Proof.
 by elim: s n=>//= a s IH [[->]|n /IH]; rewrite inE ?eq_refl // orbC => ->.
 Qed.
 
+Lemma prefixP (A : eqType) (s1 s2 : seq A) :
+        reflect (prefix s1 s2) (seq.prefix s1 s2).
+Proof.
+apply/(equivP (seq.prefixP (s1:=s1) (s2:=s2))).
+by apply: iff_sym; exact: prefixE.
+Qed.
 
 (******************************)
 (* Some commuting conversions *)
