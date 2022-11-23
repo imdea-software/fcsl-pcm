@@ -629,6 +629,11 @@ Section LemmasEq.
 Variable (A : eqType).
 Implicit Type (s : seq A).
 
+Lemma eqslice_shl0 q s i : &[q] s i = &[q]{0} s i.
+Proof.
+by rewrite /eq_slice_shl /eq_slice shl_itv0.
+Qed.
+
 (* make these definitions instead? *)
 Lemma mem_ix_itv x s i : mem_ix x s i = (index x s \in ix_itv s i).
 Proof.
@@ -808,144 +813,79 @@ Qed.
 
 (* ... *)
 
+Lemma eqslice_cat_shl s n s1 s2 i :
+        &[s]{n} (s1 ++ s2) i =
+             &[s]{n} s1 i ++ &[s]{n + size s1} s2 i.
+Proof. by rewrite /eq_slice_shl slice_cat shl_itv_add. Qed.
+
 Lemma eqslice_cat s1 s2 i :
         &=(s1 ++ s2) i =
              &[s1 ++ s2] s1 i ++ &[s1 ++ s2]{size s1} s2 i.
-Proof. by rewrite /eq_slice /eq_slice_shl slice_cat. Qed.
-
-(*
-Lemma eqslice_cat3 s1 s2 s3 i :
-        &=(s1++s2++s3) i =
-        &[s1++s2++s3] s1 i ++ &[s1++s2++s3]{size s1} s2 i ++ &[s1++s2++s3]{size s1 + size s2} s3 i.
-Proof.
-rewrite eqslice_cat.
-*)
+Proof. by rewrite eqslice_shl0 eqslice_cat_shl add0n -eqslice_shl0. Qed.
 
 (* cons lemmas *)
 (* TODO unify *)
 
-(*
-Lemma foo x s i : &[x::s]{1} s i = if has_bnd x i.2 then [::]
-                                      else if has_bnd x i.1
-                                            then &=s (Interval -oo i.2)
-                                            else &=s i.
-Proof.
-rewrite /eq_slice_shl /eq_slice.
-case: i=>[[[] i|[]][[] j|[]]] //=.
-- (* [i, j[ *)
-  case/boolP: (x == j)=>/= _.
-  - by rewrite itv_minfR.
-  by rewrite !subn1 /=; case: eqP.
-- (* [i, j] *)
-  rewrite index_last_cons /= (eq_sym j x).
-  case/boolP: (x == j)=>/=.
-  - move/eqP=>->; case: eqP=>/=.
-
-  =>[->|Hxi] /=.
-  case: eqP=>[->|Hxi] /=.
-  - (* x = i *)
-    case: eqP=>/= _.
-    - (* i = j *)
-      by rewrite itv_minfR.
-    (* i != j *)
-    by rewrite subn1 /=.
-  rewrite subn1 /=; case: eqP=>/=[?|Hxj].
-  - by rewrite itv_minfR.
-  by rewrite subn1.
-  last first.
-  - rewrite subn1 /=. case: eqP=>/= Hxj.
-    - rewrite itv_minfR. itv_o.
-  by rewrite subn1.
-
-  - case: eqP=>/=[->|_].
-    - by rewrite itv_minfR slice_kk.
-    by rewrite subn1 /=.
-*)
 Lemma eqslice_cons x s i :
         &=(x::s) i = if mem_ix x (x::s) i
                        then x::&[x::s]{1} s i
                        else    &[x::s]{1} s i.
-Proof.
-by rewrite /eq_slice /eq_slice_shl slice_cons mem_ix_itv /= eqxx.
-Qed.
-(*
-Lemma squx_consE k t s :
-        &=(k::s) `]-oo,t] =
-        k :: if (t != k) || (t \in s) then &= s `]-oo,t] else [::].
-Proof.
-rewrite eqslice_cons /= eqxx index_last_cons /=.
+Proof. by rewrite /eq_slice /eq_slice_shl slice_cons mem_ix_itv /= eqxx. Qed.
 
+Lemma squx_cons_ix k t s :
+        &[k::s]{1}s `]-oo, t] =
+        if (t != k) || (t \in s) then &=s `]-oo, t] else [::].
+Proof.
 rewrite /eq_slice /eq_slice_shl /= index_last_cons.
 case/boolP: ((t == k) && (t \notin s))=>/=.
-- by case/andP=>/eqP->/negbTE->; rewrite eqxx itv_minfR.
+- by case/andP=>/eqP->/negbTE->; rewrite eqxx /= itv_minfR.
 by rewrite negb_and negbK=>->; rewrite subn1.
 Qed.
 
-Lemma squo_consE k t s :
-        &= (k::s) `]-oo,t[ = if t != k then k :: &= s `]-oo,t[ else [::].
+Lemma squo_cons_ix k t s :
+        &[k::s]{1}s `]-oo, t[ =
+        if t != k then &=s `]-oo, t[ else [::].
 Proof.
-rewrite eqslice_cons /= eqxx; case: eqP=>/= [->|/eqP H].
-- by rewrite /eq_slice_shl /= eqxx /=; apply: itv_minfR.
-by rewrite /eq_slice_shl /eq_slice /= (negbTE H) /= subn1 /= eq_sym H.
+rewrite /eq_slice_shl /eq_slice /= eq_sym; case: eqP=>/= _.
+- by rewrite itv_minfR.
+by rewrite subn1 /=.
 Qed.
 
-Lemma sqxu_consE k t s :
-        &= (k::s) `[t,+oo[ = if t != k then &= s `[t,+oo[ else k::s.
+Lemma sqxu_cons_ix k t s :
+        &[k::s]{1}s `[t, +oo[ =
+        if t != k then &=s `[t, +oo[ else s.
 Proof.
-rewrite eqslice_cons /= eqxx eq_sym; case: eqP=>/= _.
-- by rewrite eqslice_uu.
-rewrite leEnat ltnS leqn0; case: ifP=>// /eqP H.
-by rewrite eqsl_underL //= addn0.
-Qed.
-
-Lemma sqou_consE k t s :
-        &= (k::s) `]t,+oo[ = if (t != k) || (t \in s) then &=s `]t,+oo[ else s.
-Proof.
-rewrite eqslice_cons /= eqxx index_last_cons /=.
-case: eqP=>//= _; case/boolP: (t \in s)=>//= _.
-by rewrite eqslice_uu.
-Qed.
-
-*)
-
-Lemma squx_consE k t s :
-        &= (k::s) `]-oo,t] =
-        k :: if (t != k) || (t \in s) then &= s `]-oo,t] else [::].
-Proof.
-rewrite /eq_slice /= index_last_cons slice_cons /=.
-case/boolP: ((t == k) && (t \notin s))=>/=.
-- by case/andP=>/eqP->/negbTE->; rewrite eqxx itv_minfR.
-rewrite negb_and negbK=>->.
-by rewrite subn1.
-Qed.
-
-Lemma squo_consE k t s :
-        &= (k::s) `]-oo,t[ = if t != k then k :: &= s `]-oo,t[ else [::].
-Proof.
-rewrite /eq_slice /= eq_sym slice_cons /=.
-case: eqP=>/= _.
-- by apply: itv_minfR.
-by rewrite subn1.
-Qed.
-
-Lemma sqxu_consE k t s :
-        &= (k::s) `[t,+oo[ = if t != k then &= s `[t,+oo[ else k::s.
-Proof.
-rewrite /eq_slice /= eq_sym slice_cons /=.
-case: eqP=>/= _.
+rewrite /eq_slice_shl /eq_slice /= eq_sym; case: eqP=>/= _.
 - by rewrite slice_uu.
 by rewrite subn1.
 Qed.
 
-Lemma sqou_consE k t s :
-        &= (k::s) `]t,+oo[ = if (t != k) || (t \in s) then &=s `]t,+oo[ else s.
+Lemma sqou_cons_ix k t s :
+        &[k::s]{1}s `]t, +oo[ =
+        if (t != k) || (t \in s) then &=s `]t, +oo[ else s.
 Proof.
-rewrite /eq_slice /= index_last_cons slice_cons /=.
+rewrite /eq_slice_shl /eq_slice /= index_last_cons /=.
 case/boolP: ((t == k) && (t \notin s))=>/=.
 - by case/andP=>/eqP->/negbTE->; rewrite eqxx /= slice_uu.
-rewrite negb_and negbK=>->.
-by rewrite subn1.
+by rewrite negb_and negbK=>->; rewrite subn1.
 Qed.
+
+Corollary squx_consE k t s :
+            &=(k::s) `]-oo,t] =
+            k :: if (t != k) || (t \in s) then &= s `]-oo,t] else [::].
+Proof. by rewrite eqslice_cons /= eqxx index_last_cons /= squx_cons_ix. Qed.
+
+Corollary squo_consE k t s :
+            &= (k::s) `]-oo,t[ = if t != k then k :: &= s `]-oo,t[ else [::].
+Proof. by rewrite eqslice_cons /= eqxx squo_cons_ix eq_sym; case: eqP. Qed.
+
+Corollary sqxu_consE k t s :
+            &= (k::s) `[t,+oo[ = if t != k then &= s `[t,+oo[ else k::s.
+Proof. by rewrite eqslice_cons /= eqxx andbT eq_sym sqxu_cons_ix; case: eqP. Qed.
+
+Corollary sqou_consE k t s :
+            &= (k::s) `]t,+oo[ = if (t != k) || (t \in s) then &=s `]t,+oo[ else s.
+Proof. by rewrite eqslice_cons /= eqxx index_last_cons /= sqou_cons_ix. Qed.
 
 Corollary squx_consLX t s :
             &= (t::s) `]-oo,t] = t :: if t \in s then &=s `]-oo,t] else [::].
