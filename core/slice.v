@@ -82,9 +82,9 @@ Definition slice {A : Type} (s : seq A) (i : interval nat) :=
 
 Arguments slice {A} s i : simpl never.
 
-Notation "& s i" := (slice s i)
+Notation "&: s i" := (slice s i)
  (at level 1, i at next level, s at next level,
-  format "'&' s  i") : fun_scope.
+  format "'&:' s  i") : fun_scope.
 
 (* subtract n from bound, convert values past zero to -oo *)
 Definition shl_bnd (i : itv_bound nat) (n : nat) :=
@@ -177,11 +177,11 @@ Implicit Type (s : seq A).
 
 (* "test" lemmas *)
 Lemma slice_ouou s a b :
-        &s `]a,b[ = &(&s `]-oo,b[) `]a,+oo[.
+        &:s `]a,b[ = &:(&:s `]-oo,b[) `]a,+oo[.
 Proof. by rewrite /slice /= !addn0 drop0 take_size. Qed.
 
 Lemma slice_uouo s a b :
-        &s `]a,b+a] = &(&s `]a,+oo[) `]-oo,b[.
+        &:s `]a,b+a] = &:(&:s `]a,+oo[) `]-oo,b[.
 Proof.
 by rewrite /slice /= !addn1 !addn0 drop0 take_size take_drop addnS.
 Qed.
@@ -190,22 +190,22 @@ Qed.
 
 (* some simplifying equalities on slices *)
 
-Lemma slice_uu s : &s `]-oo, +oo[ = s.
+Lemma slice_uu s : &:s `]-oo, +oo[ = s.
 Proof. by rewrite /slice /= drop0 take_size. Qed.
 
 Lemma itv_underL s (i j : itv_bound nat) :
   bnd i (size s) = 0 ->
-  &s (Interval i j) = &s (Interval -oo j).
+  &:s (Interval i j) = &:s (Interval -oo j).
 Proof. by move=>Hi; rewrite /slice /= Hi drop0. Qed.
 
 Lemma itv_underR s (i j : itv_bound nat) :
   bnd j (size s) = 0 ->
-  &s (Interval i j) = [::].
+  &:s (Interval i j) = [::].
 Proof. by move=>Hj; rewrite /slice /= Hj take0. Qed.
 
 Lemma itv_overL s (i j : itv_bound nat) :
   size s <= bnd i (size s) ->
-  &s (Interval i j) = [::].
+  &:s (Interval i j) = [::].
 Proof.
 move=>Hi /=; rewrite /slice /=; apply: drop_oversize.
 rewrite size_take; case: ifP=>// H.
@@ -214,17 +214,15 @@ Qed.
 
 Lemma itv_overR s (i j : itv_bound nat) :
   size s <= bnd j (size s) ->
-  &s (Interval i j) = &s (Interval i +oo).
-Proof.
-by move=>Hj; rewrite /slice /= take_size take_oversize.
-Qed.
+  &:s (Interval i j) = &:s (Interval i +oo).
+Proof. by move=>Hj; rewrite /slice /= take_size take_oversize. Qed.
 
 Lemma itv_minfR s (i : itv_bound nat) :
-  &s (Interval i -oo) = [::].
+  &:s (Interval i -oo) = [::].
 Proof. by rewrite /slice /= take0. Qed.
 
 Lemma itv_pinfL s (j : itv_bound nat) :
-  &s (Interval +oo j) = [::].
+  &:s (Interval +oo j) = [::].
 Proof.
 rewrite /slice /=; apply: drop_oversize.
 by rewrite size_take_min; apply: geq_minr.
@@ -232,7 +230,7 @@ Qed.
 
 Lemma itv_swapped s (i j : itv_bound nat) :
   bnd j (size s) <= bnd i (size s) ->
-  &s (Interval i j) = [::].
+  &:s (Interval i j) = [::].
 Proof.
 move=>H; rewrite /slice; apply: drop_oversize.
 rewrite size_take_min; apply/leq_trans/H.
@@ -243,7 +241,7 @@ Qed.
 
 Lemma slice_split s b x (i : interval nat) :
   x \in i ->
-  &s i = &s (Interval i.1 (BSide b x)) ++ &s (Interval (BSide b x) i.2).
+  &:s i = &:s (Interval i.1 (BSide b x)) ++ &:s (Interval (BSide b x) i.2).
 Proof.
 case/boolP: (size s <= bnd (BSide b x) (size s)).
 - move=>H; rewrite (itv_overL _ H) cats0 (itv_overR _ H).
@@ -312,15 +310,15 @@ by rewrite cat_take_drop.
 Qed.
 
 (* "test" lemmas *)
-Corollary slice_uxou s i : s = &s `]-oo, i] ++ &s `]i, +oo[.
+Corollary slice_uxou s i : s = &:s `]-oo, i] ++ &:s `]i, +oo[.
 Proof. by rewrite -(slice_split _ _ (i:=`]-oo, +oo[)) // slice_uu. Qed.
 
-Corollary slice_uoxu s i : s = &s `]-oo, i[ ++ &s `[i, +oo[.
+Corollary slice_uoxu s i : s = &:s `]-oo, i[ ++ &:s `[i, +oo[.
 Proof. by rewrite -(slice_split _ _ (i:=`]-oo, +oo[)) // slice_uu. Qed.
 
 Corollary slice_uxox s a b :
             a <= b ->
-            &s `]-oo, b] = &s `]-oo, a] ++ &s `]a, b].
+            &:s `]-oo, b] = &:s `]-oo, a] ++ &:s `]a, b].
 Proof. by move=>Hab; rewrite (slice_split _ false (x:=a)). Qed.
 
 (* ... *)
@@ -328,7 +326,7 @@ Proof. by move=>Hab; rewrite (slice_split _ false (x:=a)). Qed.
 (* singleton slice *)
 
 Lemma slice_kk s k l r :
-        &s (Interval (BSide l k) (BSide r k)) =
+        &:s (Interval (BSide l k) (BSide r k)) =
         if l && ~~ r then oapp (cons^~ [::]) [::] (onth s k) else [::].
 Proof.
 rewrite /slice /=; case: (onth_sizeP s k)=>[|v] H; rewrite H /=.
@@ -349,25 +347,25 @@ Qed.
 
 (* "test" lemmas *)
 Corollary slice_kkxx s k :
-            &s `[k, k] = oapp (cons^~ [::]) [::] (onth s k).
+            &:s `[k, k] = oapp (cons^~ [::]) [::] (onth s k).
 Proof. by rewrite slice_kk. Qed.
 
-Corollary slice_kkxo s k : &s `[k,k[ = [::].
+Corollary slice_kkxo s k : &:s `[k,k[ = [::].
 Proof. by rewrite slice_kk. Qed.
 
-Corollary slice_kkox s k :&s `]k,k] = [::].
+Corollary slice_kkox s k : &:s `]k,k] = [::].
 Proof. by rewrite slice_kk. Qed.
 
-Corollary slice_kkoo s k : &s `]k,k[ = [::].
+Corollary slice_kkoo s k : &:s `]k,k[ = [::].
 Proof. by rewrite slice_kk. Qed.
 
 (* endpoint split *)
 
 Lemma slice_xR a x s :
         a <= BLeft x ->
-        &s (Interval a (BRight x)) =
-        oapp (rcons (&s (Interval a (BLeft x))))
-                    (&s (Interval a +oo))
+        &:s (Interval a (BRight x)) =
+        oapp (rcons (&:s (Interval a (BLeft x))))
+                    (&:s (Interval a +oo))
              (onth s x).
 Proof.
 move=>Hax; rewrite (slice_split _ true (x:=x)) /=; last first.
@@ -381,8 +379,8 @@ Qed.
 
 Lemma slice_xL b x s :
         BRight x <= b ->
-        &s (Interval (BLeft x) b) =
-        oapp (cons^~ (&s (Interval (BRight x) b)))
+        &:s (Interval (BLeft x) b) =
+        oapp (cons^~ (&:s (Interval (BRight x) b)))
                      [::]
              (onth s x).
 Proof.
@@ -397,7 +395,7 @@ Qed.
 (* slice of empty list *)
 
 Lemma slice0 i :
-        &([::] : seq A) i = [::].
+        &:([::] : seq A) i = [::].
 Proof.
 by rewrite /slice /=; case: i=>[[[] av|[]]]; case=>[[] bv|[]].
 Qed.
@@ -405,7 +403,7 @@ Qed.
 (* slice of one-element list *)
 
 Lemma slice1 (k : A) i :
-        &[::k] i = if 0 \in i then [::k] else [::].
+        &:[::k] i = if 0 \in i then [::k] else [::].
 Proof.
 rewrite /slice in_itv /=.
 case: i=>[[[] i|[]][[] j|[]]] //=;
@@ -422,7 +420,7 @@ Qed.
 (* slice and constructors *)
 
 Lemma slice_cat s1 s2 i :
-        &(s1++s2) i = &s1 i ++ &s2 (shl_itv i (size s1)).
+        &:(s1++s2) i = &:s1 i ++ &:s2 (shl_itv i (size s1)).
 Proof.
 rewrite /slice; case: i=>[[[] i|[]][[] j|[]]] /=;
 rewrite ?addn0 ?addn1 ?take0 ?drop0 ?take_size ?drop_size
@@ -482,11 +480,11 @@ by rewrite !drop_oversize // size_take_min ?size_cat; apply: geq_minr.
 Qed.
 
 Lemma slice_cat_piecewise s1 s2 i :
-        &(s1++s2) i = if size s1 \in i
-                        then &s1 (Interval i.1 +oo) ++ &s2 (Interval -oo (shl_bnd i.2 (size s1)))
+        &:(s1++s2) i = if size s1 \in i
+                        then &:s1 (Interval i.1 +oo) ++ &:s2 (Interval -oo (shl_bnd i.2 (size s1)))
                         else if bnd i.2 (size s1 + size s2) <= size s1
-                               then &s1 i
-                               else &s2 (shl_itv i (size s1)).
+                               then &:s1 i
+                               else &:s2 (shl_itv i (size s1)).
 Proof.
 rewrite slice_cat; case: i=>i j /=; case: ifP.
 - rewrite in_itv; case/andP=>Hi Hj.
@@ -520,11 +518,11 @@ by apply: ltnW.
 Qed.
 
 Lemma slice_cons x s i :
-        &(x::s) i = if 0 \in i then x::&s (shl_itv i 1) else &s (shl_itv i 1).
+        &:(x::s) i = if 0 \in i then x::&:s (shl_itv i 1) else &:s (shl_itv i 1).
 Proof. by rewrite -cat1s slice_cat /= slice1; case: ifP. Qed.
 
 Lemma slice_rcons x s i :
-        &(rcons s x) i = if size s \in i then rcons (&s i) x else &s i.
+        &:(rcons s x) i = if size s \in i then rcons (&:s i) x else &:s i.
 Proof.
 rewrite -cats1 slice_cat slice1 mem_shl addn0.
 by case: ifP=>_; [rewrite cats1 | rewrite cats0].
@@ -533,13 +531,15 @@ Qed.
 (* mask *)
 
 Lemma slice_mask s i :
-        &s i = let x := bnd i.1 (size s) in
+        &:s i = let x := bnd i.1 (size s) in
                let y := bnd i.2 (size s) in
                mask (nseq x false ++
                      nseq (y-x) true) s.
 Proof. by rewrite /slice /=; case: i=>i j /=; rewrite drop_take_mask. Qed.
 
 End Lemmas.
+
+Variant abs_itv A := AbsItv of interval A & seq A & nat.
 
 Definition ix_bnd {A : eqType} (s : seq A) (i : itv_bound A) : itv_bound nat :=
   match i with
@@ -563,6 +563,7 @@ Definition has_itv {A : eqType} (x : A) (i : interval A) : bool :=
   has_bnd x l || has_bnd x u.
 *)
 
+(*
 Definition mem_ix {A : eqType} x (s : seq A) (i : interval A) :=
   let: Interval l u := i in
   match l with
@@ -588,7 +589,7 @@ Definition mem_ix_last {A : eqType} x (s : seq A) (i : interval A) :=
                           else index_last x s < index ub s
   | BInfty b => ~~ b
   end.
-
+*)
 (*
 Definition shl_ix_bnd {A : eqType} (s : seq A) (i : itv_bound A) n : itv_bound A :=
   match i with
@@ -601,19 +602,20 @@ Definition shl_ix_itv {A : eqType} (s : seq A) (i : interval A) (n : nat) :=
   let: Interval l u := i in
   Interval (shl_ix_bnd s l n) (shl_ix_bnd s u n).
 *)
-
+(*
 Definition eq_slice_shl {A : eqType} (s q : seq A) n (i : interval A) :=
   slice s (shl_itv (ix_itv q i) n).
 
 Notation "&[ q ]{ n } s i" := (eq_slice_shl s q n i)
  (at level 1, i at next level, s at next level,
   format "&[ q ]{ n } s  i") : fun_scope.
-
+*)
   (*
 Notation "&={ n } s i" := (eq_slice_shl s s n i)
  (at level 1, i at next level, s at next level,
   format "&={ n } s  i") : fun_scope.
 *)
+(*
 Definition eq_slice {A : eqType} (s q : seq A) (i : interval A) :=
   slice s (ix_itv q i).
 
@@ -624,11 +626,52 @@ Notation "&[ q ] s i" := (eq_slice s q i)
 Notation "&= s i" := (eq_slice s s i)
  (at level 1, i at next level, s at next level,
   format "&= s  i") : fun_scope.
+*)
+
+Definition support_abs_itv A (i : abs_itv A) (s : seq A) : abs_itv A :=
+  let: AbsItv i _ n := i in
+  AbsItv i s n.
+
+Definition shl_abs_itv A (i : abs_itv A) (m : nat) : abs_itv A :=
+  let: AbsItv i q n := i in
+  AbsItv i q (n + m).
+
+Definition interp {A : eqType} (i : abs_itv A) : interval nat :=
+  let: AbsItv i q n := i in
+  shl_itv (ix_itv q i) n.
+
+Definition eq_slice {A : eqType} (s : seq A) (i : abs_itv A) :=
+  slice s (interp i).
+
+Definition mem_ix {A : eqType} x (s : seq A) (i : abs_itv A) :=
+  index x s \in interp i.
+
+Definition mem_ix_last {A : eqType} x (s : seq A) (i : abs_itv A) :=
+  index_last x s \in interp i.
+
+(*
+Notation "&[ q ] s i" := (eq_slice s q i)
+ (at level 1, i at next level, s at next level,
+  format "&[ q ] s  i") : fun_scope.
+*)
+
+Notation "&= s i" := (eq_slice s i)
+ (at level 1, i at next level, s at next level,
+  format "&= s  i") : fun_scope.
+
+Notation "&% s i" := (eq_slice s (AbsItv i s 0))
+ (at level 1, i at next level, s at next level,
+  format "&% s  i") : fun_scope.
 
 Section LemmasEq.
 Variable (A : eqType).
 Implicit Type (s : seq A).
 
+Lemma interp_shl (i : abs_itv A) n : shl_itv (interp i) n = interp (shl_abs_itv i n).
+Proof. by case: i=>/= i s m; rewrite shl_itv_add. Qed.
+
+
+(*
 Lemma eqslice_shl0 q s i : &[q] s i = &[q]{0} s i.
 Proof.
 by rewrite /eq_slice_shl /eq_slice shl_itv0.
@@ -646,6 +689,7 @@ Proof.
 rewrite in_itv.
 by case: i=>[[[] i|[]][[] j|[]]].
 Qed.
+*)
 (*
 Lemma shl_ix_bnd1 x s i : shl_bnd (ix_bnd (x::s) i) 1 = ix_bnd s (shl_ix_bnd (x::s) i 1%N).
 Proof.
@@ -708,7 +752,7 @@ case: i=>i j /=.
 
 Lemma slice_mem (x : A) s i :
         (count_mem x s <= 1)%N ->
-        (x \in &s i) = (x \in s) && (bnd i.1 (size s) <= index x s < bnd i.2 (size s)).
+        (x \in &:s i) = (x \in s) && (bnd i.1 (size s) <= index x s < bnd i.2 (size s)).
 Proof.
 move=>H; rewrite slice_mask; case: i=>i j /=.
 rewrite (in_mask_count _ H); case Hx: (x \in s)=>//=.
@@ -735,84 +779,106 @@ case: i=>[[[] i|[]][[] j|[]]] /=.
 *)
 
 Lemma eqslice_uu s :
-        &=s `]-oo,+oo[ = s.
+        &%s `]-oo,+oo[ = s.
 Proof. by exact: slice_uu. Qed.
 
 Lemma eqslice_notinL y b t s : t \notin s ->
-        &=s (Interval (BSide b t) y) = [::].
+        &%s (Interval (BSide b t) y) = [::].
 Proof.
-move=>T; rewrite /eq_slice /=.
+move=>T; rewrite /eq_slice /= shl_bnd0 subn0.
 apply: itv_overL; rewrite /= (memNindex T) (memNindex_last T) if_same.
 by apply: leq_addr.
 Qed.
 
 Lemma eqslice_notinR x b t s : t \notin s ->
-        &=s (Interval x (BSide b t)) = &=s (Interval x +oo).
+        &%s (Interval x (BSide b t)) = &%s (Interval x +oo).
 Proof.
-move=>T; rewrite /eq_slice /=.
+move=>T; rewrite /eq_slice /= shl_bnd0 subn0.
 apply: itv_overR; rewrite /= (memNindex T) (memNindex_last T) if_same.
 by apply: leq_addr.
 Qed.
 
 Lemma eqsl_underL s (i j : itv_bound A) :
   bnd (ix_bnd s i) (size s) = 0 ->
-  &=s (Interval i j) = &=s (Interval -oo j).
-Proof. by move=>Hi; rewrite /eq_slice /= itv_underL. Qed.
+  &%s (Interval i j) = &%s (Interval -oo j).
+Proof. by move=>Hi; rewrite /eq_slice /= itv_underL shl_bnd0. Qed.
 
 Lemma eqsl_underR s (i j : itv_bound A) :
   bnd (ix_bnd s j) (size s) = 0 ->
-  &=s (Interval i j) = [::].
-Proof. by move=>Hj; rewrite /eq_slice /= itv_underR. Qed.
+  &%s (Interval i j) = [::].
+Proof. by move=>Hj; rewrite /eq_slice /= itv_underR // shl_bnd0. Qed.
+
+Lemma eqsl_overL s (i j : itv_bound A) :
+  size s <= bnd (ix_bnd s i) (size s) ->
+  &%s (Interval i j) = [::].
+Proof. by move=>Hj; rewrite /eq_slice itv_overL // shl_bnd0. Qed.
+
+Lemma eqsl_overR s (i j : itv_bound A) :
+  size s <= bnd (ix_bnd s j) (size s) ->
+  &%s (Interval i j) = &%s (Interval i +oo).
+Proof. by move=>Hj; rewrite /eq_slice itv_overR // shl_bnd0. Qed.
 
 Lemma eqsl_minfR s (i : itv_bound A) :
-  &=s (Interval i -oo) = [::].
+  &%s (Interval i -oo) = [::].
 Proof. by rewrite /eq_slice /=; apply: itv_minfR. Qed.
 
 Lemma eqsl_pinfL s (j : itv_bound A) :
-  &=s (Interval +oo j) = [::].
+  &%s (Interval +oo j) = [::].
 Proof. by rewrite /eq_slice /=; apply: itv_pinfL. Qed.
 
+Lemma eqsliceRO_notin s x a :
+        x \notin &%s (Interval a (BLeft x)).
+Proof.
+rewrite /eq_slice /slice /= addn0 shl_bnd0 subn0.
+apply/negP=>/mem_drop; apply/negP.
+by apply: mem_take_index.
+Qed.
+
+Lemma eqsliceLO_notin s x b :
+        x \notin &%s (Interval (BRight x) b).
+Proof.
+rewrite /eq_slice /slice /= addn1 shl_bnd0 subn0.
+by move: (mem_drop_index_last x s); apply/contra/prefix_drop_sub/prefix_take.
+Qed.
+
+
 Lemma eqslice0 i :
-        &=([::] : seq A) i = [::].
+        &%([::] : seq A) i = [::].
 Proof. by apply: slice0. Qed.
 
 (* eqslice of one-element list *)
 
 Lemma eqslice1 (k : A) i :
         &=[::k] i = if mem_ix k [::k] i then [::k] else [::].
-Proof. by rewrite /eq_slice slice1 mem_ix_itv /= eqxx. Qed.
+Proof.
+rewrite /mem_ix /eq_slice; case: i=>i q b /=.
+by rewrite slice1 /= eqxx.
+Qed.
 
 Corollary eqslice1uR (k : A) b t :
-            &=[::k] (Interval -oo (BSide b t)) = if ~~ b || (t!=k) then [::k] else [::].
+            &%[::k] (Interval -oo (BSide b t)) = if ~~ b || (t!=k) then [::k] else [::].
 Proof.
-rewrite eqslice1 /= eqxx index_last_cons index_last0 /= andbT eq_sym.
+rewrite eqslice1 /= /mem_ix /= eqxx index_last_cons index_last0 /= andbT eq_sym.
 by case: b=>//=; case: eqP.
 Qed.
 
 Corollary eqslice1uL (k : A) b t :
-            &=[::k] (Interval (BSide b t) +oo) = if b && (t==k) then [::k] else [::].
+            &%[::k] (Interval (BSide b t) +oo) = if b && (t==k) then [::k] else [::].
 Proof.
-rewrite eqslice1 /= eqxx index_last_cons index_last0 /= !andbT eq_sym.
+rewrite eqslice1 /= /mem_ix /= eqxx index_last_cons index_last0 /= !andbT eq_sym.
 by case: b=>//=; case: eqP.
-Qed.
-
-Lemma eqsliceRO_notin s x a :
-        x \notin &=s (Interval a (BLeft x)).
-Proof.
-rewrite /eq_slice /slice /= addn0.
-apply/negP=>/mem_drop; apply/negP.
-by apply: mem_take_index.
-Qed.
-
-Lemma eqsliceLO_notin s x b :
-        x \notin &=s (Interval (BRight x) b).
-Proof.
-rewrite /eq_slice /slice /= addn1.
-by move: (mem_drop_index_last x s); apply/contra/prefix_drop_sub/prefix_take.
 Qed.
 
 (* ... *)
 
+Lemma eqslice_cat s1 s2 i :
+        &=(s1 ++ s2) i =
+             &= s1 i ++ &=s2 (shl_abs_itv i (size s1)).
+Proof.
+rewrite /eq_slice; case:i => i q n /=.
+by rewrite slice_cat shl_itv_add.
+Qed.
+(*
 Lemma eqslice_cat_shl s n s1 s2 i :
         &[s]{n} (s1 ++ s2) i =
              &[s]{n} s1 i ++ &[s]{n + size s1} s2 i.
@@ -822,151 +888,154 @@ Lemma eqslice_cat s1 s2 i :
         &=(s1 ++ s2) i =
              &[s1 ++ s2] s1 i ++ &[s1 ++ s2]{size s1} s2 i.
 Proof. by rewrite eqslice_shl0 eqslice_cat_shl add0n -eqslice_shl0. Qed.
-
+*)
 (* cons lemmas *)
 (* TODO unify *)
 
 Lemma eqslice_cons x s i :
         &=(x::s) i = if mem_ix x (x::s) i
-                       then x::&[x::s]{1} s i
-                       else    &[x::s]{1} s i.
-Proof. by rewrite /eq_slice /eq_slice_shl slice_cons mem_ix_itv /= eqxx. Qed.
+                       then x::&=s (shl_abs_itv i 1)
+                       else    &=s (shl_abs_itv i 1).
+Proof. by rewrite /eq_slice /mem_ix /= slice_cons /= eqxx interp_shl. Qed.
 
-Lemma squx_cons_ix k t s :
-        &[k::s]{1}s `]-oo, t] =
-        if (t != k) || (t \in s) then &=s `]-oo, t] else [::].
+(* cons/infty normalization *)
+
+Lemma squr_cons_ix k b t s :
+        &=s (AbsItv (Interval -oo (BSide b t)) (k::s) 1) =
+        if (t != k) || (~~ b && (t \in s)) then &%s (Interval -oo (BSide b t)) else [::].
 Proof.
-rewrite /eq_slice /eq_slice_shl /= index_last_cons.
-case/boolP: ((t == k) && (t \notin s))=>/=.
-- by case/andP=>/eqP->/negbTE->; rewrite eqxx /= itv_minfR.
-by rewrite negb_and negbK=>->; rewrite subn1.
+rewrite /eq_slice /= subn0 index_last_cons eq_sym.
+case: eqP=>/= ?; last by rewrite -fun_if /= subn1.
+case/boolP: (t \in s)=> H /=; last first.
+- by rewrite andbF if_same /= itv_minfR.
+by rewrite andbT; case: b=>/=; [rewrite itv_minfR | rewrite subn1].
 Qed.
 
-Lemma squo_cons_ix k t s :
-        &[k::s]{1}s `]-oo, t[ =
-        if t != k then &=s `]-oo, t[ else [::].
+Lemma squl_cons_ix k b t s :
+        &=s (AbsItv (Interval (BSide b t) +oo) (k::s) 1) =
+        if (t != k) || (~~ b && (t \in s)) then &%s (Interval (BSide b t) +oo) else s.
 Proof.
-rewrite /eq_slice_shl /eq_slice /= eq_sym; case: eqP=>/= _.
-- by rewrite itv_minfR.
-by rewrite subn1 /=.
-Qed.
-
-Lemma sqxu_cons_ix k t s :
-        &[k::s]{1}s `[t, +oo[ =
-        if t != k then &=s `[t, +oo[ else s.
-Proof.
-rewrite /eq_slice_shl /eq_slice /= eq_sym; case: eqP=>/= _.
-- by rewrite slice_uu.
-by rewrite subn1.
-Qed.
-
-Lemma sqou_cons_ix k t s :
-        &[k::s]{1}s `]t, +oo[ =
-        if (t != k) || (t \in s) then &=s `]t, +oo[ else s.
-Proof.
-rewrite /eq_slice_shl /eq_slice /= index_last_cons /=.
-case/boolP: ((t == k) && (t \notin s))=>/=.
-- by case/andP=>/eqP->/negbTE->; rewrite eqxx /= slice_uu.
-by rewrite negb_and negbK=>->; rewrite subn1.
+rewrite /eq_slice /= subn0 index_last_cons eq_sym.
+case: eqP=>/= ?; last by rewrite -fun_if /= subn1.
+case/boolP: (t \in s)=> H /=; last first.
+- by rewrite andbF if_same /= slice_uu.
+by rewrite andbT; case: b=>/=; [rewrite slice_uu | rewrite subn1].
 Qed.
 
 Corollary squx_consE k t s :
-            &=(k::s) `]-oo,t] =
-            k :: if (t != k) || (t \in s) then &= s `]-oo,t] else [::].
-Proof. by rewrite eqslice_cons /= eqxx index_last_cons /= squx_cons_ix. Qed.
+            &%(k::s) `]-oo,t] =
+            k :: if (t != k) || (t \in s) then &%s `]-oo,t] else [::].
+Proof. by rewrite eqslice_cons /mem_ix /= eqxx /= add0n squr_cons_ix. Qed.
 
 Corollary squo_consE k t s :
-            &= (k::s) `]-oo,t[ = if t != k then k :: &= s `]-oo,t[ else [::].
-Proof. by rewrite eqslice_cons /= eqxx squo_cons_ix eq_sym; case: eqP. Qed.
+            &%(k::s) `]-oo,t[ = if t != k then k :: &%s `]-oo,t[ else [::].
+Proof. by rewrite eqslice_cons /mem_ix /= eqxx squr_cons_ix eq_sym; case: eqP. Qed.
 
 Corollary sqxu_consE k t s :
-            &= (k::s) `[t,+oo[ = if t != k then &= s `[t,+oo[ else k::s.
-Proof. by rewrite eqslice_cons /= eqxx andbT eq_sym sqxu_cons_ix; case: eqP. Qed.
+            &%(k::s) `[t,+oo[ = if t != k then &%s `[t,+oo[ else k::s.
+Proof. by rewrite eqslice_cons /mem_ix /= eqxx subn0 /= squl_cons_ix eq_sym; case: eqP. Qed.
 
 Corollary sqou_consE k t s :
-            &= (k::s) `]t,+oo[ = if (t != k) || (t \in s) then &=s `]t,+oo[ else s.
-Proof. by rewrite eqslice_cons /= eqxx index_last_cons /= sqou_cons_ix. Qed.
+            &%(k::s) `]t,+oo[ = if (t != k) || (t \in s) then &%s `]t,+oo[ else s.
+Proof. by rewrite eqslice_cons /mem_ix /= eqxx index_last_cons /= squl_cons_ix. Qed.
 
 Corollary squx_consLX t s :
-            &= (t::s) `]-oo,t] = t :: if t \in s then &=s `]-oo,t] else [::].
+            &%(t::s) `]-oo,t] = t :: if t \in s then &%s `]-oo,t] else [::].
 Proof. by rewrite squx_consE eqxx. Qed.
 
 Corollary squo_consL t s :
-            &= (t::s) `]-oo,t[ = [::].
+            &%(t::s) `]-oo,t[ = [::].
 Proof. by rewrite squo_consE eqxx. Qed.
 
 Corollary sqxu_consL t s :
-            &= (t::s) `[t,+oo[ = t::s.
+            &%(t::s) `[t,+oo[ = t::s.
 Proof. by rewrite sqxu_consE eqxx. Qed.
 
 Corollary sqou_consLX t s :
-            &= (t::s) `]t,+oo[ = if t \in s then &=s `]t,+oo[ else s.
+            &%(t::s) `]t,+oo[ = if t \in s then &%s `]t,+oo[ else s.
 Proof. by rewrite sqou_consE eqxx. Qed.
 
 (* rcons lemmas *)
 (* TODO unify *)
 
-(*
 Lemma eqslice_rcons x s i :
-        &=(rcons s x) i = if mem_ix_last x (rcons s x) i then rcons (&=s i) x else &=s i.
+        &=(rcons s x) i =
+        if mem_ix_last x (rcons s x) i then rcons (&=s i) x
+                                       else        &=s i.
+Proof. by rewrite /eq_slice slice_rcons /mem_ix_last /= index_last_rcons eqxx. Qed.
+
+(* rcons/infty normalization *)
+
+Lemma squr_rcons_ix k b t s :
+        &=s (AbsItv (Interval -oo (BSide b t)) (rcons s k) 0) =
+        if (t \in s) && (~~ b ==> (t != k)) then &%s (Interval -oo (BSide b t)) else s.
 Proof.
-rewrite /eq_slice slice_rcons mem_ix_last_itv index_last_rcons eqxx.
-*)
+rewrite /eq_slice /= !subn0 index_rcons index_last_rcons.
+case/boolP: (t \in s)=> H/=; last first.
+- rewrite if_same itv_overR /=; first by apply: slice_uu.
+  by rewrite leEnat -addn1; case: eqP=>/= _; rewrite -?addnA; apply: leq_addr.
+case: eqP=>/= _; last by rewrite implybT.
+rewrite implybF negbK /=; case: b=>//=.
+rewrite itv_overR /=; first by apply: slice_uu.
+by rewrite addn1.
+Qed.
+
+Lemma squl_rcons_ix k b t s :
+        &=s (AbsItv (Interval (BSide b t) +oo) (rcons s k) 0) =
+        if (t \in s) && (~~ b ==> (t != k)) then &%s (Interval (BSide b t) +oo) else [::].
+Proof.
+rewrite /eq_slice /= !subn0 index_rcons index_last_rcons.
+case/boolP: (t \in s)=> H/=; last first.
+- rewrite if_same itv_overL //= leEnat -addn1.
+  by case: eqP=>/= _; rewrite -?addnA; apply: leq_addr.
+case: eqP=>/= _; last by rewrite implybT.
+rewrite implybF negbK /=; case: b=>//=.
+by rewrite itv_overL //= addn1.
+Qed.
 
 Lemma squx_rconsE k t s :
-        &= (rcons s k) `]-oo,t] =
-        if (t != k) && (t \in s) then &= s `]-oo,t] else rcons s k.
+        &% (rcons s k) `]-oo,t] =
+        if (t != k) && (t \in s) then &%s `]-oo,t] else rcons s k.
 Proof.
-rewrite /eq_slice /= index_last_rcons slice_rcons /=.
-case/boolP: ((t != k) && (t \notin s))=>/=.
-- case/andP=>/negbTE->/negbTE-> /=.
-  rewrite in_itv /= leEnat leqnSn.
-  rewrite itv_overR /=; last by rewrite leEnat addn1 -addn2; apply: leq_addr.
-  by rewrite slice_uu.
-rewrite negb_and !negbK; case: eqP=>/=[{k}<- _|_ Ht].
-- rewrite in_itv /= lexx itv_overR /=; last by rewrite addn1.
-  by rewrite slice_uu.
-by rewrite Ht in_itv /= leEnat leqNgt index_last_mem Ht.
+rewrite eqslice_rcons /mem_ix_last /= subn0 !index_last_rcons eqxx
+  squr_rcons_ix in_itv /= leEnat.
+case: eqP=>/= _; first by rewrite andbF leqnn.
+rewrite andbT; case/boolP: (t \in s)=> H/=; last by rewrite leqnSn.
+by rewrite leqNgt index_last_mem H.
 Qed.
 
 Lemma squo_rconsE k t s :
-        &= (rcons s k) `]-oo,t[ =
-        if t \in s then &= s `]-oo,t[ else
-          if t != k then rcons s k else s.
+        &% (rcons s k) `]-oo,t[ =
+        if (t == k) || (t \in s) then &%s `]-oo,t[ else rcons s k.
 Proof.
-rewrite /eq_slice /= index_rcons slice_rcons /= in_itv /= ltEnat /=.
-case/boolP: (t \in s)=>Ht.
-- by rewrite ltnNge leq_eqVlt negb_or index_mem Ht andbF.
-case: eqP=>[{k}<-|_].
-- rewrite ltnn itv_overR /=; last by rewrite addn0.
-  by rewrite slice_uu.
-rewrite ltnS leqnn itv_overR /=; last by rewrite addn0 leEnat.
-by rewrite slice_uu.
+rewrite eqslice_rcons /mem_ix_last /= subn0 index_rcons index_last_rcons eqxx
+  squr_rcons_ix in_itv /= ltEnat /=.
+case/boolP: (t \in s)=> H/=; first by rewrite ltnNge index_size /= orbT.
+case: eqP=>/= _; last by rewrite ltnS leqnn.
+rewrite ltnn eqsl_overR /=; first by rewrite eqslice_uu.
+by rewrite addn0 (memNindex H).
 Qed.
 
 Lemma sqxu_rconsE k t s :
-        &= (rcons s k) `[t,+oo[ = if t \in s then rcons (&= s `[t,+oo[) k
-                                    else if t != k then [::] else [::k].
+        &% (rcons s k) `[t,+oo[ =
+        if (t == k) || (t \in s) then rcons (&% s `[t,+oo[) k else [::].
 Proof.
-rewrite /eq_slice /= index_rcons slice_rcons /= in_itv /= andbT leEnat.
-case/boolP: (t \in s)=>Ht.
-- by rewrite index_size.
-case: eqP=>[{k}<-|_].
-- by rewrite leqnn /= itv_overL //= addn0.
-by rewrite ltnn /= itv_overL //= leEnat addn0.
+rewrite eqslice_rcons /mem_ix_last /= subn0 index_last_rcons index_rcons eqxx
+  squl_rcons_ix in_itv /= andbT leEnat.
+case/boolP: (t \in s)=> H/=; first by rewrite orbT index_size.
+rewrite orbF; case: eqP=>/= _; last by rewrite ltnn.
+by rewrite leqnn eqsl_overL //= addn0 leEnat (memNindex H).
 Qed.
 
 Lemma sqou_rconsE k t s :
-        &= (rcons s k) `]t,+oo[ = if (t != k) && (t \in s) then rcons (&= s `]t,+oo[) k
-                                    else [::].
+        &% (rcons s k) `]t,+oo[ =
+        if (t != k) && (t \in s) then rcons (&% s `]t,+oo[) k else [::].
 Proof.
-rewrite /eq_slice /= index_last_rcons /= slice_rcons in_itv /= andbT.
-case/boolP: ((t != k) && (t \in s))=>/=.
-- by case/andP=>/negbTE-> H; rewrite H ltEnat /= index_last_mem H.
-rewrite negb_and !negbK; case: eqP=>/=[{k}<- _|_ Ht].
-- by rewrite ltxx itv_overL //= addn1.
-rewrite (negbTE Ht) ltEnat /= ltnNge leqnSn /= itv_overL //= addn1 leEnat -addn2.
-by apply: leq_addr.
+rewrite eqslice_rcons /mem_ix_last /= subn0 !index_last_rcons eqxx
+  squl_rcons_ix in_itv /= andbT ltEnat /=.
+case: eqP=>/= _; first by rewrite andbF ltnn.
+rewrite andbT; case/boolP: (t \in s)=> H/=; last by rewrite ltnNge leqnSn.
+by rewrite index_last_mem H.
 Qed.
 
 (* intervals and filter *)
@@ -974,12 +1043,12 @@ Qed.
 (* TODO unify *)
 Lemma eqsl_filterL (p : pred A) b (y : A) s :
         (y \notin s) || p y ->
-        &= (filter p s) (Interval -oo (BSide b y)) = filter p (&= s (Interval -oo (BSide b y))).
+        &% (filter p s) (Interval -oo (BSide b y)) = filter p (&% s (Interval -oo (BSide b y))).
 Proof.
 case/orP=>Ht.
 - rewrite !eqslice_notinR //=; first by rewrite !eqslice_uu.
   by rewrite mem_filter negb_and Ht orbT.
-rewrite /eq_slice /slice /= !drop0.
+rewrite /eq_slice /slice /= !drop0 !subn0.
 case: b=>/=.
 - rewrite !addn0; elim: s=>//=h s IH.
   case/boolP: (h == y)=>[{h}/eqP->|H] /=.
@@ -997,11 +1066,11 @@ Qed.
 
 Lemma eqsl_filterR (p : pred A) b (x : A) s :
         (x \notin s) || p x ->
-        &= (filter p s) (Interval (BSide b x) +oo) = filter p (&= s (Interval (BSide b x) +oo)).
+        &% (filter p s) (Interval (BSide b x) +oo) = filter p (&% s (Interval (BSide b x) +oo)).
 Proof.
 case/orP=>Ht.
 - by rewrite !eqslice_notinL //= mem_filter negb_and Ht orbT.
-rewrite /eq_slice /slice /= !take_size.
+rewrite /eq_slice /slice /= !take_size !subn0.
 case: b=>/=.
 - rewrite !addn0; elim: s=>//=h s IH.
   case/boolP: (h == x)=>[{h}/eqP->|H] /=.
