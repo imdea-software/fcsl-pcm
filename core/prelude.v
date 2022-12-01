@@ -637,6 +637,20 @@ move: Hp; apply: contra; rewrite -{2}(cat_take_drop i s) has_cat=>->.
 by rewrite orbT.
 Qed.
 
+Lemma find_leq_last p s : find p s <= find_last p s.
+Proof.
+rewrite find_lastE.
+case/boolP: (has p s)=>[|_]; last by apply: find_size.
+elim: s=>//= h s IH.
+rewrite rev_cons -cats1 find_cat has_rev size_rev /=.
+case/orP; first by move=>->.
+move=>/[dup] H ->; case: ifP=>_ //.
+rewrite subSn /=; last first.
+- by rewrite -size_rev; apply: find_size.
+apply: (leq_ltn_trans (IH H)); rewrite ltn_predL subn_gt0.
+by rewrite -size_rev -has_find has_rev.
+Qed.
+
 Variant split_find_last_nth_spec p : seq T -> seq T -> seq T -> T -> Type :=
   FindLastNth x s1 s2 of p x & ~~ has p s2 :
     split_find_last_nth_spec p (rcons s1 x ++ s2) s1 s2 x.
@@ -707,6 +721,9 @@ Proof. by rewrite /index_last find_last_rcons has_pred1 eq_sym. Qed.
 
 Lemma index_geq x s i : x \in drop i s -> i <= index_last x s.
 Proof. by rewrite -has_pred1; apply: find_geq. Qed.
+
+Lemma index_leq_last x s : index x s <= index_last x s.
+Proof. by apply: find_leq_last. Qed.
 
 Lemma index_last_count x s : count_mem x s <= 1 -> index_last x s = index x s.
 Proof.
@@ -785,6 +802,9 @@ Proof.
 by rewrite leqNgt; apply: (iffP idP); case: onth_sizeP=>//= v ->.
 Qed.
 
+Lemma onth_sizeN s : onth s (size s) = None.
+Proof. by apply/size_onthPn. Qed.
+
 Lemma nth_onth x0 n s : nth x0 s n = odflt x0 (onth s n).
 Proof.
 elim: s n=>/= [|a s IH] n /=; first by apply: nth_nil.
@@ -839,9 +859,18 @@ End SeqPrefix.
 #[export]
 Hint Resolve prefix_refl : core.
 
-Lemma onth_mem (A : eqType) (s : seq A) n x : onth s n = Some x -> x \in s.
+Lemma onth_mem (A : eqType) (s : seq A) n x :
+        onth s n = Some x ->
+        x \in s.
 Proof.
-by elim: s n=>//= a s IH [[->]|n /IH]; rewrite inE ?eq_refl // orbC => ->.
+by elim: s n=>//= a s IH [[->]|n /IH]; rewrite inE ?eq_refl // orbC =>->.
+Qed.
+
+Lemma onth_index (A : eqType) (s : seq A) x :
+        x \in s ->
+        onth s (index x s) = Some x.
+Proof.
+by elim: s=>//=h s IH; rewrite inE eq_sym; case: eqP=>//= ->.
 Qed.
 
 Lemma prefixP (A : eqType) (s1 s2 : seq A) :
