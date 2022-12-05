@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq path eqtype choice.
-From pcm Require Import options.
+From pcm Require Import options prelude.
 
 (*********************)
 (* Extensions to seq *)
@@ -128,7 +128,35 @@ Lemma index_inj (A : eqType) (s : seq A) (x y : A) :
         x \in s -> index x s = index y s -> x = y.
 Proof.
 elim: s=>[|k s IH] //=; rewrite inE eq_sym.
-by case: eqP=>[->{k} _|_ /= S]; case: eqP=>// _ []; apply: IH S.
+case: eqP=>[->{k} _|_ /= S]; case: eqP=>// _ []; apply: IH S.
+Qed.
+
+Lemma index_lastR_inj (A : eqType) (s : seq A) (x y : A) :
+        x \in s -> index x s = indexlast y s -> x = y.
+Proof.
+elim: s=>[|k s IH] //=; rewrite inE eq_sym indexlast_cons.
+case: eqP=>[->{k} _|_ /= S]; case: eqP=>_ //=; last by case; apply: IH.
+by case: ifP=>_ // []; apply: IH.
+Qed.
+
+Lemma index_lastL_inj (A : eqType) (s : seq A) (x y : A) :
+        x \in s -> indexlast x s = index y s -> x = y.
+Proof.
+elim: s=>[|k s IH] //=; rewrite inE eq_sym indexlast_cons.
+case: eqP=>[->{k} _|_ /= S] /=; case: eqP=>// ?; last by case; apply: IH.
+(* since x != y, the goal is technically false here *)
+by case: ifP =>// /negbT; rewrite negbK=>H; case; apply: IH.
+Qed.
+
+Lemma indexlast_inj (A : eqType) (s : seq A) (x y : A) :
+        x \in s -> indexlast x s = indexlast y s -> x = y.
+Proof.
+elim: s=>[|k s IH] //=; rewrite inE eq_sym !indexlast_cons.
+case: eqP=>[->{k} _|_ /= S] /=.
+- case: eqP=>//= ?.
+  (* also here *)
+  by case: ifP=>// /negbT; rewrite negbK=>H; case; apply: IH.
+by case: ifP=>// _ []; apply: IH.
 Qed.
 
 Lemma cat_cancel (A : eqType) (xs1 xs2 ys1 ys2 : seq A) (k : A) :
