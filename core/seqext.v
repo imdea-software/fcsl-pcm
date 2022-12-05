@@ -131,21 +131,15 @@ elim: s=>[|k s IH] //=; rewrite inE eq_sym.
 case: eqP=>[->{k} _|_ /= S]; case: eqP=>// _ []; apply: IH S.
 Qed.
 
-Lemma index_lastR_inj (A : eqType) (s : seq A) (x y : A) :
-        x \in s -> index x s = indexlast y s -> x = y.
+Lemma index_last_inj (A : eqType) (s : seq A) (x y : A) :
+        (x \in s) || (y \in s) -> index x s = indexlast y s -> x = y.
 Proof.
-elim: s=>[|k s IH] //=; rewrite inE eq_sym indexlast_cons.
-case: eqP=>[->{k} _|_ /= S]; case: eqP=>_ //=; last by case; apply: IH.
-by case: ifP=>_ // []; apply: IH.
-Qed.
-
-Lemma index_lastL_inj (A : eqType) (s : seq A) (x y : A) :
-        x \in s -> indexlast x s = index y s -> x = y.
-Proof.
-elim: s=>[|k s IH] //=; rewrite inE eq_sym indexlast_cons.
-case: eqP=>[->{k} _|_ /= S] /=; case: eqP=>// ?; last by case; apply: IH.
-(* since x != y, the goal is technically false here *)
-by case: ifP =>// /negbT; rewrite negbK=>H; case; apply: IH.
+elim: s=>[|k s IH] //=; rewrite !inE indexlast_cons !(eq_sym k).
+case: eqP=>[{k}<- _|_ /= S]; first by case: eqP=>//=.
+move: S; case/boolP: (y \in s)=>/=.
+- by rewrite andbF=>H _ []; apply: IH; rewrite H orbT.
+move=>Ny; rewrite orbF andbT.
+by case: eqP=>//; rewrite orbF=>_ H []; apply: IH; rewrite H.
 Qed.
 
 Lemma indexlast_inj (A : eqType) (s : seq A) (x y : A) :
@@ -153,8 +147,7 @@ Lemma indexlast_inj (A : eqType) (s : seq A) (x y : A) :
 Proof.
 elim: s=>[|k s IH] //=; rewrite inE eq_sym !indexlast_cons.
 case: eqP=>[->{k} _|_ /= S] /=.
-- case: eqP=>//= ?.
-  (* also here *)
+- case: eqP=>//= _.
   by case: ifP=>// /negbT; rewrite negbK=>H; case; apply: IH.
 by case: ifP=>// _ []; apply: IH.
 Qed.

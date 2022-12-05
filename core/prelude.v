@@ -725,18 +725,25 @@ Proof. by rewrite -has_pred1; apply: find_geq. Qed.
 Lemma index_leq_last x s : index x s <= indexlast x s.
 Proof. by apply: find_leq_last. Qed.
 
-Lemma indexlast_count x s : count_mem x s <= 1 -> indexlast x s = index x s.
+Lemma indexlast_count x s : count_mem x s <= 1 <-> index x s = indexlast x s.
 Proof.
-move=>H; case/boolP: (x \in s)=>Hx; last first.
-- by rewrite (memNindexlast Hx) (memNindex Hx).
-elim: s x H Hx=>//= h t IH x; rewrite indexlast_cons inE (eq_sym x).
-case: eqP=>/=?; last by rewrite add0n=> H1 H2; rewrite IH.
-by rewrite -{2}(addn0 1%N) leq_add2l leqn0 =>/eqP /count_memPn ->.
+elim: s=>//= h t IH; rewrite indexlast_cons.
+case: eqP=>/= ?; last first.
+- by rewrite add0n IH; split=>[->|[]].
+rewrite add1n ltnS leqn0; split.
+- by move/eqP/count_memPn=>->.
+by case: ifP=>//= /count_memPn->.
 Qed.
 
-Corollary indexlast_uniq x s : uniq s -> indexlast x s = index x s.
+Corollary index_lt_last x s : 1 < count_mem x s -> index x s < indexlast x s.
 Proof.
-move=>H; apply: indexlast_count.
+move=>H; move: (index_leq_last x s); rewrite leq_eqVlt.
+by case: eqP=>//= /indexlast_count; case: leqP H.
+Qed.
+
+Corollary indexlast_uniq x s : uniq s -> index x s = indexlast x s.
+Proof.
+move=>H; apply/indexlast_count.
 by rewrite count_uniq_mem //; apply: leq_b1.
 Qed.
 

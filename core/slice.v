@@ -831,7 +831,7 @@ Lemma eqsl_kk1 s l r k :
         &=s (Interval (BSide l k) (BSide r k)) =
         if [&& l, ~~ r & k \in s] then [:: k] else [::].
 Proof.
-move=>H; rewrite /eq_slice /= !subn0 indexlast_count // !if_same slice_kk.
+move/indexlast_count=>H; rewrite /eq_slice /= !subn0 -H // !if_same slice_kk.
 case: ifP; last by rewrite andbA =>->.
 case/andP=>->->/=; case: ifP.
 - by move/onth_index=>->.
@@ -863,7 +863,7 @@ Lemma eqsl_xxL t1 t2 s :
 Proof.
 move=>I H.
 have H1: indexlast t1 s = index t1 s.
-- by rewrite indexlast_count // H.
+- by symmetry; apply/indexlast_count; rewrite H.
 rewrite /eq_slice /= !subn0 (@slice_split _ _ false (indexlast t1 s)) H1 /=.
 - by rewrite slice_kk /= onth_index // -has_pred1 has_count H.
 by rewrite in_itv /= lexx.
@@ -876,7 +876,7 @@ Lemma eqsl_xxR t1 t2 s :
 Proof.
 move=>I H.
 have H2: indexlast t2 s = index t2 s.
-- by rewrite indexlast_count // H.
+- by symmetry; apply/indexlast_count; rewrite H.
 rewrite /eq_slice /= !subn0 (@slice_split _ _ true (indexlast t2 s)) H2 /=.
 - rewrite slice_kk /= onth_index /=; first by rewrite cats1.
   by rewrite -has_pred1 has_count H.
@@ -890,7 +890,7 @@ Lemma eqsl_xoL t1 t2 s :
 Proof.
 move=>I H.
 have H1: indexlast t1 s = index t1 s.
-- by rewrite indexlast_count // H.
+- by symmetry; apply/indexlast_count; rewrite H.
 rewrite /eq_slice /= !subn0 (@slice_split _ _ false (indexlast t1 s)) H1 /=.
 - by rewrite slice_kk /= onth_index // -has_pred1 has_count H.
 by rewrite in_itv /= lexx.
@@ -903,7 +903,7 @@ Lemma eqsl_oxR t1 t2 s :
 Proof.
 move=>I H.
 have H2: indexlast t2 s = index t2 s.
-- by rewrite indexlast_count // H.
+- by symmetry; apply/indexlast_count; rewrite H.
 rewrite /eq_slice /= !subn0 (@slice_split _ _ true (indexlast t2 s)) H2 /=.
 - rewrite slice_kk /= onth_index /=; first by rewrite cats1.
   by rewrite -has_pred1 has_count H.
@@ -1343,25 +1343,20 @@ Section SeqLeEq.
 Variable (A : eqType).
 Implicit Type (ks : seq A).
 
-(****************** sle reflexivity ****************)
-
-Lemma sle_refl_ff ks t : t <=FF[ks] t.
-Proof. by rewrite /seq_le_ff. Qed.
-
-Lemma sle_refl_fl ks t : t <=FL[ks] t.
-Proof. by rewrite /seq_le_fl; apply: index_leq_last. Qed.
-
-(* no reflexivity for LF! *)
-
-Lemma sle_refl_ll ks t : t <=LL[ks] t.
-Proof. by rewrite /seq_le_ll. Qed.
-
-(****************** sle transitivity ****************)
+(****************** transitivity ****************)
 
 Lemma sle_trans_ff ks : transitive (seq_le_ff ks).
-Proof. by move=>x y z; apply: leq_trans. Qed.
+Proof. by move=>y x z; apply: leq_trans. Qed.
 
-(* no transitivity for LF! *)
+(* degenerate transitivity for LE-FL! *)
+Lemma sle_trans_fl y x z ks :
+  (count_mem y ks <= 1)%N ->
+  x <=FL[ks] y -> y <=FL[ks] z -> x <=FL[ks] z.
+Proof.
+rewrite /seq_le_fl; move=>/indexlast_count Hy Hxy Hyz.
+apply/(leq_trans Hxy)/leq_trans/Hyz.
+by rewrite Hy.
+Qed.
 
 Lemma sle_trans_lf ks : transitive (seq_le_lf ks).
 Proof.
@@ -1371,9 +1366,71 @@ by exact: index_leq_last.
 Qed.
 
 Lemma sle_trans_ll ks : transitive (seq_le_ll ks).
-Proof. by move=>x y z; apply: leq_trans. Qed.
+Proof. by move=>y x z; apply: leq_trans. Qed.
 
-(****************** sle antisymmetry ****************)
+Lemma slt_trans_ff ks : transitive (seq_lt_ff ks).
+Proof. by move=>y x z; apply: ltn_trans. Qed.
+
+(* degenerate transitivity for LT-FL! *)
+Lemma slt_trans_fl y x z ks :
+  (count_mem y ks <= 1)%N ->
+  x <FL[ks] y -> y <FL[ks] z -> x <FL[ks] z.
+Proof.
+rewrite /seq_lt_fl; move=>Hy Hxy Hyz.
+apply/(ltn_trans Hxy)/leq_ltn_trans/Hyz.
+by move/indexlast_count: Hy=>->.
+Qed.
+
+Lemma slt_trans_lf ks : transitive (seq_lt_lf ks).
+Proof.
+rewrite /seq_lt_lf.
+move=>y x z Hxy Hyz.
+apply/(ltn_trans Hxy)/leq_ltn_trans/Hyz.
+by exact: index_leq_last.
+Qed.
+
+Lemma slt_trans_ll ks : transitive (seq_lt_ll ks).
+Proof. by move=>y x z; apply: ltn_trans. Qed.
+
+(****************** reflexivity ****************)
+
+Lemma sle_refl_ff ks : reflexive (seq_le_ff ks).
+Proof. by rewrite /seq_le_ff. Qed.
+
+Lemma sle_refl_fl ks : reflexive (seq_le_fl ks).
+Proof. by rewrite /seq_le_fl=>x; apply: index_leq_last. Qed.
+
+(* degenerate reflexivity for LE-LF! *)
+Lemma sle_refl_lf ks t : (count_mem t ks <= 1)%N -> t <=LF[ks] t.
+Proof. by move/indexlast_count=>H; rewrite /seq_le_lf H. Qed.
+
+Lemma sle_refl_ll ks t : t <=LL[ks] t.
+Proof. by rewrite /seq_le_ll. Qed.
+
+(* degenerate reflexivity for LT-FL! *)
+Lemma slt_refl_fl ks t : (1 < count_mem t ks)%N -> t <FL[ks] t.
+Proof. by move/index_lt_last=>H; rewrite /seq_lt_fl. Qed.
+
+(****************** irreflexivity ***************)
+
+Lemma slt_irr_ff x ks : ~~ x <FF[ks] x.
+Proof. by rewrite /seq_lt_ff ltnn. Qed.
+
+(* degenerate irreflexivity for LT-FL! *)
+Lemma slt_irr_fl ks t : (count_mem t ks <= 1)%N -> ~~ t <FL[ks] t.
+Proof. by move/indexlast_count=>H; rewrite /seq_lt_fl H ltnn. Qed.
+
+Lemma slt_irr_lf x ks : ~~ x <LF[ks] x.
+Proof. by rewrite /seq_lt_lf ltnNge index_leq_last. Qed.
+
+Lemma slt_irr_ll x ks : ~~ x <LL[ks] x.
+Proof. by rewrite /seq_lt_ll ltnn. Qed.
+
+(* degenerate irreflexivity for LE-LF! *)
+Lemma sle_irr_lf ks t : (1 < count_mem t ks)%N -> ~~ t <=LF[ks] t.
+Proof. by move/index_lt_last=>H; rewrite /seq_le_lf -ltnNge. Qed.
+
+(****************** antisymmetry ****************)
 
 Lemma sle_antisym_ff ks : {in ks, antisymmetric (seq_le_ff ks)}.
 Proof.
@@ -1381,7 +1438,18 @@ rewrite /seq_le_ff=>x Hx y.
 by rewrite -eqn_leq =>/eqP /index_inj; apply.
 Qed.
 
-(* no antisymmetry for FL! *)
+(* degenerate antisymmetry for LE-FL! *)
+Lemma sle_antisym_fl ks x y :
+  (count_mem x ks == 1)%N -> (count_mem y ks <= 1)%N ->
+  x <=FL[ks] y -> y <=FL[ks] x -> x = y.
+Proof.
+rewrite /seq_le_fl => H /indexlast_count<-.
+have <-: index x ks = indexlast x ks.
+- by apply/indexlast_count; rewrite (eqP H).
+move=>Hx Hy.
+have Hi: (x \in ks) by rewrite -has_pred1 has_count (eqP H).
+by apply/(index_inj Hi)/eqP; rewrite eqn_leq Hx.
+Qed.
 
 Lemma sle_antisym_lf ks : {in ks, antisymmetric (seq_le_lf ks)}.
 Proof.
@@ -1405,43 +1473,21 @@ rewrite /seq_le_ll=>x Hx y.
 by rewrite -eqn_leq =>/eqP /indexlast_inj; apply.
 Qed.
 
-(****************** slt irreflexivity ***************)
-
-Lemma slt_irr_ff x ks : ~~ x <FF[ks] x.
-Proof. by rewrite /seq_lt_ff ltnn. Qed.
-
-(* no irreflexivity for FL! *)
-
-Lemma slt_irr_lf x ks : ~~ x <LF[ks] x.
-Proof. by rewrite /seq_lt_lf ltnNge index_leq_last. Qed.
-
-Lemma slt_irr_ll x ks : ~~ x <LL[ks] x.
-Proof. by rewrite /seq_lt_ll ltnn. Qed.
-
-(****************** slt transitivity ***************)
-
-Lemma slt_trans_ff ks : transitive (seq_lt_ff ks).
-Proof. by move=>x y z; apply: ltn_trans. Qed.
-
-(* no transitivity for FL! *)
-
-Lemma slt_trans_lf ks : transitive (seq_lt_lf ks).
-Proof.
-rewrite /seq_lt_lf.
-move=>y x z Hxy Hyz.
-apply/(ltn_trans Hxy)/leq_ltn_trans/Hyz.
-by exact: index_leq_last.
-Qed.
-
-Lemma slt_trans_ll ks : transitive (seq_lt_ll ks).
-Proof. by move=>x y z; apply: ltn_trans. Qed.
-
-(****************** slt asymmetry ***************)
+(****************** asymmetry ***************)
 
 Lemma slt_asym_ff x y ks : x <FF[ks] y -> ~~ y <FF[ks] x.
 Proof. by rewrite /seq_lt_ff; case: ltngtP. Qed.
 
-(* no asymmetry for FL! *)
+(* degenerate asymmetry for LT-FL! *)
+Lemma slt_asym_fl ks x y :
+  (count_mem x ks <= 1)%N -> (count_mem y ks <= 1)%N ->
+  x <FL[ks] y -> ~~ y <FL[ks] x.
+Proof.
+rewrite /seq_lt_fl -leqNgt => /indexlast_count->/indexlast_count->.
+by apply: ltnW.
+Hx Hy.
+by apply/(indexlast_inj H)/eqP; rewrite eqn_leq Hx.
+Qed.
 
 Lemma slt_asym_lf x y ks : x <LF[ks] y -> ~~ y <LF[ks] x.
 Proof.
@@ -1458,102 +1504,102 @@ Proof. by rewrite /seq_lt_ll; case: ltngtP. Qed.
 
 (****************** ole_eqVlt ***************)
 
-Lemma ole_eqVlt_ff ks t1 t2 :
-        t1 \in ks \/ t2 \in ks ->
+Lemma sle_eqVlt_ff ks t1 t2 :
+        (t1 \in ks) || (t2 \in ks) ->
         t1 <=FF[ks] t2 = (t1 == t2) || (t1 <FF[ks] t2).
 Proof.
 move=>H; rewrite /seq_lt_ff /seq_le_ff leq_eqVlt /=.
 case: (t1 =P t2)=>[->|N] /=; first by rewrite eq_refl.
-case: eqP=>//=; case: H=>H; first by move/(index_inj H)/N.
+case: eqP=>//=; case/orP: H=>H; first by move/(index_inj H)/N.
 by move/esym/(index_inj H)/esym/N.
 Qed.
 
-Lemma ole_eqVlt_fl ks t1 t2 :
-        t1 \in ks \/ t2 \in ks ->
+Lemma sle_eqVlt_fl ks t1 t2 :
+        (t1 \in ks) || (t2 \in ks) ->
         t1 <=FL[ks] t2 = (t1 == t2) || (t1 <FL[ks] t2).
 Proof.
 move=>H; rewrite /seq_lt_fl /seq_le_fl.
 case: (t1 =P t2)=>[->|N] /=; first by apply: index_leq_last.
-rewrite leq_eqVlt; case: eqP=>//=; case: H=>H.
+rewrite leq_eqVlt; case: eqP=>//=; case/orP: H=>H.
 - by move/(index_lastR_inj H)/N.
 by move/esym/(index_lastL_inj H)/esym/N.
 Qed.
 
 (* only one direction! *)
-Lemma ole_eqVlt_lf ks t1 t2 :
-        t1 \in ks \/ t2 \in ks ->
+Lemma sle_eqVlt_lf ks t1 t2 :
+        (t1 \in ks) || (t2 \in ks) ->
         t1 <=LF[ks] t2 -> (t1 == t2) || (t1 <LF[ks] t2).
 Proof.
 move=>H; rewrite /seq_lt_lf /seq_le_lf.
 case: (t1 =P t2)=>[->|N] //=.
-rewrite leq_eqVlt; case: eqP=>//=; case: H=>H.
+rewrite leq_eqVlt; case: eqP=>//=; case/orP: H=>H.
 - by move/(index_lastL_inj H)/N.
 by move/esym/(index_lastR_inj H)/esym/N.
 Qed.
 
-Lemma ole_eqVlt_ll ks t1 t2 :
-        t1 \in ks \/ t2 \in ks ->
+Lemma sle_eqVlt_ll ks t1 t2 :
+        (t1 \in ks) || (t2 \in ks) ->
         t1 <=LL[ks] t2 = (t1 == t2) || (t1 <LL[ks] t2).
 Proof.
 move=>H; rewrite /seq_lt_ll /seq_le_ll leq_eqVlt.
 case: (t1 =P t2)=>[->|N] /=; first by rewrite eq_refl.
-case: eqP=>//=; case: H=>H; first by move/(indexlast_inj H)/N.
+case: eqP=>//=; case/orP: H=>H; first by move/(indexlast_inj H)/N.
 by move/esym/(indexlast_inj H)/esym/N.
 Qed.
 
 (****************** olt_neqAle ***************)
 
-Lemma olt_neqAle_ff ks t1 t2 :
-        t1 \in ks \/ t2 \in ks ->
+Lemma slt_neqAle_ff ks t1 t2 :
+        (t1 \in ks) || (t2 \in ks) ->
         t1 <FF[ks] t2 = (t1 != t2) && (t1 <=FF[ks] t2).
 Proof.
 move=>H.
 rewrite /seq_lt_ff /seq_le_ff ltn_neqAle.
 case: (t1 =P t2)=>[->|N] /=; first by rewrite eq_refl.
-case: eqP=>//=; case: H=>H; first by move/(index_inj H)/N.
+case: eqP=>//=; case/orP: H=>H; first by move/(index_inj H)/N.
 by move/esym/(index_inj H)/esym/N.
 Qed.
 
 (* only one direction! *)
-Lemma olt_neqAle_fl ks t1 t2 :
-        t1 \in ks \/ t2 \in ks ->
+Lemma slt_neqAle_fl ks t1 t2 :
+        (t1 \in ks) || (t2 \in ks) ->
         t1 != t2 -> t1 <=FL[ks] t2 -> t1 <FL[ks] t2.
 Proof.
 move=>H /eqP N.
 rewrite /seq_lt_fl /seq_le_fl leq_eqVlt; case/orP=>// /eqP.
-case: H=>H; first by move/(index_lastR_inj H)/N.
+case/orP: H=>H; first by move/(index_lastR_inj H)/N.
 by move/esym/(index_lastL_inj H)/esym/N.
 Qed.
 
-Lemma olt_neqAle_lf ks t1 t2 :
-        t1 \in ks \/ t2 \in ks ->
+Lemma slt_neqAle_lf ks t1 t2 :
+        (t1 \in ks) || (t2 \in ks) ->
         t1 <LF[ks] t2 = (t1 != t2) && (t1 <=LF[ks] t2).
 Proof.
 move=>H.
 rewrite /seq_lt_lf /seq_le_lf.
 case: (t1 =P t2)=>[->|N] /=; first by rewrite ltnNge index_leq_last.
-rewrite ltn_neqAle; case: eqP=>//=; case: H=>H; first by move/(index_lastL_inj H)/N.
+rewrite ltn_neqAle; case: eqP=>//=; case/orP: H=>H; first by move/(index_lastL_inj H)/N.
 by move/esym/(index_lastR_inj H)/esym/N.
 Qed.
 
-Lemma olt_neqAle_ll ks t1 t2 :
-        t1 \in ks \/ t2 \in ks ->
+Lemma slt_neqAle_ll ks t1 t2 :
+        (t1 \in ks) || (t2 \in ks) ->
         t1 <LL[ks] t2 = (t1 != t2) && (t1 <=LL[ks] t2).
 Proof.
 move=>H.
 rewrite /seq_lt_ll /seq_le_ll ltn_neqAle.
 case: (t1 =P t2)=>[->|N] /=; first by rewrite eq_refl.
-case: eqP=>//=; case: H=>H; first by move/(indexlast_inj H)/N.
+case: eqP=>//=; case/orP: H=>H; first by move/(indexlast_inj H)/N.
 by move/esym/(indexlast_inj H)/esym/N.
 Qed.
 
-(****************** oltNge ***************)
+(****************** sltNge ***************)
 
-Lemma oltNge_ff ks t1 t2 : t1 <FF[ks] t2 = ~~ t2 <=FF[ks] t1.
+Lemma sltNge_ff ks t1 t2 : t1 <FF[ks] t2 = ~~ t2 <=FF[ks] t1.
 Proof. by rewrite /seq_lt_ff /seq_le_ff ltnNge. Qed.
 
 (* only one direction! *)
-Lemma oltNge_fl ks t1 t2 : ~~ t2 <=FL[ks] t1 -> t1 <FL[ks] t2.
+Lemma sltNge_fl ks t1 t2 : ~~ t2 <=FL[ks] t1 -> t1 <FL[ks] t2.
 Proof.
 rewrite /seq_lt_fl /seq_le_fl -ltnNge => H.
 apply: leq_ltn_trans; first by exact: index_leq_last.
@@ -1562,7 +1608,7 @@ by exact: index_leq_last.
 Qed.
 
 (* only one (reverse) direction! *)
-Lemma oltNge_lf ks t1 t2 : t1 <LF[ks] t2 -> ~~ t2 <=LF[ks] t1.
+Lemma sltNge_lf ks t1 t2 : t1 <LF[ks] t2 -> ~~ t2 <=LF[ks] t1.
 Proof.
 rewrite /seq_lt_lf /seq_le_lf -ltnNge => H.
 apply: leq_ltn_trans; first by exact: index_leq_last.
@@ -1570,23 +1616,66 @@ apply: (leq_trans H).
 by exact: index_leq_last.
 Qed.
 
-Lemma oltNge_ll ks t1 t2 : t1 <LL[ks] t2 = ~~ t2 <=LL[ks] t1.
+Lemma sltNge_ll ks t1 t2 : t1 <LL[ks] t2 = ~~ t2 <=LL[ks] t1.
 Proof. by rewrite /seq_lt_ll /seq_le_ll ltnNge. Qed.
 
 (****************** oleNgt ***************)
 
-Lemma oleNgt_ff ks t1 t2 : t1 <=FF[ks] t2 = ~~ t2 <FF[ks] t1.
-Proof. by rewrite oltNge_ff negbK. Qed.
+Lemma sleNgt_ff ks t1 t2 : t1 <=FF[ks] t2 = ~~ t2 <FF[ks] t1.
+Proof. by rewrite sltNge_ff negbK. Qed.
 
 (* only one direction! *)
-Lemma oleNgt_fl ks t1 t2 : ~~ t2 <FL[ks] t1 -> t1 <=FL[ks] t2.
-Proof. by apply/contraR/oltNge_fl. Qed.
+Lemma sleNgt_fl ks t1 t2 : ~~ t2 <FL[ks] t1 -> t1 <=FL[ks] t2.
+Proof. by apply/contraR/sltNge_fl. Qed.
 
 (* only one direction! *)
-Lemma oleNgt_lf ks t1 t2 : t1 <=LF[ks] t2 -> ~~ t2 <LF[ks] t1.
-Proof. by apply/contraL/oltNge_lf. Qed.
+Lemma sleNgt_lf ks t1 t2 : t1 <=LF[ks] t2 -> ~~ t2 <LF[ks] t1.
+Proof. by apply/contraL/sltNge_lf. Qed.
 
-Lemma oleNgt_ll ks t1 t2 : t1 <=LL[ks] t2 = ~~ t2 <LL[ks] t1.
-Proof. by rewrite oltNge_ll negbK. Qed.
+Lemma sleNgt_ll ks t1 t2 : t1 <=LL[ks] t2 = ~~ t2 <LL[ks] t1.
+Proof. by rewrite sltNge_ll negbK. Qed.
+
+(* order properties of the sequence orderings *)
+
+(****************** slt_neq ***************)
+
+Corollary slt_neq_ff x y ks : x <FF[ks] y -> x != y.
+Proof. by apply/contraL=>/eqP->; apply: slt_irr_ff. Qed.
+
+(* no slt_neq_fl *)
+
+Corollary slt_neq_lf x y ks : x <LF[ks] y -> x != y.
+Proof. by apply/contraL=>/eqP->; apply: slt_irr_lf. Qed.
+
+Corollary slt_neq_ll x y ks : x <LL[ks] y -> x != y.
+Proof. by apply/contraL=>/eqP->; apply: slt_irr_ll. Qed.
+
+(*
+Lemma neq_olt x y ks : x <[ks] y -> y != x.
+Proof. by move/olt_neq; rewrite eq_sym. Qed.
+
+Lemma oltxx x ks : ~ x <[ks] x.
+Proof. by rewrite olt_irr. Qed.
+
+(* these are just one direction of sltNge *)
+Corollary slt_asym'_ff ks x y : x <FF[ks] y -> ~~ y <=FF[ks] x.
+Proof. by rewrite sltNge_ff. Qed.
+*)
+
+(***************** totality ********************)
+
+Lemma slt_scnx_ff x y ks : x \in ks -> x != y -> x <FF[ks] y || y <FF[ks] x.
+Proof.
+move=>H1 H2.
+rewrite orbC sltNge_ff slt_neqAle_ff; last by rewrite H1.
+by rewrite H2 /= orNb.
+Qed.
+
+Lemma slt_scnx_ff x y ks : x \in ks -> x != y -> x <FF[ks] y || y <FF[ks] x.
+Proof.
+move=>H; rewrite /seq_lt_ff; case: ltngtP=>//= /index_inj He.
+by rewrite He // eq_refl.
+Qed.
+
 
 End SeqLeOrd.
