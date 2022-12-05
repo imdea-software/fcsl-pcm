@@ -1334,19 +1334,6 @@ Notation "t1 '<=LL[' ks ] t2" := (seq_le_ll ks t1 t2)
 Notation "t1 '<LL[' ks ] t2" := (seq_lt_ll ks t1 t2)
   (at level 10, format "t1  '<LL[' ks ]  t2").
 
-(****************** sle_refl ****************)
-
-Lemma sle_ff_refl {A : eqType} (ks : seq A) t : t <=FF[ks] t.
-Proof. by rewrite /seq_le_ff. Qed.
-
-Lemma sle_fl_refl {A : eqType} (ks : seq A) t : t <=FL[ks] t.
-Proof. by rewrite /seq_le_fl; apply: index_leq_last. Qed.
-
-(* no reflexivity for LF! *)
-
-Lemma sle_ll_refl {A : eqType} (ks : seq A) t : t <=LL[ks] t.
-Proof. by rewrite /seq_le_ll. Qed.
-
 (*
 #[export]
 Hint Resolve sle_refl : core.
@@ -1355,6 +1342,117 @@ Hint Resolve sle_refl : core.
 Section SeqLeEq.
 Variable (A : eqType).
 Implicit Type (ks : seq A).
+
+(****************** sle reflexivity ****************)
+
+Lemma sle_refl_ff ks t : t <=FF[ks] t.
+Proof. by rewrite /seq_le_ff. Qed.
+
+Lemma sle_refl_fl ks t : t <=FL[ks] t.
+Proof. by rewrite /seq_le_fl; apply: index_leq_last. Qed.
+
+(* no reflexivity for LF! *)
+
+Lemma sle_refl_ll ks t : t <=LL[ks] t.
+Proof. by rewrite /seq_le_ll. Qed.
+
+(****************** sle transitivity ****************)
+
+Lemma sle_trans_ff ks : transitive (seq_le_ff ks).
+Proof. by move=>x y z; apply: leq_trans. Qed.
+
+(* no transitivity for LF! *)
+
+Lemma sle_trans_lf ks : transitive (seq_le_lf ks).
+Proof.
+rewrite /seq_le_lf=>y x z Hxy Hyz.
+apply/leq_trans/Hyz/(leq_trans Hxy).
+by exact: index_leq_last.
+Qed.
+
+Lemma sle_trans_ll ks : transitive (seq_le_ll ks).
+Proof. by move=>x y z; apply: leq_trans. Qed.
+
+(****************** sle antisymmetry ****************)
+
+Lemma sle_antisym_ff ks : {in ks, antisymmetric (seq_le_ff ks)}.
+Proof.
+rewrite /seq_le_ff=>x Hx y.
+by rewrite -eqn_leq =>/eqP /index_inj; apply.
+Qed.
+
+(* no antisymmetry for FL! *)
+
+Lemma sle_antisym_lf ks : {in ks, antisymmetric (seq_le_lf ks)}.
+Proof.
+rewrite /seq_le_lf=>x Hx y.
+case/andP=>Hxy Hyx.
+have /eqP Ex: index x ks == indexlast x ks.
+- rewrite eqn_leq index_leq_last /=.
+  by apply/leq_trans/Hyx/leq_trans/index_leq_last.
+rewrite -{}Ex in Hxy.
+have /eqP Ey: index y ks == indexlast y ks.
+- rewrite eqn_leq index_leq_last /=.
+  by apply/leq_trans/Hxy.
+rewrite -{}Ey in Hyx.
+suff: index x ks == index y ks by move/eqP/index_inj; apply.
+by rewrite eqn_leq Hxy.
+Qed.
+
+Lemma sle_antisym_ll ks : {in ks, antisymmetric (seq_le_ll ks)}.
+Proof.
+rewrite /seq_le_ll=>x Hx y.
+by rewrite -eqn_leq =>/eqP /indexlast_inj; apply.
+Qed.
+
+(****************** slt irreflexivity ***************)
+
+Lemma slt_irr_ff x ks : ~~ x <FF[ks] x.
+Proof. by rewrite /seq_lt_ff ltnn. Qed.
+
+(* no irreflexivity for FL! *)
+
+Lemma slt_irr_lf x ks : ~~ x <LF[ks] x.
+Proof. by rewrite /seq_lt_lf ltnNge index_leq_last. Qed.
+
+Lemma slt_irr_ll x ks : ~~ x <LL[ks] x.
+Proof. by rewrite /seq_lt_ll ltnn. Qed.
+
+(****************** slt transitivity ***************)
+
+Lemma slt_trans_ff ks : transitive (seq_lt_ff ks).
+Proof. by move=>x y z; apply: ltn_trans. Qed.
+
+(* no transitivity for FL! *)
+
+Lemma slt_trans_lf ks : transitive (seq_lt_lf ks).
+Proof.
+rewrite /seq_lt_lf.
+move=>y x z Hxy Hyz.
+apply/(ltn_trans Hxy)/leq_ltn_trans/Hyz.
+by exact: index_leq_last.
+Qed.
+
+Lemma slt_trans_ll ks : transitive (seq_lt_ll ks).
+Proof. by move=>x y z; apply: ltn_trans. Qed.
+
+(****************** slt asymmetry ***************)
+
+Lemma slt_asym_ff x y ks : x <FF[ks] y -> ~~ y <FF[ks] x.
+Proof. by rewrite /seq_lt_ff; case: ltngtP. Qed.
+
+(* no asymmetry for FL! *)
+
+Lemma slt_asym_lf x y ks : x <LF[ks] y -> ~~ y <LF[ks] x.
+Proof.
+rewrite /seq_lt_lf -leqNgt => H.
+apply: leq_trans; first by exact: index_leq_last.
+apply: leq_trans; last by exact: index_leq_last.
+by apply: ltnW.
+Qed.
+
+Lemma slt_asym_ll x y ks : x <LL[ks] y -> ~~ y <LL[ks] x.
+Proof. by rewrite /seq_lt_ll; case: ltngtP. Qed.
 
 (* transfer properties of sequence ordering *)
 
@@ -1490,20 +1588,5 @@ Proof. by apply/contraL/oltNge_lf. Qed.
 
 Lemma oleNgt_ll ks t1 t2 : t1 <=LL[ks] t2 = ~~ t2 <LL[ks] t1.
 Proof. by rewrite oltNge_ll negbK. Qed.
-
-(* order properties of the sequence orderings *)
-
-(****************** olt_irr ***************)
-
-Lemma olt_irr_ff x ks : x <FF[ks] x = false.
-Proof. by rewrite /seq_lt_ff ltnn. Qed.
-
-(* no olt_irr_fl *)
-
-Lemma olt_irr_lf x ks : x <LF[ks] x = false.
-Proof. by rewrite /seq_lt_lf ltnNge index_leq_last. Qed.
-
-Lemma olt_irr_ll x ks : x <LL[ks] x = false.
-Proof. by rewrite /seq_lt_ll ltnn. Qed.
 
 End SeqLeOrd.
