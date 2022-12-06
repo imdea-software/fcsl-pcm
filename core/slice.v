@@ -1485,8 +1485,6 @@ Lemma slt_asym_fl ks x y :
 Proof.
 rewrite /seq_lt_fl -leqNgt => /indexlast_count->/indexlast_count->.
 by apply: ltnW.
-Hx Hy.
-by apply/(indexlast_inj H)/eqP; rewrite eqn_leq Hx.
 Qed.
 
 Lemma slt_asym_lf x y ks : x <LF[ks] y -> ~~ y <LF[ks] x.
@@ -1499,6 +1497,49 @@ Qed.
 
 Lemma slt_asym_ll x y ks : x <LL[ks] y -> ~~ y <LL[ks] x.
 Proof. by rewrite /seq_lt_ll; case: ltngtP. Qed.
+
+(* degenerate asymmetry for LE-FL? *)
+
+(***************** totality ********************)
+
+Lemma sle_total_ff ks x y : x <=FF[ks] y || y <=FF[ks] x.
+Proof. by rewrite /seq_le_ff; case: ltngtP. Qed.
+
+Lemma sle_total_fl ks x y : x <=FL[ks] y || y <=FL[ks] x.
+Proof.
+rewrite /seq_le_fl; case/orP: (leq_total (index x ks) (index y ks))=>H.
+- by apply/orP; left; apply/(leq_trans H)/index_leq_last.
+by apply/orP; right; apply/(leq_trans H)/index_leq_last.
+Qed.
+
+(* no/degenerate totality for LE-LF *)
+
+Lemma sle_total_ll ks x y : x <=LL[ks] y || y <=LL[ks] x.
+Proof. by rewrite /seq_le_ll; case: ltngtP. Qed.
+
+Lemma slt_total_ff ks x y : x \in ks -> [|| x == y, x <FF[ks] y | y <FF[ks] x].
+Proof.
+rewrite /seq_lt_ff=>H; case: ltngtP; rewrite ?orbT ?orbF //.
+by move/index_inj=>->.
+Qed.
+
+Lemma slt_total_fl ks x y : x \in ks -> [|| x == y, x <FL[ks] y | y <FL[ks] x].
+Proof.
+rewrite /seq_lt_fl=>H; case: (ltngtP (index x ks) (index y ks)).
+- move=>Hx; suff: (index x ks < indexlast y ks)%N by move=>-> /=; rewrite orbT.
+  by apply: (leq_trans Hx); exact: index_leq_last.
+- move=>Hy; suff: (index y ks < indexlast x ks)%N by move=>-> /=; rewrite !orbT.
+  by apply: (leq_trans Hy); exact: index_leq_last.
+by move/index_inj=>->//; rewrite eq_refl.
+Qed.
+
+(* no/degenerate totality for LT-LF *)
+
+Lemma slt_total_ll ks x y : x \in ks -> [|| x == y, x <LL[ks] y | y <LL[ks] x].
+Proof.
+rewrite /seq_lt_ll=>H; case: ltngtP; rewrite ?orbT ?orbF //.
+by move/indexlast_inj=>->.
+Qed.
 
 (* transfer properties of sequence ordering *)
 
@@ -1660,9 +1701,6 @@ Proof. by rewrite olt_irr. Qed.
 (* these are just one direction of sltNge *)
 Corollary slt_asym'_ff ks x y : x <FF[ks] y -> ~~ y <=FF[ks] x.
 Proof. by rewrite sltNge_ff. Qed.
-*)
-
-(***************** totality ********************)
 
 Lemma slt_scnx_ff x y ks : x \in ks -> x != y -> x <FF[ks] y || y <FF[ks] x.
 Proof.
@@ -1676,6 +1714,6 @@ Proof.
 move=>H; rewrite /seq_lt_ff; case: ltngtP=>//= /index_inj He.
 by rewrite He // eq_refl.
 Qed.
-
+*)
 
 End SeqLeOrd.
