@@ -1560,10 +1560,9 @@ Lemma sle_eqVlt_fl ks t1 t2 :
         t1 <=FL[ks] t2 = (t1 == t2) || (t1 <FL[ks] t2).
 Proof.
 move=>H; rewrite /seq_lt_fl /seq_le_fl.
-case: (t1 =P t2)=>[->|N] /=; first by apply: index_leq_last.
-rewrite leq_eqVlt; case: eqP=>//=; case/orP: H=>H.
-- by move/(index_lastR_inj H)/N.
-by move/esym/(index_lastL_inj H)/esym/N.
+case: (eqVneq t1 t2)=>[->|N] /=; first by apply: index_leq_last.
+rewrite leq_eqVlt; case: eqP=>//= /(index_last_inj H).
+by apply: contra_eq.
 Qed.
 
 (* only one direction! *)
@@ -1571,11 +1570,10 @@ Lemma sle_eqVlt_lf ks t1 t2 :
         (t1 \in ks) || (t2 \in ks) ->
         t1 <=LF[ks] t2 -> (t1 == t2) || (t1 <LF[ks] t2).
 Proof.
-move=>H; rewrite /seq_lt_lf /seq_le_lf.
-case: (t1 =P t2)=>[->|N] //=.
-rewrite leq_eqVlt; case: eqP=>//=; case/orP: H=>H.
-- by move/(index_lastL_inj H)/N.
-by move/esym/(index_lastR_inj H)/esym/N.
+rewrite orbC=>H; rewrite /seq_lt_lf /seq_le_lf.
+case: (eqVneq t1 t2)=>[->|N] //=.
+rewrite leq_eqVlt; case: eqP=>//= + _; move/esym/(index_last_inj H).
+by apply: contra_eq=>_; rewrite eq_sym.
 Qed.
 
 Lemma sle_eqVlt_ll ks t1 t2 :
@@ -1606,21 +1604,20 @@ Lemma slt_neqAle_fl ks t1 t2 :
         (t1 \in ks) || (t2 \in ks) ->
         t1 != t2 -> t1 <=FL[ks] t2 -> t1 <FL[ks] t2.
 Proof.
-move=>H /eqP N.
+move=>H N.
 rewrite /seq_lt_fl /seq_le_fl leq_eqVlt; case/orP=>// /eqP.
-case/orP: H=>H; first by move/(index_lastR_inj H)/N.
-by move/esym/(index_lastL_inj H)/esym/N.
+by move/(index_last_inj H); apply: contra_eq.
 Qed.
 
 Lemma slt_neqAle_lf ks t1 t2 :
         (t1 \in ks) || (t2 \in ks) ->
         t1 <LF[ks] t2 = (t1 != t2) && (t1 <=LF[ks] t2).
 Proof.
-move=>H.
+rewrite orbC=>H.
 rewrite /seq_lt_lf /seq_le_lf.
-case: (t1 =P t2)=>[->|N] /=; first by rewrite ltnNge index_leq_last.
-rewrite ltn_neqAle; case: eqP=>//=; case/orP: H=>H; first by move/(index_lastL_inj H)/N.
-by move/esym/(index_lastR_inj H)/esym/N.
+case: (eqVneq t1 t2)=>[->|N] /=; first by rewrite ltnNge index_leq_last.
+rewrite ltn_neqAle; case: eqP=>//= /esym/(index_last_inj H).
+by apply: contra_eq=>_; rewrite eq_sym.
 Qed.
 
 Lemma slt_neqAle_ll ks t1 t2 :
@@ -1716,4 +1713,398 @@ by rewrite He // eq_refl.
 Qed.
 *)
 
+(*
+Lemma ole_olt_trans ks t1 t2 t3 :
+        t1 <=[ks] t2 -> t2 <[ks] t3 -> t1 <[ks] t3.
+Proof. by apply: leq_ltn_trans. Qed.
+
+Lemma olt_ole_trans ks t1 t2 t3 :
+        t1 <[ks] t2 -> t2 <=[ks] t3 -> t1 <[ks] t3.
+Proof. by apply: leq_trans. Qed.
+
+Lemma oltW ks t1 t2 : t1 <[ks] t2 -> t1 <=[ks] t2.
+Proof. by apply: ltnW. Qed.
+
+Lemma olt_subseq ks1 ks2 k t :
+        subseq ks1 ks2 -> uniq ks2 -> k \in ks1 -> t \in ks1 ->
+        k <[ks1] t = k <[ks2] t.
+Proof. by move=>S U T K; apply/idP/idP=>/(index_subseq S U T K). Qed.
+
+Lemma ole_subseq ks1 ks2 k t :
+        subseq ks1 ks2 -> uniq ks2 -> k \in ks1 -> t \in ks1 ->
+        k <=[ks1] t = k <=[ks2] t.
+Proof. by move=>S U T K; rewrite !oleNgt (olt_subseq S U K T). Qed.
+
+(* membership properties of the sequence orderings *)
+
+Lemma olt_memI x y ks : x \in ks -> y \notin ks -> x <[ks] y.
+Proof. by move=>X /index_memN E; rewrite /seq_lt E index_mem. Qed.
+
+Lemma ole_memI x y ks : y \notin ks -> x <=[ks] y.
+Proof. by move/index_memN=>E; rewrite /seq_le E index_size. Qed.
+
+Lemma olt_memE x y ks : x <[ks] y -> x \in ks.
+Proof. by rewrite -index_mem=>/leq_trans; apply; rewrite index_size. Qed.
+
+Lemma ole_memE x y ks : x <=[ks] y -> y \in ks -> x \in ks.
+Proof. by move=>H; rewrite -!index_mem; apply: leq_ltn_trans H. Qed.
+
+
+(* sequence orderings and constructors *)
+
+Lemma olt_nil x y : x <[Nil A] y = false. Proof. by []. Qed.
+Lemma ole_nil x y : x <=[Nil A] y. Proof. by []. Qed.
+
+(* cons *)
+
+Lemma olt_cons x y k ks :
+        x <[k :: ks] y = (y != k) && ((x == k) || (x <[ks] y)).
+Proof. by rewrite /seq_lt /= !(eq_sym k); case: eqP; case: eqP. Qed.
+
+Lemma ole_cons x y k ks :
+        x <=[k :: ks] y = (x == k) || (y != k) && x <=[ks] y.
+Proof. by rewrite oleNgt olt_cons negb_and negbK negb_or -oleNgt. Qed.
+
+Lemma oltL x y ks : x <[x :: ks] y = (y != x).
+Proof. by rewrite olt_cons eq_refl andbT. Qed.
+
+Lemma oleL x y ks : x <=[x :: ks] y.
+Proof. by rewrite ole_cons eq_refl. Qed.
+
+Lemma oltR x y ks : x <[y :: ks] y = false.
+Proof. by rewrite oltNge oleL. Qed.
+
+Lemma oleR x y ks : x <=[y :: ks] y = (y == x).
+Proof. by rewrite oleNgt oltL negbK. Qed.
+
+(* sequence orderings and last *)
+
+Lemma ole_last x k ks :
+        uniq ks -> x \in ks -> x <=[ks] (last k ks).
+Proof. by apply: indexlast_mono. Qed.
+
+Lemma ole_last_cons x k ks :
+        uniq (k :: ks) -> x \in k::ks -> x <=[k::ks] (last k ks).
+Proof.
+move=>U; move: (U)=>/= /andP [U1 U2].
+rewrite inE ole_cons; case: eqP=>//= /eqP Nxk K.
+by rewrite (last_notin K) //= ole_last.
+Qed.
+
+Lemma olt_last x k ks :
+        uniq ks -> x \in ks -> last k ks != x -> x <[ks] (last k ks).
+Proof.
+move=>U X N; move: (ole_last k U X); rewrite ole_eqVlt; last by left.
+by rewrite eq_sym (negbTE N).
+Qed.
+
+Lemma olt_last_cons x k ks :
+        uniq (k :: ks) -> x \in k::ks ->
+        last k ks != x -> x <[k::ks] (last k ks).
+Proof.
+move=>U X N; rewrite olt_neqAle; last by right; apply: mem_last.
+by rewrite eq_sym N ole_last_cons.
+Qed.
+
+(* sequence ordering and head *)
+
+Lemma ole_head x ks y : (head x ks) <=[ks] y.
+Proof. by case: ks=>[|k ks] //=; rewrite oleL. Qed.
+
+
+(* sequence orderings and rcons *)
+
+Lemma olt_rcons x y k ks :
+        x <[rcons ks k] y = if y \in ks then x <[ks] y
+                            else (x \in ks) || (k != y) && (k == x).
+Proof.
+rewrite /seq_lt !index_rcons.
+case X: (x \in ks); case Y: (y \in ks)=>//=.
+- by case: eqP; [rewrite index_mem | rewrite ltnS index_size].
+- move/negbT/index_memN: X=>X; rewrite [LHS]ltnNge [RHS]ltnNge.
+  rewrite X index_size /=.
+  case: eqP=>//; first by rewrite index_size.
+  by rewrite ltnW // ltnS index_size.
+rewrite !(eq_sym k).
+case: eqP; case: eqP=>//=.
+- by rewrite ltnn.
+- by rewrite ltnS leqnn.
+- by rewrite ltnNge ltnW.
+by rewrite ltnn.
+Qed.
+
+Lemma ole_rcons x y k ks :
+        x <=[rcons ks k] y = if x \in ks then x <=[ks] y
+                             else (y \notin ks) && ((k == x) || (k != y)).
+Proof.
+by rewrite !oleNgt olt_rcons; case: ifP=>//; rewrite negb_or negb_and negbK.
+Qed.
+
+(* some shortcuts for olt/ole_rcons *)
+
+Lemma olt_rconsI x y k ks : x <[ks] y -> x <[rcons ks k] y.
+Proof. by move=>H; rewrite olt_rcons H (olt_memE H) if_same. Qed.
+
+Lemma ole_rconsI x y k ks : k != y -> x <=[ks] y -> x <=[rcons ks k] y.
+Proof.
+move=>N H; rewrite ole_rcons H N orbT andbT.
+case: ifP=>// K; apply: contraFT K.
+by rewrite negbK; apply: ole_memE H.
+Qed.
+
+Lemma olt_rcons_in x y k ks :
+        x \in ks -> x <[rcons ks k] y = x <[ks] y.
+Proof.
+move=>H; rewrite olt_rcons H /=; case: ifP=>// K.
+by apply/esym; apply: olt_memI=>//; rewrite K.
+Qed.
+
+Lemma ole_rcons_in x y k ks :
+        x \in ks -> x <=[rcons ks k] y = x <=[ks] y.
+Proof. by move=>X; rewrite ole_rcons X. Qed.
+
+Lemma olt_rcons_inE ks x y k1 k2 :
+        (x \in ks) || (y \in ks) ->
+        x <[rcons ks k1] y = x <[rcons ks k2] y.
+Proof. by rewrite !olt_rcons=>/orP [] ->. Qed.
+
+Lemma ole_rcons_inE ks x y k1 k2 :
+        (x \in ks) || (y \in ks) ->
+        x <=[rcons ks k1] y = x <=[rcons ks k2] y.
+Proof. by rewrite !ole_rcons=>/orP [] ->. Qed.
+
+Lemma olt_rconsR ks x k : x <[rcons ks k] k -> x \in ks.
+Proof. by rewrite olt_rcons eq_refl orbF; case: ifP=>[_ /olt_memE|]. Qed.
+
+Lemma ole_rconsR ks x k : x <=[rcons ks k] k -> x \in rcons ks k.
+Proof.
+rewrite ole_rcons eq_refl orbF mem_rcons inE.
+case X: (x \in ks); first by rewrite orbT.
+by rewrite orbF eq_sym; case/andP.
+Qed.
+
+(* sequence orderings and concatenation *)
+Lemma ole_cat ks1 ks2 x y :
+        x <=[ks1++ks2] y = if x \in ks1 then x <=[ks1] y
+                           else (y \notin ks1) && x <=[ks2] y.
+Proof.
+rewrite /seq_le !index_cat.
+case X: (x \in ks1); case Y: (y \in ks1)=>//=.
+- move/negbT/index_memN: Y=>Y.
+  by rewrite Y index_size ltnW // ltn_addr // index_mem.
+- rewrite -index_mem in Y.
+  apply/negP=>H; move/(leq_ltn_trans H): Y.
+  by rewrite ltnNge leq_addr.
+by rewrite leq_add2l.
+Qed.
+
+Lemma olt_cat ks1 ks2 x y :
+        x <[ks1++ks2] y = if y \in ks1 then x <[ks1] y
+                          else (x \in ks1) || x <[ks2] y.
+Proof. by rewrite !oltNge ole_cat; case: ifP=>//; rewrite negb_and negbK. Qed.
+
+(* shortcuts *)
+
+Lemma olt_catL ks1 ks2 x y : x <[ks1] y -> x <[ks1++ks2] y.
+Proof. by move=>H; rewrite olt_cat H (olt_memE H) if_same. Qed.
+
+Lemma olt_splitR x y ks1 ks2 : y != x -> y \notin ks1 -> x <[ks1++x::ks2] y.
+Proof.
+by move=>N Y; rewrite olt_cat olt_cons eq_refl andbT (negbTE Y) N orbT.
+Qed.
+
+Lemma ole_splitR x y ks1 ks2 : y \notin ks1 -> x <=[ks1++x::ks2] y.
+Proof.
+move=>Y; rewrite ole_eqVlt; last first.
+- by left; rewrite mem_cat inE eq_refl orbT.
+by case: eqP=>[|/eqP N] //=; rewrite (olt_splitR _ _ Y) // eq_sym.
+Qed.
+
+(* the other direction of olt_splitR, further strenghtened *)
+(* with an additional fact that x \notin ks1 *)
+(* by picking a split with the first occurrence of x *)
+(* in fact, we can have both directions here, so we prove a reflect lemma *)
+(* but it should really only be used in the direction x <[ks] y -> .. *)
+(* because in the other direction olt_splitR is already stronger. *)
+Lemma olt_splitL ks x y :
+        reflect (exists ks1 ks2, [/\ ks = ks1++x::ks2, x != y,
+                                     x \notin ks1 & y \notin ks1])
+                (x <[ks] y).
+Proof.
+case H : (x <[ks] y); constructor; last first.
+- case=>ks1 [ks2][E N _ Y]; move/negP: H; apply.
+  by rewrite E; apply: olt_splitR Y; rewrite eq_sym.
+have : x \in ks by rewrite -index_mem (leq_trans H _) // index_size.
+case/in_split=>ks1 [ks2][E X]; exists ks1, ks2.
+rewrite /seq_lt {ks}E !index_cat /= eq_refl in H *.
+case: eqP H=>[->|/eqP N] /=; first by rewrite ltnn.
+rewrite (negbTE X) addn0; case: ifP=>// _.
+by rewrite ltnNge index_size.
+Qed.
+
+(* ditto for ole_split *)
+Lemma ole_splitL ks x y :
+        x \in ks ->
+        reflect (exists ks1 ks2, [/\ ks = ks1++x::ks2,
+                                     x \notin ks1 & y \notin ks1])
+                (x <=[ks] y).
+Proof.
+move=>X; case H : (x <=[ks] y); constructor; last first.
+- case=>ks1 [ks2][E _ N]; move/negP: H; apply.
+  by rewrite E; apply: ole_splitR.
+case/in_split: X=>ks1 [ks2][E X]; exists ks1, ks2; split=>//.
+rewrite /seq_le {ks}E !index_cat /= eq_refl (negbTE X) addn0 in H.
+by case: ifP H=>//; rewrite -index_mem; case: ltngtP.
+Qed.
+
+(* sequence orderings and filter *)
+
+Lemma olt_filterL (p : pred A) ks x y :
+         (x \notin ks) || p x ->
+         x <[ks] y -> x <[filter p ks] y.
+Proof. by apply: index_filter_ltL. Qed.
+
+Lemma ole_filterL (p : pred A) ks x y :
+        (x \notin ks) || p x ->
+        x <=[ks] y -> x <=[filter p ks] y.
+Proof. by apply: index_filter_leL. Qed.
+
+Lemma olt_filterR (p : pred A) ks x y :
+        (y \notin ks) || p y ->
+        x <[filter p ks] y -> x <[ks] y.
+Proof. by apply: index_filter_ltR. Qed.
+
+Lemma ole_filterR (p : pred A) ks x y :
+        (y \notin ks) || p y ->
+        x <=[filter p ks] y -> x <=[ks] y.
+Proof. by apply: index_filter_leR. Qed.
+
+Lemma olt_filter (p : pred A) ks x y :
+        (x \notin ks) || p x -> (y \notin ks) || p y ->
+        x <[filter p ks] y = x <[ks] y.
+Proof.
+by move=>H1 H2; apply/idP/idP; [apply: olt_filterR | apply: olt_filterL].
+Qed.
+
+Lemma ole_filter (p : pred A) ks x y :
+        (x \notin ks) || p x -> (y \notin ks) || p y ->
+        x <=[filter p ks] y = x <=[ks] y.
+Proof.
+by move=>H1 H2; apply/idP/idP; [apply: ole_filterR | apply: ole_filterL].
+Qed.
+
+(* sequence orderings and sortedness *)
+
+(* every list is sorted by its olt relation, assuming uniqueness *)
+Lemma sorted_olt ks : uniq ks -> sorted (seq_lt ks) ks.
+Proof.
+case: ks=>//= k ks; elim: ks k=>[|k1 ks IH] k2 //=.
+rewrite inE negb_or -andbA=>/and4P [N1 N2 N3 N4].
+rewrite oltL eq_sym N1 /=.
+have : path (seq_lt [:: k1 & ks]) k1 ks by apply: IH; rewrite N3 N4.
+apply: (@sub_in_path _ (mem (k1::ks))); last by apply/allP.
+move=>x y /=; rewrite !inE !olt_cons.
+case/orP=>[/eqP ->{x}|X].
+- rewrite (eq_sym k1 k2) (negbTE N1) /= eq_refl andbT.
+  case/orP=>[/eqP ->|Y ->]; first by rewrite eq_refl.
+  by case: eqP Y N2=>// ->->.
+case/orP=>[/eqP ->|Y]; first by rewrite eq_refl.
+case: eqP Y N3=>[->|/eqP N Y N3] //=.
+case: eqP X N3=>[->->|/eqP M X K1] //= H.
+by rewrite H orbT andbT; case: eqP Y N2=>// ->->.
+Qed.
+
+Lemma sorted_ole ks : uniq ks -> sorted (seq_le ks) ks.
+Proof.
+move=>U; apply: sub_sorted (sorted_olt U).
+by move=>x y; rewrite /seq_lt/seq_le; case: ltngtP.
+Qed.
+
+(* olt/ole under general sorted relations *)
+Lemma olt_sorted_lt ltT ks x y :
+        transitive ltT ->
+        sorted ltT ks ->
+        y \in ks -> x <[ks] y -> ltT x y.
+Proof. by apply: sorted_index_ord. Qed.
+
+Lemma ole_sorted_lt ltT ks x y :
+        transitive ltT ->
+        sorted ltT ks ->
+        y \in ks -> x <=[ks] y -> (x == y) || ltT x y.
+Proof.
+move=>T S Y; rewrite ole_eqVlt; last by right.
+by case/orP=>[->//|/(olt_sorted_lt T S Y) ->]; rewrite orbT.
+Qed.
+
+Lemma olt_sorted_ltE ltT ks x y :
+        irreflexive ltT ->
+        transitive ltT ->
+        sorted ltT ks ->
+        x \in ks -> y \in ks ->
+        x <[ks] y = ltT x y.
+Proof.
+move=>Is T S X Y; apply/idP/idP.
+- by apply: olt_sorted_lt.
+by apply: sorted_ord_index.
+Qed.
+
+(* we can get the other direction as well *)
+(* if we add antisymmetry *)
+(* and the condition that x \in ks *)
+Lemma olt_sorted_leE leT ks x y :
+        antisymmetric leT ->
+        transitive leT ->
+        sorted leT ks ->
+        x \in ks -> y \in ks ->
+        x <[ks] y = (x != y) && leT x y.
+Proof.
+move=>As T S X Y; apply/idP/idP.
+- by case: eqP=>[->|/eqP N] /=; [rewrite olt_irr | apply: olt_sorted_lt].
+by case/andP=>H K; apply: sorted_ord_index_leq K H.
+Qed.
+
+(* if we add antisymmetry and t1 \in ks *)
+Lemma ole_sorted_leE leT ks x y :
+        antisymmetric leT ->
+        transitive leT ->
+        sorted leT ks ->
+        x \in ks -> y \in ks ->
+        x <=[ks] y = (x == y) || leT x y.
+Proof.
+move=>As T S X Y; rewrite ole_eqVlt; last by right.
+by rewrite (olt_sorted_leE As T S X Y); case: eqP.
+Qed.
+*)
+End SeqLeEq.
+(*
+Section SeqLeOrd.
+Variable (A : ordType).
+Implicit Type (ks : seq A).
+
+(* olt/ole and sortedness under ordering on A *)
+
+Lemma olt_sorted ks x y :
+        sorted ord ks -> y \in ks -> x <[ks] y -> ord x y.
+Proof. by apply/olt_sorted_lt/trans. Qed.
+
+Lemma ole_sorted ks x y :
+        sorted ord ks -> y \in ks -> x <=[ks] y -> oleq x y.
+Proof. by rewrite oleq_eqVord; apply/ole_sorted_lt/trans. Qed.
+
+Lemma olt_sortedE ks x y :
+        sorted ord ks ->
+        x \in ks -> y \in ks ->
+        x <[ks] y = ord x y.
+Proof.
+move=>S X Y; apply/idP/idP; first by apply: olt_sorted S Y.
+by apply: (sorted_ord_index (@irr _) (@trans _)) S X.
+Qed.
+
+Lemma ole_sortedE ks x y :
+        sorted ord ks ->
+        x \in ks -> y \in ks ->
+        x <=[ks] y = oleq x y.
+Proof. by move=>S X Y; rewrite oleqNord oleNgt (olt_sortedE S Y X). Qed.
+
 End SeqLeOrd.
+*)
