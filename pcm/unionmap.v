@@ -3008,17 +3008,17 @@ Definition um_prefix (h1 h2 : U) := prefix (assocs h1) (assocs h2).
 
 Lemma umpfx_undef h : um_prefix undef h.
 Proof.
-by rewrite /um_prefix assocs_undef; apply/prefixP; exists (assocs h).
+by rewrite /um_prefix assocs_undef; apply/prefixE; exists (assocs h).
 Qed.
 
 Lemma umpfx0 h : um_prefix Unit h.
 Proof.
-by rewrite /um_prefix assocs0; apply/prefixP; exists (assocs h).
+by rewrite /um_prefix assocs0; apply/prefixE; exists (assocs h).
 Qed.
 
 Lemma umpfxD h1 h2 : um_prefix h1 h2 -> prefix (dom h1) (dom h2).
 Proof.
-by case/prefixP=>x E; rewrite !assocs_dom E map_cat; apply: prefix_cat.
+by case/prefixE=>x E; rewrite !assocs_dom E map_cat; apply: prefix_cat.
 Qed.
 
 (* we next need a helper lemma, which should be in assocs section *)
@@ -3059,7 +3059,7 @@ move: h1 h V1 W; apply: um_indf=>[h|h _ W|
 k v h1 IH W1 /(order_path_min (@trans _)) P h _ W].
 - by rewrite valid_undef.
 - by exists h; [rewrite unitL | rewrite dom0].
-case/prefixP=>h2'; rewrite assocsPtUn //= => Eh.
+case/prefixE=>h2'; rewrite assocsPtUn //= => Eh.
 set h' := free h k; have W' : valid h' by rewrite validF.
 have : um_prefix h1 h'.
 - rewrite /um_prefix assocsF Eh /= eq_refl filter_cat /=.
