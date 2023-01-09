@@ -818,6 +818,12 @@ elim: s n=>/= [|a s IH] n /=; first by apply: nth_nil.
 by case: n.
 Qed.
 
+Lemma onth_nth x0 n s : n < size s -> onth s n = Some (nth x0 s n).
+Proof.
+elim: s n=>//= a s IH n.
+by rewrite ltnS; case: n.
+Qed.
+
 Lemma prefix_refl s : prefix s s.
 Proof. by move=>n x <-. Qed.
 
