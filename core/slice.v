@@ -219,6 +219,23 @@ rewrite /slice /=; apply: drop_oversize.
 by rewrite size_take_min; apply: geq_minr.
 Qed.
 
+(* TODO unify these two? *)
+Lemma itv_swapped_bnd s (i j : itv_bound nat) :
+        j <= i ->
+        &:s (Interval i j) = [::].
+Proof.
+move=>H; rewrite /slice; apply: drop_oversize.
+move: H; case: i=>[ib ix|[]]; case: j=>[jb jx|[]] //=;
+rewrite ?bnd_simp ?take_size ?take0 ?drop_size //= size_take_min.
+- rewrite leBSide; case: ib=>/=; case: jb=>/=; rewrite ?addn0 ?addn1=>Hji.
+  - apply/leq_trans/Hji; exact: geq_minl.
+  - apply/leq_trans/Hji; exact: geq_minl.
+  - apply: leq_trans; first by exact: geq_minl.
+    by apply: ltnW.
+  by apply: leq_trans; first by exact: geq_minl.
+by move=>_; exact: geq_minr.
+Qed.
+
 Lemma itv_swapped s (i j : itv_bound nat) :
         bnd j (size s) <= bnd i (size s) ->
         &:s (Interval i j) = [::].
@@ -246,34 +263,40 @@ Qed.
 
 (* splitting slice *)
 
-Lemma slice_split s b x (i : interval nat) :
-  x \in i ->
-  &:s i = &:s (Interval i.1 (BSide b x)) ++ &:s (Interval (BSide b x) i.2).
+Lemma slice_split_bnd s (i : interval nat) x :
+  i.1 <= x <= i.2 ->
+  &:s i = &:s (Interval i.1 x) ++ &:s (Interval x i.2).
 Proof.
+case: i=>i1 i2 /=.
+case: x=>[b x|[]]; rewrite ?bnd_simp /=; first last.
+- by move/eqP=>->; rewrite itv_pinfL cats0.
+- by rewrite andbT =>/eqP->; rewrite itv_minfR.
 case/boolP: (size s <= bnd (BSide b x) (size s)).
-- move=>H; rewrite (itv_overL _ H) cats0 (itv_overR _ H).
-  case: i=>i j /= Hx; apply: itv_overR; rewrite /= in H.
-  move: Hx; rewrite in_itv; case/andP=>_.
-  case: j=>[[] j|[]] //= Hx; apply: (leq_trans H); case: {H}b; rewrite ?addn0 ?addn1 //;
-  by apply/ltnW.
+- move=>H Hx; rewrite (itv_overL _ H) cats0 (itv_overR _ H).
+  apply: itv_overR; rewrite /= in H.
+  case/andP: Hx=>_.
+  case: i2=>[[] i2|[]] //= Hx; apply: (leq_trans H); case: {H}b Hx; rewrite bnd_simp ?addn0 ?addn1 //.
+  by move=>Hx; apply/ltnW.
 rewrite -ltNge ltEnat /= =>/ltnW/minn_idPl Hx.
-case: i=>[[l i|[]][r j|[]]] //=;
-rewrite in_itv /= ?andbF ?andbT // /slice /= ?drop0 ?take_size.
+case: i1=>[l i|[]]; case: i2=>[r j|[]] //=;
+rewrite ?bnd_simp ?andbF ?andbT // ?lteBSide /slice /= ?drop0 ?take_size.
 - case/andP=>Hi Hj.
   have Hxj : (x + ~~ b <= j + ~~r)%N.
-  - case: r Hj=>/=; rewrite ?leEnat ?ltEnat; case: {Hx}b=>/=;
+  - case: r Hj=>/=; rewrite ?leEnat ?ltEnat; case: {Hx Hi}b=>/=;
     rewrite ?addn0 ?addn1 // => Hj;
     by apply: ltnW.
   have Hxi : (i + ~~ l <= x + ~~ b)%N.
-  - case: l Hi=>/=; rewrite ?leEnat ?ltEnat ?addn0 ?addn1 /= => Hi;
-    by apply/(leq_trans Hi)/leq_addr.
+  - case: l Hi=>/=; rewrite ?implybT ?implybF /= ?addn0 ?addn1 /= => Hi.
+    - by apply/(leq_trans Hi)/leq_addr.
+    by case: {Hx Hj Hxj}b Hi=>/=; rewrite ?leEnat ?ltEnat /= ?addn0 ?addn1.
   rewrite -{1}(subnKC Hxj) takeD drop_cat size_take_min Hx take_drop subnK //.
   rewrite ltn_neqAle Hxi andbT; case: eqP=>//= ->.
   by rewrite subnn drop0 drop_take_id.
 - move=>Hi; rewrite -{1}(cat_take_drop (x + ~~ b) s) drop_cat size_take_min Hx.
   have Hxi : (i + ~~ l <= x + ~~ b)%N.
-  - case: l Hi=>/=; rewrite ?leEnat ?ltEnat ?addn0 ?addn1 /= => Hi;
-    by apply/(leq_trans Hi)/leq_addr.
+  - case: l Hi=>/=; rewrite ?implybT ?implybF /= ?addn0 ?addn1 /= => Hi.
+    - by apply/(leq_trans Hi)/leq_addr.
+    by case: {Hx}b Hi=>/=; rewrite ?leEnat ?ltEnat /= ?addn0 ?addn1.
   rewrite ltn_neqAle Hxi andbT; case: eqP=>//= ->.
   by rewrite subnn drop0 drop_take_id.
 - move=>Hj.
@@ -283,6 +306,20 @@ rewrite in_itv /= ?andbF ?andbT // /slice /= ?drop0 ?take_size.
     by apply: ltnW.
   by rewrite -{1}(subnKC Hbj) takeD take_drop subnK.
 by move=>_; rewrite cat_take_drop.
+Qed.
+
+Corollary slice_split s b x (i : interval nat) :
+  x \in i ->
+  &:s i = &:s (Interval i.1 (BSide b x)) ++ &:s (Interval (BSide b x) i.2).
+Proof.
+move=>Hx; apply: slice_split_bnd.
+case: i Hx=>[[l i|[]][r j|[]]] //=;
+rewrite in_itv /= ?andbT ?andbF // ?leBSide; case: b=>/=;
+rewrite ?implybF ?implybT //=.
+- by case/andP=>->/= /lteifW.
+- by case/andP=>/lteifW->.
+- by move/lteifW.
+by move/lteifW.
 Qed.
 
 (* "test" lemmas *)
@@ -781,6 +818,26 @@ rewrite ltEnat leEnat /= nth_cat size_nseq; case: ltngtP=>Hi /=.
 rewrite -Hi subnn nth0; case: ltnP.
 - by rewrite -subn_gt0; set q := bnd j (size s) - index x s; case: q.
 by rewrite -subn_eq0=>/eqP->.
+Qed.
+
+(* slice subset *)
+
+Lemma slice_subset s i1 i2 :
+  i1 <= i2 ->
+  {subset (&:s i1) <= &:s i2}.
+Proof.
+case: i1=>i1 j1; case: i2=>i2 j2.
+rewrite subitvE; case/andP=>Hi Hj.
+move=>x Hx.
+have Hij : i1 <= j1.
+- apply: contraLR Hx; rewrite -ltNge=>/ltW Hji.
+  by rewrite itv_swapped_bnd.
+rewrite (@slice_split_bnd _ _ _ i1) /=; last first.
+- by rewrite Hi /=; apply/le_trans/Hj.
+rewrite mem_cat; apply/orP; right.
+rewrite (@slice_split_bnd _ _ _ j1) /=; last first.
+- by rewrite Hj andbT.
+by rewrite mem_cat Hx.
 Qed.
 
 Lemma ixsl_uu s q n :
