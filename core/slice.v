@@ -177,6 +177,9 @@ Qed.
 Lemma slice_0L s y : &:s (Interval -oo y) = &:s (Interval (BLeft 0%N) y).
 Proof. by rewrite /slice /= addn0. Qed.
 
+Lemma slice_FR s x : &:s (Interval x +oo) = &:s (Interval x (BLeft (size s))).
+Proof. by rewrite /slice /= addn0. Qed.
+
 Lemma slice_uu s : &:s `]-oo, +oo[ = s.
 Proof. by rewrite /slice /= drop0 take_size. Qed.
 
@@ -329,10 +332,20 @@ Proof. by rewrite -(slice_split _ _ (i:=`]-oo, +oo[)) // slice_uu. Qed.
 Corollary slice_uoxu s i : s = &:s `]-oo, i[ ++ &:s `[i, +oo[.
 Proof. by rewrite -(slice_split _ _ (i:=`]-oo, +oo[)) // slice_uu. Qed.
 
-Corollary slice_uxox s a b :
+Corollary slice_uxxo s a b :
             a <= b ->
             &:s `]-oo, b] = &:s `]-oo, a] ++ &:s `]a, b].
 Proof. by move=>Hab; rewrite (slice_split _ false (x:=a)). Qed.
+
+Corollary slice_uxox s a b :
+            a <= b ->
+            &:s `]-oo, b] = &:s `]-oo, a[ ++ &:s `[a, b].
+Proof. by move=>Hab; rewrite (slice_split _ true (x:=a)). Qed.
+
+Corollary slice_uoox {A : Type} (s : seq A) a b :
+            a < b ->
+            &:s `]-oo, b[ = &:s `]-oo, a[ ++ &:s `[a, b[.
+Proof. by move=>Hab; rewrite (slice_split _ true (x:=a)). Qed.
 
 (* ... *)
 
@@ -401,6 +414,13 @@ case: a=>[[] a|[]] //=.
 - by rewrite -leNgt leEnat => H; rewrite !itv_swapped //= !addn1 ?addn0 leEnat ltnS.
 by move=>_; rewrite !itv_pinfL.
 Qed.
+
+(* endpoint -1 *)
+
+Corollary slice_oPR a x s :
+        0 < x ->
+        &:s (Interval a (BRight x.-1)) = &:s (Interval a (BLeft x)).
+Proof. by move=>Hx; rewrite -{2}(prednK Hx) slice_oSR. Qed.
 
 (* endpoint split *)
 
