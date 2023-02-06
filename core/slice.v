@@ -342,10 +342,33 @@ Corollary slice_uxox s a b :
             &:s `]-oo, b] = &:s `]-oo, a[ ++ &:s `[a, b].
 Proof. by move=>Hab; rewrite (slice_split _ true (x:=a)). Qed.
 
-Corollary slice_uoox {A : Type} (s : seq A) a b :
+Corollary slice_uoox (s : seq A) a b :
             a < b ->
             &:s `]-oo, b[ = &:s `]-oo, a[ ++ &:s `[a, b[.
 Proof. by move=>Hab; rewrite (slice_split _ true (x:=a)). Qed.
+
+(* slice extrusion *)
+
+Lemma slice_extrude s (i : interval nat) :
+        i.1 < i.2 ->
+        s = &:s (Interval -oo i.1) ++ &:s i ++ &:s (Interval i.2 +oo).
+Proof.
+case: i=>[[[] i|[]][[] j|[]]] //=; rewrite bnd_simp=>H;
+  rewrite ?itv_minfR ?itv_pinfL /= ?cats0.
+- by rewrite -{1}(slice_uu s) (slice_split _ true (x:=i)) //=
+    (slice_split _ true (x:=j) (i:=`[i, +oo[)) //= in_itv /= andbT; apply/ltnW.
+- by rewrite -{1}(slice_uu s) (slice_split _ true (x:=i)) //=
+    (slice_split _ false (x:=j) (i:=`[i, +oo[)) //= in_itv /= andbT.
+- by rewrite -{1}(slice_uu s) (slice_split _ true (x:=i)).
+- by rewrite -{1}(slice_uu s) (slice_split _ false (x:=i)) //=
+    (slice_split _ true (x:=j) (i:=`]i, +oo[)) //= in_itv /= andbT.
+- by rewrite -{1}(slice_uu s) (slice_split _ false (x:=i)) //=
+    (slice_split _ false (x:=j) (i:=`]i, +oo[)) //= in_itv /= andbT.
+- by rewrite -{1}(slice_uu s) (slice_split _ false (x:=i)).
+- by rewrite -{1}(slice_uu s) (slice_split _ true (x:=j)).
+- by rewrite -{1}(slice_uu s) (slice_split _ false (x:=j)).
+by rewrite slice_uu.
+Qed.
 
 (* ... *)
 
