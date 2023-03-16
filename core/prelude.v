@@ -762,6 +762,323 @@ Qed.
 
 End FindLastEq.
 
+Section FindAll.
+
+Variables (T : Type).
+Implicit Types (x : T) (p : pred T) (s : seq T).
+
+(* helper function for finding all occurrences in a single pass with difference lists *)
+Definition findall_aux oi0 p s : (seq nat -> seq nat) * nat :=
+  foldl (fun '(s,i) x => (if p x then s \o cons i else s, i.+1)) oi0 s.
+
+Lemma findall_auxE oi0 p s :
+      (forall s1 s2 : seq nat, oi0.1 (s1 ++ s2) = oi0.1 s1 ++ s2) ->
+      let: (rs, ix) := findall_aux oi0 p s in
+        (forall s' : seq nat,
+           rs s' = oi0.1 (map fst (filter (p \o snd) (zip (iota oi0.2 (size s)) s))) ++ s')
+        /\ ix = oi0.2 + size s.
+Proof.
+move; rewrite /findall_aux; elim: s oi0=>[|x s IH] [o0 i0] /= H0.
+- split; last by rewrite addn0.
+  by move=>s'; rewrite -{1}(cat0s s') H0.
+case/boolP: (p x)=>/= Hpx.
+- move: (IH (o0 \o cons i0, i0.+1))=>/=.
+  rewrite addSn addnS; apply=>s1 s2.
+  by rewrite -cat_cons H0.
+by move: (IH (o0, i0.+1))=>/=; rewrite addSn addnS; apply.
+Qed.
+
+Definition findall p s : seq nat := (findall_aux (id, 0) p s).1 [::].
+
+Lemma findallE p s :
+      findall p s = map fst (filter (p \o snd) (zip (iota 0 (size s)) s)).
+Proof.
+rewrite /findall.
+move: (@findall_auxE (id, 0) p s)=>/= /(_ (fun s1 s2 : seq nat => erefl)).
+case E: (findall_aux (id, 0) p s)=>[rs ix] /=; case=>/(_ [::]) -> _.
+by rewrite cats0.
+Qed.
+
+(* TODO contribute to mathcomp *)
+Lemma zip_map2 {P Q R S : Type} (f : P -> R) (g : Q -> S) (s1 : seq P) (s2 : seq Q) :
+  zip (map f s1) (map g s2) =
+  map (fun '(x1,x2) => (f x1,g x2)) (zip s1 s2).
+Proof.
+elim: s1 s2=>/= [|x1 s1 IH] [|x2 s2] //=.
+by congr cons.
+Qed.
+
+Lemma findall_cat p s1 s2 :
+        findall p (s1 ++ s2) =
+        findall p s1 ++ map (fun n => size s1 + n) (findall p s2).
+Proof.
+rewrite !findallE size_cat iotaD add0n zip_cat; last by rewrite size_iota.
+rewrite filter_cat map_cat; congr (_ ++ _).
+set n := size s1.
+rewrite -{1}(addn0 n) -{2}(map_id s2) iotaDl zip_map2 filter_map -!map_comp.
+rewrite (eq_filter (a2:=(p \o snd))); last by case.
+by apply: eq_map; case.
+Qed.
+
+Lemma findall_cons p x s :
+        findall p (x::s) =
+        if p x then 0 :: map S (findall p s) else map S (findall p s).
+Proof.
+rewrite -cat1s findall_cat /= findallE /=.
+by case: (p x).
+Qed.
+
+
+(*
+Lemma findlast_auxE oi0 p s :
+        findlast_aux oi0 p s =
+        let k := seq.find p (rev s) in
+        (if k == size s then oi0.1
+           else Some (oi0.2 + (size s - k).-1), oi0.2 + size s).
+Proof.
+rewrite /findlast_aux; elim: s oi0=>/= [|x s IH] [o0 i0] /=; first by rewrite addn0.
+rewrite IH /= rev_cons -cats1 find_cat /= has_find.
+move: (find_size p (rev s)); rewrite size_rev; case: ltngtP=>// H _.
+- case: eqP=>[E|_]; first by rewrite E ltnNge leqnSn in H.
+  apply: injective_projections=>/=; [congr Some | rewrite addSnnS]=>//.
+  by rewrite !predn_sub /= -predn_sub addSnnS prednK // subn_gt0.
+case: ifP=>_; rewrite addSnnS; last by rewrite addn1 eqxx.
+by rewrite addn0 eqn_leq leqnSn /= ltnn subSnn addn0.
+Qed.
+
+Definition findlast p s : nat :=
+  let '(o, i) := findlast_aux (None, 0) p s in odflt i o.
+
+(* finding last is finding first in reversed list and flipping indices *)
+Corollary findlastE p s :
+            findlast p s =
+            if has p s then (size s - seq.find p (rev s)).-1
+                       else size s.
+Proof.
+rewrite /findlast findlast_auxE /= !add0n -has_rev; case/boolP: (has p (rev s)).
+- by rewrite has_find size_rev; case: ltngtP.
+by move/hasNfind=>->; rewrite size_rev eqxx.
+Qed.
+
+Lemma findlast_size p s : findlast p s <= size s.
+Proof.
+rewrite findlastE; case: ifP=>// _.
+by rewrite -subnS; apply: leq_subr.
+Qed.
+
+Lemma has_findlast p s : has p s = (findlast p s < size s).
+Proof.
+symmetry; rewrite findlastE; case: ifP=>H /=; last by rewrite ltnn.
+by rewrite -subnS /= ltn_subrL /=; case: s H.
+Qed.
+
+Lemma hasNfindlast p s : ~~ has p s -> findlast p s = size s.
+Proof. by rewrite has_findlast; case: ltngtP (findlast_size p s). Qed.
+
+Lemma findlast0 p x : findlast p [::] = 0.
+Proof. by []. Qed.
+
+Lemma findlast1 p x : findlast p [::x] = ~~ p x.
+Proof. by rewrite findlastE /= orbF; case: ifP=>// ->. Qed.
+
+Lemma findlast_cat p s1 s2 :
+        findlast p (s1 ++ s2) =
+        if has p s1 && ~~ has p s2
+          then findlast p s1
+          else size s1 + findlast p s2.
+Proof.
+rewrite !findlastE has_cat rev_cat find_cat has_rev size_cat size_rev.
+case/boolP: (has p s2)=>H2; last first.
+- rewrite orbF; case/boolP: (has p s1)=>//= H1.
+  by rewrite addnC subnDl.
+have H2' : find p (rev s2) < size s2.
+- by rewrite -size_rev -has_find has_rev.
+rewrite /= orbT andbF -addnBA; last by apply: ltnW.
+rewrite -!subn1 -subnDA -addnBA; last by rewrite subn_gt0.
+by rewrite subnDA.
+Qed.
+
+Lemma findlast_cons p x s :
+        findlast p (x::s) =
+        if p x && ~~ has p s then 0 else (findlast p s).+1.
+Proof.
+rewrite -cat1s findlast_cat /= !add1n orbF findlast1.
+by case: ifP=>// /andP [->].
+Qed.
+
+Lemma findlast_rcons p x s :
+        findlast p (rcons s x) =
+        if p x then size s
+          else if has p s then findlast p s
+                          else (size s).+1.
+Proof.
+rewrite -cats1 findlast_cat /= orbF findlast1.
+case: (p x)=>/=; first by rewrite andbF addn0.
+by rewrite andbT addn1.
+Qed.
+
+Lemma nth_findlast x0 p s : has p s -> p (nth x0 s (findlast p s)).
+Proof.
+rewrite findlastE=>/[dup] E ->; rewrite -has_rev in E.
+rewrite -subnS -nth_rev; last by rewrite -size_rev -has_find.
+by apply: nth_find.
+Qed.
+
+Lemma has_drop p s i : has p s -> has p (drop i s) = (i <= findlast p s).
+Proof.
+rewrite findlastE=>/[dup] E ->; rewrite -has_rev in E.
+have Hh: 0 < size s - find p (rev s).
+- by rewrite -size_rev subn_gt0 -has_find.
+rewrite -size_rev; move/(has_take (size s - i)): (E).
+rewrite take_rev -subnS size_rev.
+case/boolP: (i < size s)=>[Hi|].
+- rewrite subnA //; last by apply: ltnW.
+  rewrite subnn add0n has_rev=>->.
+  rewrite ltn_subRL addnC -ltn_subRL subnS.
+  by case: (size s - find p (rev s)) Hh.
+rewrite -ltnNge ltnS => Hi _.
+rewrite drop_oversize //=; symmetry; apply/negbTE.
+rewrite -ltnNge subnS prednK //.
+by apply/leq_trans/Hi; exact: leq_subr.
+Qed.
+
+Lemma find_geq p s i : has p (drop i s) -> i <= findlast p s.
+Proof.
+case/boolP: (has p s)=>Hp; first by rewrite (has_drop _ Hp).
+suff: ~~ has p (drop i s) by move/negbTE=>->.
+move: Hp; apply: contra; rewrite -{2}(cat_take_drop i s) has_cat=>->.
+by rewrite orbT.
+Qed.
+
+Lemma find_leq_last p s : find p s <= findlast p s.
+Proof.
+rewrite findlastE.
+case/boolP: (has p s)=>[|_]; last by apply: find_size.
+elim: s=>//= h s IH.
+rewrite rev_cons -cats1 find_cat has_rev size_rev /=.
+case/orP; first by move=>->.
+move=>/[dup] H ->; case: ifP=>_ //.
+rewrite subSn /=; last first.
+- by rewrite -size_rev; apply: find_size.
+apply: (leq_ltn_trans (IH H)); rewrite ltn_predL subn_gt0.
+by rewrite -size_rev -has_find has_rev.
+Qed.
+
+Variant split_findlast_nth_spec p : seq T -> seq T -> seq T -> T -> Type :=
+  FindLastNth x s1 s2 of p x & ~~ has p s2 :
+    split_findlast_nth_spec p (rcons s1 x ++ s2) s1 s2 x.
+
+Lemma split_findlast_nth x0 p s (i := findlast p s) :
+        has p s ->
+        split_findlast_nth_spec p s (take i s) (drop i.+1 s) (nth x0 s i).
+Proof.
+move=> p_s; rewrite -[X in split_findlast_nth_spec _ X](cat_take_drop i s).
+rewrite (drop_nth x0 _); last by rewrite -has_findlast.
+rewrite -cat_rcons; constructor; first by apply: nth_findlast.
+by rewrite has_drop // ltnn.
+Qed.
+
+Variant split_findlast_spec p : seq T -> seq T -> seq T -> Type :=
+  FindLastSplit x s1 s2 of p x & ~~ has p s2 :
+    split_findlast_spec p (rcons s1 x ++ s2) s1 s2.
+
+Lemma split_findlast p s (i := findlast p s) :
+        has p s ->
+        split_findlast_spec p s (take i s) (drop i.+1 s).
+Proof.
+by case: s => // x ? in i * =>?; case: split_findlast_nth=>//; constructor.
+Qed.
+
+*)
+
+End FindAll.
+
+Section FindAllEq.
+
+Variables (T : eqType).
+Implicit Type p : seq T.
+
+Definition indexall (x : T) : seq T -> seq nat := findall (pred1 x).
+
+(*
+Lemma indexlast_size x s : indexlast x s <= size s.
+Proof. by rewrite /indexlast; apply: findlast_size. Qed.
+
+Lemma indexlast_mem x s : (indexlast x s < size s) = (x \in s).
+Proof. by rewrite /indexlast -has_findlast has_pred1. Qed.
+
+Lemma memNindexlast x s : x \notin s -> indexlast x s = size s.
+Proof. by rewrite -has_pred1=>/hasNfindlast. Qed.
+
+Lemma indexlast0 x : indexlast x [::] = 0.
+Proof. by []. Qed.
+
+Lemma indexlast1 x y : indexlast x [::y] = (x != y).
+Proof. by rewrite /indexlast findlast1 /= eq_sym. Qed.
+
+Lemma indexlast_cat x s1 s2 :
+        indexlast x (s1 ++ s2) =
+        if (x \in s1) && (x \notin s2)
+          then indexlast x s1
+          else size s1 + indexlast x s2.
+Proof. by rewrite /indexlast findlast_cat !has_pred1. Qed.
+
+Lemma indexlast_cons x y s :
+        indexlast x (y::s) =
+        if (y == x) && (x \notin s) then 0 else (indexlast x s).+1.
+Proof. by rewrite /indexlast findlast_cons has_pred1. Qed.
+
+Lemma indexlast_rcons x y s :
+        indexlast x (rcons s y) =
+        if y == x then size s
+          else if x \in s then indexlast x s
+                          else (size s).+1.
+Proof. by rewrite /indexlast findlast_rcons has_pred1. Qed.
+
+Lemma index_geq x s i : x \in drop i s -> i <= indexlast x s.
+Proof. by rewrite -has_pred1; apply: find_geq. Qed.
+
+Lemma index_leq_last x s : index x s <= indexlast x s.
+Proof. by apply: find_leq_last. Qed.
+
+Lemma indexlast_count x s : count_mem x s <= 1 <-> index x s = indexlast x s.
+Proof.
+elim: s=>//= h t IH; rewrite indexlast_cons.
+case: eqP=>/= ?; last first.
+- by rewrite add0n IH; split=>[->|[]].
+rewrite add1n ltnS leqn0; split.
+- by move/eqP/count_memPn=>->.
+by case: ifP=>//= /count_memPn->.
+Qed.
+
+Corollary index_lt_last x s : 1 < count_mem x s -> index x s < indexlast x s.
+Proof.
+move=>H; move: (index_leq_last x s); rewrite leq_eqVlt.
+by case: eqP=>//= /indexlast_count; case: leqP H.
+Qed.
+
+Corollary indexlast_uniq x s : uniq s -> index x s = indexlast x s.
+Proof.
+move=>H; apply/indexlast_count.
+by rewrite count_uniq_mem //; apply: leq_b1.
+Qed.
+
+Variant splitLast x : seq T -> seq T -> seq T -> Type :=
+  SplitLast p1 p2 of x \notin p2 : splitLast x (rcons p1 x ++ p2) p1 p2.
+
+Lemma splitLastP s x (i := indexlast x s) :
+        x \in s ->
+        splitLast x s (take i s) (drop i.+1 s).
+Proof.
+case: s => // y s in i * => H.
+case: split_findlast_nth=>//; first by rewrite has_pred1.
+move=>_ s1 s2 /= /eqP->; rewrite has_pred1 => H2.
+by constructor.
+Qed.
+*)
+
+End FindAllEq.
+
 (* sequence prefixes *)
 
 (* Two helper concepts for searching in sequences:                       *)
