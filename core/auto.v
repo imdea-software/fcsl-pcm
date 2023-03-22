@@ -40,7 +40,7 @@ End OneShotFilter.
 
 (* rfilter can also be thought of as a generalization of rem *)
 Lemma rfilter_rem {T : eqType} (ts : seq T) x :
-rfilter (pred1 x) ts = rem x ts.
+        rfilter (pred1 x) ts = rem x ts.
 Proof. by elim: ts=> [|t ts IH] //=; case: eqP=>//= _; rewrite IH. Qed.
 
 (* A canonical structure program for searching and inserting in a list *)

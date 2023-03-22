@@ -255,7 +255,7 @@ Proof. by rewrite itv_overR /=; [rewrite slice_uu | rewrite addn0]. Qed.
 (* slice size *)
 
 Lemma slice_size s (i : interval nat) :
-  size (&:s i) = minn (bnd i.2 (size s)) (size s) - bnd i.1 (size s).
+        size (&:s i) = minn (bnd i.2 (size s)) (size s) - bnd i.1 (size s).
 Proof.
 rewrite /slice; case: i=>[[l i|[]][r j|[]]] //=; rewrite ?take0 ?drop0 ?take_size ?drop_size ?minnn ?min0n ?subn0 //=.
 - by rewrite size_drop size_take_min.
@@ -267,9 +267,9 @@ Qed.
 
 (* splitting slice *)
 
-Lemma slice_split_bnd s (i : interval nat) x :
-  i.1 <= x <= i.2 ->
-  &:s i = &:s (Interval i.1 x) ++ &:s (Interval x i.2).
+Lemma slice_split_bnd s (i : interval nat) (x : itv_bound nat) :
+        i.1 <= x <= i.2 ->
+        &:s i = &:s (Interval i.1 x) ++ &:s (Interval x i.2).
 Proof.
 case: i=>i1 i2 /=.
 case: x=>[b x|[]]; rewrite ?bnd_simp /=; first last.
@@ -312,9 +312,9 @@ rewrite ?bnd_simp ?andbF ?andbT // ?lteBSide /slice /= ?drop0 ?take_size.
 by move=>_; rewrite cat_take_drop.
 Qed.
 
-Corollary slice_split s b x (i : interval nat) :
-  x \in i ->
-  &:s i = &:s (Interval i.1 (BSide b x)) ++ &:s (Interval (BSide b x) i.2).
+Corollary slice_split s (i : interval nat) b (x : nat) :
+            x \in i ->
+            &:s i = &:s (Interval i.1 (BSide b x)) ++ &:s (Interval (BSide b x) i.2).
 Proof.
 move=>Hx; apply: slice_split_bnd.
 case: i Hx=>[[l i|[]][r j|[]]] //=;
@@ -412,10 +412,10 @@ Proof. by rewrite slice_kk. Qed.
 (* endpoint +1 *)
 
 Lemma slice_oSL x a s :
-        &:s (Interval (BRight x) a) = &:s (Interval (BLeft x.+1) a).
+        &:s (Interval (BLeft x.+1) a) = &:s (Interval (BRight x) a).
 Proof.
 case/boolP: (x.+1 \in Interval (BRight x) a)=>[H|].
-- rewrite (slice_split _ true (x:=x.+1)) //=.
+- rewrite [RHS](slice_split _ true (x:=x.+1)) //=.
   suff ->: &:s `]x, x.+1[ = [::] by rewrite cat0s.
   by rewrite /slice /= addn0 addn1 drop_take_id.
 rewrite in_itv /= negb_and ltEnat /= ltnS leqnn /=.
@@ -441,10 +441,17 @@ Qed.
 
 (* endpoint -1 *)
 
+Corollary slice_oPL a x s :
+            &:s (Interval (BRight x.-1) a) = if 0 < x
+                                               then &:s (Interval (BLeft x) a)
+                                               else &:s (Interval (BRight x) a).
+Proof. by case: x=>//= n; rewrite slice_oSL. Qed.
+
 Corollary slice_oPR a x s :
-        0 < x ->
-        &:s (Interval a (BRight x.-1)) = &:s (Interval a (BLeft x)).
-Proof. by move=>Hx; rewrite -{2}(prednK Hx) slice_oSR. Qed.
+            &:s (Interval a (BRight x.-1)) = if 0 < x
+                                               then &:s (Interval a (BLeft x))
+                                               else &:s (Interval a (BRight x)).
+Proof. by case: x=>//= n; rewrite slice_oSR. Qed.
 
 (* endpoint split *)
 
@@ -614,9 +621,8 @@ Qed.
 
 Lemma slice_mask s i :
         &:s i = let x := bnd i.1 (size s) in
-               let y := bnd i.2 (size s) in
-               mask (nseq x false ++
-                     nseq (y-x) true) s.
+                let y := bnd i.2 (size s) in
+                mask (nseq x false ++ nseq (y-x) true) s.
 Proof. by rewrite /slice /=; case: i=>i j /=; rewrite drop_take_mask. Qed.
 
 (* count *)
@@ -655,221 +661,9 @@ Lemma slice_map {A B} (f : A -> B) i s :
   [seq f x | x <- &:s i] = &: [seq f x | x <- s] i.
 Proof. by rewrite !slice_mask /= map_mask /= size_map. Qed.
 
-Variant abs_itv A := AbsItv of interval A & seq A & nat.
-
-Definition pred_bnd {A : Type} (p : pred A) (i : itv_bound A) : bool :=
-  if i is BSide _ x then p x else true.
-
-Definition pred_itv {A : Type} (p : pred A) (i : interval A) : bool :=
-  let: Interval l u := i in
-  (pred_bnd p l) && (pred_bnd p u).
-
-Definition ix_bnd {A : eqType} (s : seq A) (i : itv_bound A) : itv_bound nat :=
-  match i with
-  | BSide  b x => BSide  b (if b then index x s else indexlast x s)
-  | BInfty b   => BInfty _ b
-  end.
-
-Definition ix_itv {A : eqType} (s : seq A) (i : interval A) : interval nat :=
-  let: Interval l u := i in
-  Interval (ix_bnd s l) (ix_bnd s u).
-
-
-(*
-Definition has_bnd {A : eqType} (x : A) (i : itv_bound A) : bool :=
-  match i with
-  | BSide  _ y => x == y
-  | BInfty _   => true
-  end.
-
-Definition has_itv {A : eqType} (x : A) (i : interval A) : bool :=
-  let: Interval l u := i in
-  has_bnd x l || has_bnd x u.
-*)
-
-(*
-Definition mem_ix {A : eqType} x (s : seq A) (i : interval A) :=
-  let: Interval l u := i in
-  match l with
-  | BSide b lb => if b then index lb s <= index x s
-                       else indexlast lb s < index x s
-  | BInfty b => b
-  end &&
-  match u with
-  | BSide b ub => if ~~ b then index x s <= indexlast ub s
-                          else index x s < index ub s
-  | BInfty b => ~~ b
-  end.
-
-Definition mem_ix_last {A : eqType} x (s : seq A) (i : interval A) :=
-  let: Interval l u := i in
-  match l with
-  | BSide b lb => if b then index lb s <= indexlast x s
-                       else indexlast lb s < indexlast x s
-  | BInfty b => b
-  end &&
-  match u with
-  | BSide b ub => if ~~ b then indexlast x s <= indexlast ub s
-                          else indexlast x s < index ub s
-  | BInfty b => ~~ b
-  end.
-*)
-(*
-Definition shl_ix_bnd {A : eqType} (s : seq A) (i : itv_bound A) n : itv_bound A :=
-  match i with
-  | BLeft  x => if index x s <= n then -oo else BLeft x
-  | BRight x => if indexlast x s < n then -oo else BRight x
-  | BInfty b   => BInfty _ b
-  end.
-
-Definition shl_ix_itv {A : eqType} (s : seq A) (i : interval A) (n : nat) :=
-  let: Interval l u := i in
-  Interval (shl_ix_bnd s l n) (shl_ix_bnd s u n).
-*)
-(*
-Definition eq_slice_shl {A : eqType} (s q : seq A) n (i : interval A) :=
-  slice s (shl_itv (ix_itv q i) n).
-
-Notation "&[ q ]{ n } s i" := (eq_slice_shl s q n i)
- (at level 1, i at next level, s at next level,
-  format "&[ q ]{ n } s  i") : fun_scope.
-*)
-  (*
-Notation "&={ n } s i" := (eq_slice_shl s s n i)
- (at level 1, i at next level, s at next level,
-  format "&={ n } s  i") : fun_scope.
-*)
-(*
-Definition eq_slice {A : eqType} (s q : seq A) (i : interval A) :=
-  slice s (ix_itv q i).
-
-Notation "&[ q ] s i" := (eq_slice s q i)
- (at level 1, i at next level, s at next level,
-  format "&[ q ] s  i") : fun_scope.
-
-Notation "&= s i" := (eq_slice s s i)
- (at level 1, i at next level, s at next level,
-  format "&= s  i") : fun_scope.
-*)
-(*
-Definition support_abs_itv A (i : abs_itv A) (s : seq A) : abs_itv A :=
-  let: AbsItv i _ n := i in
-  AbsItv i s n.
-*)
-Definition shl_abs_itv A (i : abs_itv A) (m : nat) : abs_itv A :=
-  let: AbsItv i q n := i in
-  AbsItv i q (n + m).
-
-Definition interp {A : eqType} (i : abs_itv A) : interval nat :=
-  let: AbsItv i q n := i in
-  shl_itv (ix_itv q i) n.
-
-Definition eq_slice {A : eqType} (s : seq A) (i : abs_itv A) :=
-  slice s (interp i).
-(*
-Definition mem_ix {A : eqType} x (s : seq A) (i : abs_itv A) :=
-  index x s \in interp i.
-
-Definition mem_ix_last {A : eqType} x (s : seq A) (i : abs_itv A) :=
-  indexlast x s \in interp i.
-*)
-(*
-Notation "&[ q ] s i" := (eq_slice s q i)
- (at level 1, i at next level, s at next level,
-  format "&[ q ] s  i") : fun_scope.
-*)
-
-Notation "&% s i" := (eq_slice s i)
- (at level 1, i at next level, s at next level,
-  format "&% s  i") : fun_scope.
-
-Notation "&= s i" := (eq_slice s (AbsItv i s 0%N))
- (at level 1, i at next level, s at next level,
-  format "&= s  i") : fun_scope.
-
 Section LemmasEq.
 Variable (A : eqType).
 Implicit Type (s : seq A).
-
-Lemma interp_shl (i : abs_itv A) n : shl_itv (interp i) n = interp (shl_abs_itv i n).
-Proof. by case: i=>/= i s m; rewrite shl_itv_add. Qed.
-
-(*
-Lemma eqslice_shl0 q s i : &[q] s i = &[q]{0} s i.
-Proof.
-by rewrite /eq_slice_shl /eq_slice shl_itv0.
-Qed.
-
-(* make these definitions instead? *)
-Lemma mem_ix_itv x s i : mem_ix x s i = (index x s \in ix_itv s i).
-Proof.
-rewrite in_itv.
-by case: i=>[[[] i|[]][[] j|[]]].
-Qed.
-
-Lemma mem_ix_last_itv x s i : mem_ix_last x s i = (indexlast x s \in ix_itv s i).
-Proof.
-rewrite in_itv.
-by case: i=>[[[] i|[]][[] j|[]]].
-Qed.
-*)
-(*
-Lemma shl_ix_bnd1 x s i : shl_bnd (ix_bnd (x::s) i) 1 = ix_bnd s (shl_ix_bnd (x::s) i 1%N).
-Proof.
-case: i=>[[] i| []] //=; rewrite leEnat.
-- rewrite addn0; case: eqP=>//= _.
-  by rewrite ltnS leqn0 subn1 /=; case: eqP.
-rewrite addn1 ltnS indexlast_cons.
-case/boolP: ((i == x) && (i \notin s))=>//= _.
-by rewrite subn1.
-Qed.
-*)
-(*
-Lemma shl_ix_bnd_n s1 s2 i : shl_bnd (ix_bnd (s1 ++ s2) i) (size s1) = ix_bnd (s1 ++ s2) (shl_ix_bnd (s1 ++ s2) i (size s1)).
-Proof.
-case: i=>[[] i| []] //=; rewrite leEnat.
-- rewrite addn0 index_cat; case/boolP: (i \in s1)=>Hi.
-  - by rewrite index_size.
-  rewrite -{2 6}(addn0 (size s1)) leq_add2l leqn0; case: eqP=>//=.
-  rewrite index_cat (negbTE Hi).
-case: ifP=>//=. case: eqP=>//= _.
-  by rewrite ltnS leqn0 subn1 /=; case: eqP.
-rewrite addn1 ltnS indexlast_cons.
-case/boolP: ((i == x) && (i \notin s))=>//= _.
-by rewrite subn1.
-Qed.
-
-Lemma shl_ix_itv_n s1 s2 i : shl_itv (ix_itv (s1 ++ s2) i) (size s1) = ix_itv (s1 ++ s2) (shl_ix_itv (s1 ++ s2) i (size s1)).
-Proof.
-case: i=>[[] i| []] //=; rewrite leEnat.
-- rewrite addn0 index_cat; case/boolP: (i \in s1)=>Hi.
-  - by rewrite index_size.
-  rewrite -{2 6}(addn0 (size s1)) leq_add2l leqn0; case: eqP=>//=.
-  rewrite index_cat (negbTE Hi).
-case: ifP=>//=. case: eqP=>//= _.
-  by rewrite ltnS leqn0 subn1 /=; case: eqP.
-rewrite addn1 ltnS indexlast_cons.
-case/boolP: ((i == x) && (i \notin s))=>//= _.
-by rewrite subn1.
-Qed.
-
-Lemma shl_ix_itv1 x s i : shl_itv (ix_itv (x::s) i) 1 = ix_itv s (shl_ix_itv (x::s) i 1%N).
-Proof.
-by case: i=>i j /=; rewrite !shl_ix_bnd1.
-Qed.
-*)
-(*
-Lemma shl_ix_bnd s1 s2 i : shl_bnd (ix_bnd (s1 ++ s2) i) (size s1) = ix_bnd s2 i.
-Proof.
-case: i=>[[] i| []] //=.
-- rewrite addn0 index_cat.
-  case/boolP: (i \in s1)=>/= Hi.
-  - rewrite leEnat index_size.
-
-Lemma shl_ix_itv s1 s2 i : shl_itv (ix_itv (s1 ++ s2) i) (size s1) = ix_itv s2 i.
-Proof.
-case: i=>i j /=.
-*)
 
 (* membership *)
 
@@ -895,7 +689,8 @@ rewrite -Hi subnn nth0; case: ltnP.
 by rewrite -subn_eq0=>/eqP->.
 Qed.
 *)
-(* slice subset *)
+
+(* subset *)
 
 Lemma slice_subset s i1 i2 :
   i1 <= i2 ->
@@ -919,555 +714,6 @@ Corollary slice_subset_full s i :
             {subset &:s i <= s}.
 Proof.
 by rewrite -{2}(slice_uu s); apply/slice_subset/itv_lex1.
-Qed.
-
-Lemma ixsl_uu s q n :
-  &%s (AbsItv `]-oo,+oo[ q n) = s.
-Proof. by apply: slice_uu. Qed.
-
-Lemma ixsl_underL s (i j : itv_bound A) q n :
-  bnd (shl_bnd (ix_bnd q i) n) (size s) = 0%N ->
-  &%s (AbsItv (Interval i j) q n) = &%s (AbsItv (Interval -oo j) q n).
-Proof. by move=>H; apply: itv_underL. Qed.
-
-Lemma ixsl_overL s (i j : itv_bound A) q n :
-  size s <= bnd (shl_bnd (ix_bnd q i) n) (size s) ->
-  &%s (AbsItv (Interval i j) q n) = [::].
-Proof. by move=>H; apply: itv_overL. Qed.
-
-Lemma ixsl_underR s (i j : itv_bound A) q n :
-  bnd (shl_bnd (ix_bnd q j) n) (size s) = 0%N ->
-  &%s (AbsItv (Interval i j) q n) = [::].
-Proof. by move=>H; apply: itv_underR. Qed.
-
-Lemma ixsl_overR s (i j : itv_bound A) q n :
-  size s <= bnd (shl_bnd (ix_bnd q j) n) (size s) ->
-  &%s (AbsItv (Interval i j) q n) = &%s (AbsItv (Interval i +oo) q n).
-Proof. by move=>Hj; apply: itv_overR. Qed.
-
-Lemma eqsl_underL s (i j : itv_bound A) :
-  bnd (ix_bnd s i) (size s) = 0%N ->
-  &=s (Interval i j) = &=s (Interval -oo j).
-Proof. by move=>H; apply: itv_underL; rewrite shl_bnd0. Qed.
-
-Lemma eqsl_underR s (i j : itv_bound A) :
-  bnd (ix_bnd s j) (size s) = 0%N ->
-  &=s (Interval i j) = [::].
-Proof. by move=>H; apply: itv_underR; rewrite shl_bnd0. Qed.
-
-Lemma eqsl_overL s (i j : itv_bound A) :
-  size s <= bnd (ix_bnd s i) (size s) ->
-  &=s (Interval i j) = [::].
-Proof. by move=>H; apply: itv_overL; rewrite shl_bnd0. Qed.
-
-Lemma eqsl_overR s (i j : itv_bound A) :
-  size s <= bnd (ix_bnd s j) (size s) ->
-  &=s (Interval i j) = &=s (Interval i +oo).
-Proof. by move=>Hj; apply: itv_overR; rewrite shl_bnd0. Qed.
-
-Lemma eqsl_swapped s (i j : itv_bound A) :
-  bnd (ix_bnd s j) (size s) <= bnd (ix_bnd s i) (size s) ->
-  &=s (Interval i j) = [::].
-Proof.
-move=>H; rewrite /eq_slice /= !shl_bnd0.
-by apply: itv_swapped.
-Qed.
-
-Corollary eqsl_notinL y b t s :
-  t \notin s ->
-  &=s (Interval (BSide b t) y) = [::].
-Proof.
-move=>T; apply: eqsl_overL=>/=.
-rewrite (memNindex T) (memNindexlast T) if_same.
-by apply: leq_addr.
-Qed.
-
-Corollary eqsl_notinR x b t s :
-  t \notin s ->
-  &=s (Interval x (BSide b t)) = &=s (Interval x +oo).
-Proof.
-move=>T; apply: eqsl_overR=>/=.
-rewrite (memNindex T) (memNindexlast T) if_same.
-by apply: leq_addr.
-Qed.
-
-Lemma eqsl_minfR s (i : itv_bound A) :
-  &=s (Interval i -oo) = [::].
-Proof. by rewrite /eq_slice /=; apply: itv_minfR. Qed.
-
-Lemma eqsl_pinfL s (j : itv_bound A) :
-  &=s (Interval +oo j) = [::].
-Proof. by rewrite /eq_slice /=; apply: itv_pinfL. Qed.
-
-Lemma eqsliceRO_notin s x a :
-        x \notin &=s (Interval a (BLeft x)).
-Proof.
-rewrite /eq_slice /slice /= addn0 shl_bnd0 subn0.
-apply/negP=>/mem_drop; apply/negP.
-by apply: mem_take_index.
-Qed.
-
-Lemma eqsliceLO_notin s x b :
-        x \notin &=s (Interval (BRight x) b).
-Proof.
-rewrite /eq_slice /slice /= addn1 shl_bnd0 subn0.
-by move: (mem_drop_indexlast x s); apply/contra/prefix_drop_sub/prefix_take.
-Qed.
-
-(* TODO unify? *)
-Lemma eqsl_kk_out s l r k :
-        ~~ l || r ->
-        &=s (Interval (BSide l k) (BSide r k)) = [::].
-Proof.
-move=>H; apply: eqsl_swapped=>/=.
-case/orP: H.
-- move/negbTE=>-> /=; case: r=>//=; rewrite addn1 addn0; apply: ltnW.
-  by rewrite ltnS; apply: index_leq_last.
-move=>-> /=; rewrite addn0; case: l=>/=; first by rewrite addn0.
-by rewrite addn1; apply: ltnW; rewrite ltnS; apply: index_leq_last.
-Qed.
-
-Lemma eqsl_kk1 s l r k :
-        (count_mem k s <= 1)%N ->
-        &=s (Interval (BSide l k) (BSide r k)) =
-        if [&& l, ~~ r & k \in s] then [:: k] else [::].
-Proof.
-move/indexlast_count=>H; rewrite /eq_slice /= !subn0 -H // !if_same slice_kk.
-case: ifP; last by rewrite andbA =>->.
-case/andP=>->->/=; case: ifP.
-- by move/onth_index=>->.
-by move/negbT/memNindex=>->; rewrite onth_sizeN.
-Qed.
-
-(* test lemmas *)
-
-Lemma eqsl_uxR t s :
-        &=s `]-oo, t] = &=s `]-oo, t[ ++ &=s `[t, t].
-Proof.
-rewrite /eq_slice /= !subn0 (@slice_split _ _ true (index t s)) //.
-rewrite in_itv /=; apply: index_leq_last.
-Qed.
-
-Lemma eqsl_xuL t s :
-        &=s `[t, +oo[ = &=s `[t, t] ++ &=s `]t, +oo[.
-Proof.
-rewrite /eq_slice /= !subn0 (@slice_split _ _ false (indexlast t s)) //.
-by rewrite in_itv /= andbT; apply: index_leq_last.
-Qed.
-
-(* TODO tweak index/last? *)
-
-Lemma eqsl_xxL t1 t2 s :
-        index t1 s <= indexlast t2 s ->
-        count_mem t1 s = 1%N ->
-        &=s `[t1, t2] = t1 :: &=s `]t1, t2].
-Proof.
-move=>I H.
-have H1: indexlast t1 s = index t1 s.
-- by symmetry; apply/indexlast_count; rewrite H.
-rewrite /eq_slice /= !subn0 (@slice_split _ _ false (indexlast t1 s)) H1 /=.
-- by rewrite slice_kk /= onth_index // -has_pred1 has_count H.
-by rewrite in_itv /= lexx.
-Qed.
-
-Lemma eqsl_xxR t1 t2 s :
-        index t1 s <= index t2 s ->
-        count_mem t2 s = 1%N ->
-        &=s `[t1, t2] = rcons (&=s `[t1, t2[) t2.
-Proof.
-move=>I H.
-have H2: indexlast t2 s = index t2 s.
-- by symmetry; apply/indexlast_count; rewrite H.
-rewrite /eq_slice /= !subn0 (@slice_split _ _ true (indexlast t2 s)) H2 /=.
-- rewrite slice_kk /= onth_index /=; first by rewrite cats1.
-  by rewrite -has_pred1 has_count H.
-by rewrite in_itv /= lexx andbT.
-Qed.
-
-Lemma eqsl_xoL t1 t2 s :
-        index t1 s < index t2 s ->
-        count_mem t1 s = 1%N ->
-        &=s `[t1, t2[  = t1 :: &=s `]t1, t2[.
-Proof.
-move=>I H.
-have H1: indexlast t1 s = index t1 s.
-- by symmetry; apply/indexlast_count; rewrite H.
-rewrite /eq_slice /= !subn0 (@slice_split _ _ false (indexlast t1 s)) H1 /=.
-- by rewrite slice_kk /= onth_index // -has_pred1 has_count H.
-by rewrite in_itv /= lexx.
-Qed.
-
-Lemma eqsl_oxR t1 t2 s :
-        indexlast t1 s < index t2 s ->
-        count_mem t2 s = 1%N ->
-        &=s `]t1, t2] = rcons (&=s `]t1, t2[) t2.
-Proof.
-move=>I H.
-have H2: indexlast t2 s = index t2 s.
-- by symmetry; apply/indexlast_count; rewrite H.
-rewrite /eq_slice /= !subn0 (@slice_split _ _ true (indexlast t2 s)) H2 /=.
-- rewrite slice_kk /= onth_index /=; first by rewrite cats1.
-  by rewrite -has_pred1 has_count H.
-by rewrite in_itv /= lexx andbT.
-Qed.
-
-(* eqslice of one-element list *)
-
-Lemma ixslice1 (k : A) i :
-        &%[::k] i = if 0%N \in interp i then [::k] else [::].
-Proof. by rewrite /eq_slice; case: i=>i q b /=; rewrite slice1. Qed.
-
-Corollary eqslice1uR (k : A) b t :
-            &=[::k] (Interval -oo (BSide b t)) =
-            if ~~ b || (t!=k) then [::k] else [::].
-Proof.
-rewrite ixslice1 /= indexlast_cons indexlast0 /= andbT eq_sym.
-by case: b=>//=; case: eqP.
-Qed.
-
-Corollary eqslice1uL (k : A) b t :
-            &=[::k] (Interval (BSide b t) +oo) =
-            if b && (t==k) then [::k] else [::].
-Proof.
-rewrite ixslice1 /= indexlast_cons indexlast0 /= !andbT eq_sym.
-by case: b=>//=; case: eqP.
-Qed.
-
-(* ... *)
-
-Lemma ixslice_cat s1 s2 i :
-        &%(s1 ++ s2) i =
-        &% s1 i ++ &%s2 (shl_abs_itv i (size s1)).
-Proof.
-rewrite /eq_slice; case:i => i q n /=.
-by rewrite slice_cat shl_itv_add.
-Qed.
-(*
-Lemma eqslice_cat_shl s n s1 s2 i :
-        &[s]{n} (s1 ++ s2) i =
-             &[s]{n} s1 i ++ &[s]{n + size s1} s2 i.
-Proof. by rewrite /eq_slice_shl slice_cat shl_itv_add. Qed.
-
-Lemma eqslice_cat s1 s2 i :
-        &=(s1 ++ s2) i =
-             &[s1 ++ s2] s1 i ++ &[s1 ++ s2]{size s1} s2 i.
-Proof. by rewrite eqslice_shl0 eqslice_cat_shl add0n -eqslice_shl0. Qed.
-*)
-(* cons lemmas *)
-(* TODO unify *)
-
-Lemma ixslice_cons x s i :
-        &%(x::s) i = if 0%N \in interp i
-                       then x::&%s (shl_abs_itv i 1)
-                       else    &%s (shl_abs_itv i 1).
-Proof. by rewrite /eq_slice /= slice_cons /= interp_shl. Qed.
-
-(* cons/infty normalization *)
-
-Lemma ixsl_ur_cons k b t s :
-        &%s (AbsItv (Interval -oo (BSide b t)) (k::s) 1) =
-        if (t != k) || (~~ b && (t \in s)) then &=s (Interval -oo (BSide b t)) else [::].
-Proof.
-rewrite /eq_slice /= subn0 indexlast_cons eq_sym.
-case: eqP=>/= ?; last by rewrite -fun_if /= subn1.
-case/boolP: (t \in s)=> H /=; last first.
-- by rewrite andbF if_same /= itv_minfR.
-by rewrite andbT; case: b=>/=; [rewrite itv_minfR | rewrite subn1].
-Qed.
-
-Lemma ixsl_ul_cons k b t s :
-        &%s (AbsItv (Interval (BSide b t) +oo) (k::s) 1) =
-        if (t != k) || (~~ b && (t \in s)) then &=s (Interval (BSide b t) +oo) else s.
-Proof.
-rewrite /eq_slice /= subn0 indexlast_cons eq_sym.
-case: eqP=>/= ?; last by rewrite -fun_if /= subn1.
-case/boolP: (t \in s)=> H /=; last first.
-- by rewrite andbF if_same /= slice_uu.
-by rewrite andbT; case: b=>/=; [rewrite slice_uu | rewrite subn1].
-Qed.
-
-(* test lemmas *)
-
-Corollary eqsl_ux_consE k t s :
-            &=(k::s) `]-oo,t] =
-            k :: if (t != k) || (t \in s) then &=s `]-oo,t] else [::].
-Proof. by rewrite ixslice_cons /= add0n ixsl_ur_cons. Qed.
-
-Corollary eqsl_uo_consE k t s :
-            &=(k::s) `]-oo,t[ =
-            if t != k then k :: &=s `]-oo,t[ else [::].
-Proof. by rewrite ixslice_cons /= ixsl_ur_cons eq_sym; case: eqP. Qed.
-
-Corollary eqsl_xu_consE k t s :
-            &=(k::s) `[t,+oo[ =
-            if t != k then &=s `[t,+oo[ else k::s.
-Proof. by rewrite ixslice_cons /= subn0 /= ixsl_ul_cons eq_sym; case: eqP. Qed.
-
-Corollary eqsl_ou_consE k t s :
-            &=(k::s) `]t,+oo[ =
-            if (t != k) || (t \in s) then &=s `]t,+oo[ else s.
-Proof. by rewrite ixslice_cons /= ixsl_ul_cons. Qed.
-
-Corollary eqsl_ux_consLX t s :
-            &=(t::s) `]-oo,t] = t :: if t \in s then &=s `]-oo,t] else [::].
-Proof. by rewrite eqsl_ux_consE eqxx. Qed.
-
-Corollary eqsl_uo_consL t s :
-            &=(t::s) `]-oo,t[ = [::].
-Proof. by rewrite eqsl_uo_consE eqxx. Qed.
-
-Corollary eqsl_xu_consL t s :
-            &=(t::s) `[t,+oo[ = t::s.
-Proof. by rewrite eqsl_xu_consE eqxx. Qed.
-
-Corollary eqsl_ou_consLX t s :
-            &=(t::s) `]t,+oo[ = if t \in s then &=s `]t,+oo[ else s.
-Proof. by rewrite eqsl_ou_consE eqxx. Qed.
-
-(* rcons lemmas *)
-(* TODO unify *)
-
-Lemma ixslice_rcons x s i :
-        &%(rcons s x) i =
-        if size s \in interp i then rcons (&%s i) x
-                               else        &%s i.
-Proof. by rewrite /eq_slice slice_rcons. Qed.
-
-(* rcons/infty normalization *)
-
-Lemma ixsl_ur_rcons k b t s :
-        &%s (AbsItv (Interval -oo (BSide b t)) (rcons s k) 0%N) =
-        if (t \in s) && (~~ b ==> (t != k)) then &=s (Interval -oo (BSide b t)) else s.
-Proof.
-rewrite /eq_slice /= !subn0 index_rcons indexlast_rcons eq_sym.
-case/boolP: (t \in s)=> H/=; last first.
-- rewrite if_same itv_overR /=; first by apply: slice_uu.
-  by rewrite leEnat -addn1; case: eqP=>/= _; rewrite -?addnA; apply: leq_addr.
-case: eqP=>/= _; last by rewrite implybT.
-rewrite implybF negbK /=; case: b=>//=.
-rewrite itv_overR /=; first by apply: slice_uu.
-by rewrite addn1.
-Qed.
-
-Lemma ixsl_ul_rcons k b t s :
-        &%s (AbsItv (Interval (BSide b t) +oo) (rcons s k) 0%N) =
-        if (t \in s) && (~~ b ==> (t != k)) then &=s (Interval (BSide b t) +oo) else [::].
-Proof.
-rewrite /eq_slice /= !subn0 index_rcons indexlast_rcons eq_sym.
-case/boolP: (t \in s)=> H/=; last first.
-- rewrite if_same itv_overL //= leEnat -addn1.
-  by case: eqP=>/= _; rewrite -?addnA; apply: leq_addr.
-case: eqP=>/= _; last by rewrite implybT.
-rewrite implybF negbK /=; case: b=>//=.
-by rewrite itv_overL //= addn1.
-Qed.
-
-Lemma eqsl_ux_rconsE k t s :
-        &= (rcons s k) `]-oo,t] =
-        if (t != k) && (t \in s) then &=s `]-oo,t] else rcons s k.
-Proof.
-rewrite ixslice_rcons /= subn0 !indexlast_rcons
-  ixsl_ur_rcons in_itv /= leEnat eq_sym.
-case: eqP=>/= _; first by rewrite andbF leqnn.
-rewrite andbT; case/boolP: (t \in s)=> H/=; last by rewrite leqnSn.
-by rewrite leqNgt indexlast_mem H.
-Qed.
-
-Lemma eqsl_uo_rconsE k t s :
-        &= (rcons s k) `]-oo,t[ =
-        if (t == k) || (t \in s) then &=s `]-oo,t[ else rcons s k.
-Proof.
-rewrite ixslice_rcons /= subn0 index_rcons
-  ixsl_ur_rcons in_itv /= ltEnat /=.
-case/boolP: (t \in s)=> H/=; first by rewrite ltnNge index_size /= orbT.
-case: eqP=>/= _; last by rewrite ltnS leqnn.
-rewrite ltnn eqsl_overR /=; first by rewrite /eq_slice slice_uu.
-by rewrite addn0 (memNindex H).
-Qed.
-
-Lemma eqsl_xu_rconsE k t s :
-        &= (rcons s k) `[t,+oo[ =
-        if (t == k) || (t \in s) then rcons (&= s `[t,+oo[) k else [::].
-Proof.
-rewrite ixslice_rcons /= subn0 index_rcons
-  ixsl_ul_rcons in_itv /= andbT leEnat.
-case/boolP: (t \in s)=> H/=; first by rewrite orbT index_size.
-rewrite orbF; case: eqP=>/= _; last by rewrite ltnn.
-by rewrite leqnn eqsl_overL //= addn0 leEnat (memNindex H).
-Qed.
-
-Lemma eqsl_ou_rconsE k t s :
-        &= (rcons s k) `]t,+oo[ =
-        if (t != k) && (t \in s) then rcons (&= s `]t,+oo[) k else [::].
-Proof.
-rewrite ixslice_rcons /= subn0 indexlast_rcons eq_sym
-  ixsl_ul_rcons in_itv /= andbT ltEnat /=.
-case: eqP=>/= _; first by rewrite andbF ltnn.
-rewrite andbT; case/boolP: (t \in s)=> H/=; last by rewrite ltnNge leqnSn.
-by rewrite indexlast_mem H.
-Qed.
-
-(* test surgery lemmas *)
-
-Lemma eqsl_uo_split t (s1 s2 : seq A) :
-        t \notin s1 ->
-        &=(s1++t::s2) `]-oo, t[ = s1.
-Proof.
-move=>X1.
-rewrite ixslice_cat /= add0n ixslice_cons /= addn1 index_cat /= eqxx addn0 (negbTE X1) ltnn subnn /=.
-rewrite ixsl_overR /=; last by rewrite subn0 addn0 index_cat (negbTE X1) /= eqxx addn0.
-rewrite ixsl_uu ixsl_underR /=; last by rewrite index_cat (negbTE X1) /= eqxx addn0 ltnS leqnn.
-by rewrite cats0.
-Qed.
-
-Lemma eqsl_ou_split t (s1 s2 : seq A) :
-        t \notin s2 ->
-        &=(s1++t::s2) `]t, +oo[ = s2.
-Proof.
-move=>X2.
-rewrite ixslice_cat /= add0n ixslice_cons /= addn1 indexlast_cat /= inE eqxx /= andbF
-  indexlast_cons eqxx /= X2 addn0 ltnn subnn /=.
-rewrite ixsl_overL /=; last first.
-- by rewrite subn0 addn1 indexlast_cat inE eqxx /= andbF indexlast_cons eqxx X2 addn0.
-rewrite ixsl_underL /=; last first.
-- by rewrite indexlast_cat inE eqxx /= andbF indexlast_cons eqxx X2 /= addn0 ltnS leqnn.
-by rewrite ixsl_uu.
-Qed.
-
-Lemma eqsl_oo_split t1 t2 (s1 s2 s : seq A) :
-        t1 != t2 ->
-        t1 \notin s2 -> t1 \notin s ->
-        t2 \notin s1 -> t2 \notin s ->
-        &=(s1++t1::s++t2::s2) `]t1, t2[ = s.
-Proof.
-move=>N X12 X1 X21 X2.
-rewrite ixslice_cat ixslice_cons /=.
-rewrite indexlast_cat inE eqxx /= andbF indexlast_cons eqxx /=
-  mem_cat inE (negbTE X1) (negbTE N) (negbTE X12) /= addn0 add0n addn1 ltnn subnn /=.
-rewrite ixsl_overL /=; last first.
-- by rewrite subn0 addn1 indexlast_cat inE eqxx /= andbF indexlast_cons eqxx /=
-       mem_cat inE (negbTE X1) (negbTE N) (negbTE X12) /= addn0.
-rewrite ixslice_cat /= ixsl_underL /=; last first.
-- by rewrite indexlast_cat inE eqxx /= andbF indexlast_cons eqxx /=
-       mem_cat inE (negbTE X1) (negbTE N) (negbTE X12) /= addn0 ltnS leqnn.
-rewrite ixsl_overR /=; last first.
-- by rewrite index_cat (negbTE X21) /= (negbTE N) index_cat (negbTE X2) /= eqxx
-       addn0 ltnNge addnS ltnS leq_addr /= addn0 -addSn addnC addnK.
-rewrite ixsl_uu ixsl_underR /=; last first.
-- by rewrite index_cat (negbTE X21) /= (negbTE N) index_cat (negbTE X2) /= eqxx
-       addn0 addSn addnS ltnn subnn.
-by rewrite cats0.
-Qed.
-
-Corollary eqsl_oo_nil_split t1 t2 (s s2 : seq A) :
-            t1 != t2 ->
-            t1 \notin s2 -> t1 \notin s ->
-            t2 \notin s ->
-            &=(t1::s++t2::s2) `]t1, t2[ = s.
-Proof.
-move=>N X12 X1 X2.
-by rewrite -(cat0s (_ :: _ ++ _)); apply: eqsl_oo_split.
-Qed.
-
-Lemma eqsl_oo_split_consec t1 t2 (s1 s2 : seq A) :
-        &=(s1++t1::t2::s2) `]t1, t2[ = [::].
-Proof.
-case/boolP: (t1 == t2)=>H.
-- by rewrite (eqP H); apply: eqsl_kk_out.
-case/boolP: (t1 \in s2)=>H12.
-- apply: eqsl_swapped=>/=.
-  rewrite addn0 addn1 index_cat /= eqxx (negbTE H) indexlast_cat inE eqxx /=
-    andbF !indexlast_cons eqxx /= inE (negbTE H) /= H12 /=.
-  rewrite -addnS; case: ifP=>_.
-  - by apply/leq_trans/leq_addr/index_size.
-  by rewrite leEnat leq_add2l.
-case/boolP: (t2 \in s1)=>H21.
-- apply: eqsl_swapped=>/=.
-  rewrite addn0 addn1 index_cat H21 indexlast_cat inE eqxx /=
-    andbF !indexlast_cons eqxx /= inE (negbTE H) /= H12 /= addn0.
-  by apply/ltnW; rewrite ltnS; apply: index_size.
-rewrite (_ : t2::s2 = [::]++t2::s2) //.
-by apply: eqsl_oo_split.
-Qed.
-
-Corollary eqsl_oo_nil_split_consec t1 t2 s :
-            &=(t1::t2::s) `]t1, t2[ = [::].
-Proof. by rewrite -(cat0s (_ :: _ :: _)); apply: eqsl_oo_split_consec. Qed.
-
-(* intervals and filter *)
-
-(* TODO unify / better theory *)
-Lemma eqsl_filterL (p : pred A) b (y : A) s :
-        (y \notin s) || p y ->
-        &= (filter p s) (Interval -oo (BSide b y)) = filter p (&= s (Interval -oo (BSide b y))).
-Proof.
-case/orP=>Hy.
-- rewrite !eqsl_notinR //=; first by rewrite /eq_slice !slice_uu.
-  by rewrite mem_filter negb_and Hy orbT.
-rewrite /eq_slice /= !subn0 /slice !drop0 /=.
-elim: s=>//=h s IH.
-case/boolP: (p h)=>/= Hp; last first.
-- rewrite {}IH indexlast_cons.
-  case/boolP: (h == y)=>[/eqP Ey|_] /=; first by rewrite Ey Hy in Hp.
-  by rewrite -fun_if addSn /= (negbTE Hp).
-rewrite !indexlast_cons mem_filter {}Hy /=.
-case: b IH=>/=.
-- by rewrite !addn0 => IH; case: ifP=>_ //=; rewrite Hp IH.
-by rewrite !addn1 /= Hp => IH; case: ifP=>_; [rewrite !take0 | rewrite IH].
-Qed.
-
-Lemma eqsl_filterR (p : pred A) b (x : A) s :
-        (x \notin s) || p x ->
-        &= (filter p s) (Interval (BSide b x) +oo) = filter p (&= s (Interval (BSide b x) +oo)).
-Proof.
-case/orP=>Hx.
-- by rewrite !eqsl_notinL //= mem_filter negb_and Hx orbT.
-rewrite /eq_slice /= !subn0 /slice /= !take_size.
-elim: s=>//=h s IH.
-case/boolP: (p h)=>/= Hp; last first.
-- rewrite {}IH indexlast_cons.
-  case/boolP: (h == x)=>[/eqP Ex|_] /=; first by rewrite Ex Hx in Hp.
-  by rewrite -fun_if addSn.
-rewrite !indexlast_cons mem_filter {}Hx /=.
-case: b IH=>/=.
-- by rewrite !addn0 => IH; case: ifP=>_ //=; rewrite Hp.
-by rewrite !addn1 /= => IH; case: ifP=>_ //=; rewrite !drop0.
-Qed.
-
-Lemma eqsl_filter (p : pred A) i s :
-        pred_itv (fun x => (x \notin s) || p x) i ->
-        &= (filter p s) i = filter p (&= s i).
-Proof.
-case: i=>[[l i|[]][r j|[]]] /=;
-rewrite ?eqsl_pinfL ?eqsl_minfR ?ixsl_uu ?andbT //=.
-- case/andP; case/orP=>Hi.
-  - by rewrite !eqsl_notinL //= mem_filter negb_and Hi orbT.
-  case/orP=>Hj.
-  - rewrite !eqsl_notinR //; last by rewrite mem_filter negb_and Hj orbT.
-    by apply: eqsl_filterR; rewrite Hi orbT.
-  rewrite /eq_slice /= !subn0 /slice /=.
-  elim: s=>//= h s IH.
-  case/boolP: (p h)=>/= Hp; last first.
-  - rewrite {}IH !indexlast_cons.
-    case/boolP: (h == i)=>[/eqP Ei|_] /=; first by rewrite Ei Hi in Hp.
-    case/boolP: (h == j)=>[/eqP Ej|_] /=; first by rewrite Ej Hj in Hp.
-    by rewrite -!fun_if !addSn.
-  rewrite !indexlast_cons !mem_filter Hi Hj /=.
-  case: r IH; case: l=>/=; rewrite ?addn0 ?addn1 /= => IH.
-  - case: ifP=>_; case: ifP=>_ //=; rewrite Hp.
-    move: (@eqsl_filterL p true j s); rewrite Hj orbT=>/(_ erefl).
-    by rewrite /eq_slice /slice /= !addn0 !subn0 !drop0=>->.
-  - case: ifP=>_; case: ifP=>_ //=; rewrite !drop0.
-    move: (@eqsl_filterL p true j s); rewrite Hj orbT=>/(_ erefl).
-    by rewrite /eq_slice /slice /= !addn0 !subn0 !drop0=>->.
-  - case: ifP=>_; case: ifP=>_ //=; rewrite ?Hp ?take0 //=.
-    move: (@eqsl_filterL p false j s); rewrite Hj orbT=>/(_ erefl).
-    by rewrite /eq_slice /slice /= !subn0 !addn1 !drop0=>->.
-  case: ifP=>_; case: ifP=>_ //=; rewrite ?drop0 ?take0 //=.
-  move: (@eqsl_filterL p false j s); rewrite Hj orbT=>/(_ erefl).
-  by rewrite /eq_slice /slice /= !subn0 !addn1 !drop0=>->.
-- by move=>H; rewrite eqsl_filterR.
-by move=>H; rewrite eqsl_filterL.
 Qed.
 
 End LemmasEq.

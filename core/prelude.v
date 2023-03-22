@@ -1013,8 +1013,7 @@ by elim: s n=>//= a s IH [[->]|n /IH]; rewrite inE ?eq_refl // orbC =>->.
 Qed.
 
 Lemma onth_index (A : eqType) (s : seq A) x :
-        x \in s ->
-        onth s (index x s) = Some x.
+        onth s (index x s) = if x \in s then Some x else None.
 Proof.
 by elim: s=>//=h s IH; rewrite inE eq_sym; case: eqP=>//= ->.
 Qed.
