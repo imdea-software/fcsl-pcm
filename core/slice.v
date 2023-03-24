@@ -716,4 +716,11 @@ Proof.
 by rewrite -{2}(slice_uu s); apply/slice_subset/itv_lex1.
 Qed.
 
+Lemma slice_uniq s i :
+        uniq s -> uniq (&:s i).
+Proof.
+move=>U; rewrite /slice /=; case: i=>l u.
+by apply/drop_uniq/take_uniq.
+Qed.
+
 End LemmasEq.

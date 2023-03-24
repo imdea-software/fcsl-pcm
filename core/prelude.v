@@ -862,6 +862,13 @@ elim: s=>//= x s IH; rewrite findall_cons; case: (p x)=>//=.
 by rewrite map_nilp.
 Qed.
 
+Lemma findall_size p s :
+        size (findall p s) = count p s.
+Proof.
+by elim: s=>//=x s IH; rewrite findall_cons; case: (p x)=>/=;
+rewrite size_map IH.
+Qed.
+
 Lemma findall_head p s :
   find p s = head (size s) (findall p s).
 Proof.
@@ -891,6 +898,20 @@ Proof.
 rewrite /indexall findallE map_nilp filter_nilp negbK -has_pred1.
 have /eq_has -> : pred1 x \o (snd (A:=nat)) =1 preim snd (pred1 x) by [].
 by rewrite -has_map -/unzip2 unzip2_zip // size_iota.
+Qed.
+
+Lemma indexall_size x s :
+        size (indexall x s) = count_mem x s.
+Proof. by rewrite /indexall findall_size. Qed.
+
+Lemma indexall_uniq x s :
+        uniq s -> indexall x s = if x \in s then [::index x s] else [::].
+Proof.
+move=>U; move: (indexall_size x s); rewrite (count_uniq_mem _ U).
+case/boolP: (x \in s)=>Hx /=; last by move/size0nil.
+case E: (indexall x s)=>[|h t]//=; case=>/eqP/nilP Et.
+rewrite {t}Et in E *; congr (_ :: _).
+by rewrite /index findall_head -/(indexall x s) E.
 Qed.
 
 End FindAllEq.
