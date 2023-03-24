@@ -762,12 +762,34 @@ Qed.
 
 End FindLastEq.
 
-(* TODO contribute *)
+(* TODO contribute to mathcomp *)
 Lemma map_nilp {A B} (f : A -> B) (s : seq A) : nilp (map f s) = nilp s.
 Proof. by rewrite /nilp; case: s. Qed.
 
 Lemma filter_nilp {A} (p : pred A) (s : seq A) : nilp (filter p s) = ~~ has p s.
 Proof. by rewrite /nilp size_filter -leqn0 leqNgt has_count. Qed.
+
+Lemma head_map {P Q : Type} (f : P -> Q) z (s : seq P) :
+        f (head z s) = head (f z) (map f s).
+Proof. by case: s. Qed.
+
+Lemma zip_map2 {P Q R S : Type} (f : P -> R) (g : Q -> S) (s1 : seq P) (s2 : seq Q) :
+        zip (map f s1) (map g s2) =
+        map (fun '(x1,x2) => (f x1,g x2)) (zip s1 s2).
+Proof.
+elim: s1 s2=>/= [|x1 s1 IH] [|x2 s2] //=.
+by congr cons.
+Qed.
+
+Corollary zip_mapl {P Q R : Type} (f : P -> R) (s1 : seq P) (s2 : seq Q) :
+            zip (map f s1) s2 =
+            map (fun '(x1,x2) => (f x1,x2)) (zip s1 s2).
+Proof. by rewrite -{1}(map_id s2) zip_map2. Qed.
+
+Corollary zip_mapr {P Q S : Type} (g : Q -> S) (s1 : seq P) (s2 : seq Q) :
+            zip s1 (map g s2) =
+            map (fun '(x1,x2) => (x1,g x2)) (zip s1 s2).
+Proof. by rewrite -{1}(map_id s1) zip_map2. Qed.
 
 Section FindAll.
 
@@ -798,36 +820,13 @@ Qed.
 Definition findall p s : seq nat := (findall_aux (id, 0) p s).1 [::].
 
 Lemma findallE p s :
-      findall p s = unzip1 (filter (p \o snd) (zip (iota 0 (size s)) s)).
+        findall p s = unzip1 (filter (p \o snd) (zip (iota 0 (size s)) s)).
 Proof.
 rewrite /findall.
 move: (@findall_auxE (id, 0) p s)=>/= /(_ (fun s1 s2 : seq nat => erefl)).
 case E: (findall_aux (id, 0) p s)=>[rs ix] /=; case=>/(_ [::]) -> _.
 by rewrite cats0.
 Qed.
-
-(* TODO contribute to mathcomp *)
-Lemma head_map {P Q : Type} (f : P -> Q) z (s : seq P) :
-  f (head z s) = head (f z) (map f s).
-Proof. by case: s. Qed.
-
-Lemma zip_map2 {P Q R S : Type} (f : P -> R) (g : Q -> S) (s1 : seq P) (s2 : seq Q) :
-  zip (map f s1) (map g s2) =
-  map (fun '(x1,x2) => (f x1,g x2)) (zip s1 s2).
-Proof.
-elim: s1 s2=>/= [|x1 s1 IH] [|x2 s2] //=.
-by congr cons.
-Qed.
-
-Corollary zip_mapl {P Q R : Type} (f : P -> R) (s1 : seq P) (s2 : seq Q) :
-  zip (map f s1) s2 =
-  map (fun '(x1,x2) => (f x1,x2)) (zip s1 s2).
-Proof. by rewrite -{1}(map_id s2) zip_map2. Qed.
-
-Corollary zip_mapr {P Q S : Type} (g : Q -> S) (s1 : seq P) (s2 : seq Q) :
-  zip s1 (map g s2) =
-  map (fun '(x1,x2) => (x1,g x2)) (zip s1 s2).
-Proof. by rewrite -{1}(map_id s1) zip_map2. Qed.
 
 Lemma findall_cat p s1 s2 :
         findall p (s1 ++ s2) =
@@ -855,13 +854,6 @@ rewrite -cats1 findall_cat /= !findallE /=; case: (p x)=>/=.
 by rewrite cats0.
 Qed.
 
-Lemma findall_nilp p s :
-  has p s = ~~ nilp (findall p s).
-Proof.
-elim: s=>//= x s IH; rewrite findall_cons; case: (p x)=>//=.
-by rewrite map_nilp.
-Qed.
-
 Lemma findall_size p s :
         size (findall p s) = count p s.
 Proof.
@@ -869,19 +861,23 @@ by elim: s=>//=x s IH; rewrite findall_cons; case: (p x)=>/=;
 rewrite size_map IH.
 Qed.
 
+Lemma findall_nilp p s :
+        nilp (findall p s) = ~~ has p s.
+Proof. by rewrite /nilp findall_size has_count -leqNgt leqn0. Qed.
+
 Lemma findall_head p s :
-  find p s = head (size s) (findall p s).
+        find p s = head (size s) (findall p s).
 Proof.
 elim: s=>//=x s IH; rewrite findall_cons; case: (p x)=>//=.
 by rewrite -head_map IH.
 Qed.
 
 Lemma findall_last p s :
-  findlast p s = last (size s) (findall p s).
+        findlast p s = last (size s) (findall p s).
 Proof.
 elim/last_ind: s=>//=s x IH; rewrite findall_rcons findlast_rcons size_rcons.
 case: (p x)=>/=; first by rewrite last_rcons.
-by rewrite IH findall_nilp; case: (findall p s).
+by rewrite IH -(negbK (has _ _)) -findall_nilp; case: (findall p s).
 Qed.
 
 End FindAll.
@@ -893,25 +889,28 @@ Implicit Type p : seq T.
 
 Definition indexall (x : T) : seq T -> seq nat := findall (pred1 x).
 
-Lemma indexall_mem x s : ~~ nilp (indexall x s) = (x \in s).
-Proof.
-rewrite /indexall findallE map_nilp filter_nilp negbK -has_pred1.
-have /eq_has -> : pred1 x \o (snd (A:=nat)) =1 preim snd (pred1 x) by [].
-by rewrite -has_map -/unzip2 unzip2_zip // size_iota.
-Qed.
-
 Lemma indexall_size x s :
         size (indexall x s) = count_mem x s.
 Proof. by rewrite /indexall findall_size. Qed.
 
+Lemma indexall_mem x s : nilp (indexall x s) = (x \notin s).
+Proof. by rewrite /indexall findall_nilp has_pred1. Qed.
+
+Lemma indexall_head x s :
+        index x s = head (size s) (indexall x s).
+Proof. by rewrite /index /indexall findall_head. Qed.
+
+Lemma indexall_last x s :
+        indexlast x s = last (size s) (indexall x s).
+Proof. by rewrite /indexlast /indexall findall_last. Qed.
+
 Lemma indexall_uniq x s :
-        uniq s -> indexall x s = if x \in s then [::index x s] else [::].
+        uniq s ->
+        indexall x s = if x \in s then [::index x s] else [::].
 Proof.
 move=>U; move: (indexall_size x s); rewrite (count_uniq_mem _ U).
 case/boolP: (x \in s)=>Hx /=; last by move/size0nil.
-case E: (indexall x s)=>[|h t]//=; case=>/eqP/nilP Et.
-rewrite {t}Et in E *; congr (_ :: _).
-by rewrite /index findall_head -/(indexall x s) E.
+by rewrite indexall_head; case: (indexall x s)=> // h t; case=>/eqP/nilP->.
 Qed.
 
 End FindAllEq.
