@@ -13,6 +13,9 @@ core/finmap.v
 core/rtc.v
 core/seqext.v
 core/seqint.v
+core/slice.v
+core/useqord.v
+core/uslice.v
 pcm/pcm.v
 pcm/autopcm.v
 pcm/morphism.v
