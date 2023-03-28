@@ -17,7 +17,7 @@ limitations under the License.
 (******************************************************************************)
 
 From Coq Require Import ssreflect ssrbool ssrfun Eqdep.
-From mathcomp Require Import ssrnat seq choice fintype eqtype.
+From mathcomp Require Import ssrnat seq eqtype choice fintype.
 From pcm Require Import options axioms.
 
 (***********)
@@ -506,6 +506,39 @@ Canonical Side_countType := Eval hnf in CountType Side Side_countMixin.
 Lemma Side_enumP : Finite.axiom [:: LL; RR]. Proof. by case. Qed.
 Definition Side_finMixin := Eval hnf in FinMixin Side_enumP.
 Canonical Side_finType := Eval hnf in FinType Side Side_finMixin.
+
+(* TODO upstream to mathcomp *)
+Section Fold.
+
+Lemma map_foldr {T1 T2} (f : T1 -> T2) xs :
+  map f xs = foldr (fun x ys => f x :: ys) [::] xs.
+Proof. by []. Qed.
+
+Lemma fusion_foldr {T R Q} (g : R -> Q) f0 f1 z0 z1 (xs : seq T) :
+  (forall x y, g (f0 x y) = f1 x (g y)) -> g z0 = z1 ->
+  g (foldr f0 z0 xs) = foldr f1 z1 xs.
+Proof. by move=>Hf Hz; elim: xs=>//= x xs <-. Qed.
+
+Lemma fusion_foldl {T R Q} (g : R -> Q) f0 f1 z0 z1 (xs : seq T) :
+  (forall x y, g (f0 x y) = f1 (g x) y) -> g z0 = z1 ->
+  g (foldl f0 z0 xs) = foldl f1 z1 xs.
+Proof.
+move=>Hf Hz; elim: xs z0 z1 Hz =>//= x xs IH z0 z1 Hz.
+by apply: IH; rewrite Hf Hz.
+Qed.
+
+Lemma foldl_foldr {T R} (f : R -> T -> R) z xs :
+  foldl f z xs = foldr (fun b g x => g (f x b)) id xs z.
+Proof. by elim: xs z=>/=. Qed.
+
+Lemma foldr_foldl {T R} (f : T -> R -> R) z xs :
+  foldr f z xs = foldl (fun g b x => g (f b x)) id xs z.
+Proof.
+elim/last_ind: xs z=>//= xs x IH z.
+by rewrite foldl_rcons -IH foldr_rcons.
+Qed.
+
+End Fold.
 
 Section FindLast.
 

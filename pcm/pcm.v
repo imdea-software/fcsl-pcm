@@ -1344,6 +1344,42 @@ Proof. by elim: s x y=>[|k s IH] x y //=; rewrite H IH. Qed.
 
 End PCMfold.
 
+Section BigOps.
+Variables (U : pcm).
+Variables (I : Type) (f : I -> U).
+
+Lemma big_validV (xs : seq I) i :
+        valid (\big[PCM.join/Unit]_(i <- xs) f i) ->
+        i \In xs -> valid (f i).
+Proof.
+elim: xs=>[|x xs IH] in i * => //.
+rewrite big_cons InE=>V [->|]; first by apply: (validL V).
+by apply: IH; rewrite (validR V).
+Qed.
+
+Lemma big_validVL (xs : seq I) z i :
+        valid (f z \+ \big[PCM.join/Unit]_(i <- xs) f i) ->
+        i \In xs -> i <> z -> valid (f z \+ f i).
+Proof.
+elim: xs=>[|x xs IH] in i * => //.
+rewrite big_cons InE =>V [->_ |].
+- by move: V; rewrite joinA; apply: validL.
+by apply: IH; move: V; rewrite joinCA; apply: validR.
+Qed.
+
+Lemma big_validV2 (xs : seq I) :
+        valid (\big[PCM.join/Unit]_(i <- xs) f i) ->
+        forall i j, i \In xs -> j \In xs -> i <> j -> valid (f i \+ f j).
+Proof.
+elim: xs=>[|x xs IH] //=; rewrite big_cons.
+move=>V i j; rewrite !InE; case=>[->|Xi][->|Xj] N //; last first.
+- by apply: IH=>//; apply: (validR V).
+- by rewrite joinC; apply: (big_validVL V).
+by apply: (big_validVL V)=>// /esym.
+Qed.
+
+End BigOps.
+
 (***********************************)
 (* separating conjunction aka star *)
 (***********************************)
@@ -1370,63 +1406,50 @@ Module IterStar.
 Section IterStar.
 Variables (U : pcm) (A : Type).
 
-Definition bigjoin (s : seq U) : U :=
+Definition seqjoin (s : seq U) : U :=
   \big[PCM.join/Unit]_(i <- s) i.
-
-Definition bigand {T : Type} (s : seq T) (f : T -> Prop) : Prop :=
-  \big[and/True]_(i <- s) (f i).
-
-Lemma bigand_cat {T : Type} (s1 s2 : seq T) f :
-        bigand (s1 ++ s2) f <-> bigand s1 f /\ bigand s2 f.
-Proof.
-rewrite /bigand big_cat_nested; elim: s1.
-- by rewrite !big_nil; split=>// [[]].
-move=>a l IH; rewrite !big_cons; split.
-- by case=>?; move/IH=>[??].
-by case=>[[??]?]; split=>//; rewrite IH.
-Qed.
 
 Definition sepit (s : seq A) (f : A -> Pred U) : Pred U :=
   [Pred h | exists hs : seq U,
-              [ /\ size hs = size s, h = bigjoin hs &
-                   bigand (seq.zip s hs) [pts a h | h \In f a] ] ].
+              [ /\ size hs = size s, h = seqjoin hs &
+                   All [pts a h | h \In f a] (seq.zip s hs) ] ].
 
 Lemma sepit0 f : sepit [::] f =p emp.
 Proof.
 move=>h; split.
-- by case=>/= hs [/size0nil -> -> _]; rewrite /bigjoin !big_nil.
-by move=>->; exists [::]; rewrite /bigjoin /bigand !big_nil.
+- by case=>/= hs [/size0nil -> -> _]; rewrite /seqjoin !big_nil.
+by move=>->; exists [::]; rewrite /seqjoin !big_nil.
 Qed.
 
 Lemma sepit_cons x s f : sepit (x::s) f =p f x # sepit s f.
 Proof.
 move=>h; split.
 - case=>/=; case=>[|h0 hs]; case=>//= /eqP; rewrite eqSS =>/eqP Hs.
-  rewrite /bigjoin /bigand !big_cons /= =>->[H0 H1].
-  by exists h0, (bigjoin hs); do!split=>//; exists hs.
+  rewrite /seqjoin big_cons =>->[H0 H1].
+  by exists h0, (seqjoin hs); do!split=>//; exists hs.
 case=>h1[_][{h}-> H1][hs][E -> H].
-by exists (h1 :: hs); rewrite /= E /bigjoin /bigand !big_cons.
+by exists (h1 :: hs); rewrite /= E /seqjoin !big_cons.
 Qed.
 
 Lemma sepit_cat s1 s2 f : sepit (s1 ++ s2) f =p sepit s1 f # sepit s2 f.
 Proof.
 elim: s1 s2=>[|x s1 IH] s2 h /=; split.
 - case=>hs [E {h}-> H2].
-  exists Unit, (bigjoin hs); rewrite unitL.
+  exists Unit, (seqjoin hs); rewrite unitL.
   by split=>//; [rewrite sepit0 | exists hs].
 - by case=>h1[h2][{h}->]; rewrite sepit0=>->; rewrite unitL.
 - case=>/=; case=>[|h0 hs]; case=>//= /eqP; rewrite eqSS=>/eqP E.
-  rewrite /bigjoin /bigand !big_cons /= =>->[H0 HS].
-  case: (IH s2 (bigjoin hs)).1; first by exists hs.
-  move=>h1[h2][HJ H1 H2]; rewrite /bigjoin in HJ.
+  rewrite /seqjoin !big_cons /= =>->[H0 HS].
+  case: (IH s2 (seqjoin hs)).1; first by exists hs.
+  move=>h1[h2][HJ H1 H2]; rewrite /seqjoin in HJ.
   exists (h0 \+ h1), h2; rewrite HJ joinA; split=>//.
   by rewrite sepit_cons; exists h0, h1.
 case=>h1[h2][{h}->[]]; case=>[|h0 hs1]; case=>//= /eqP; rewrite eqSS=>/eqP E1.
-rewrite /bigjoin /bigand !big_cons /= =>{h1}->[H0 H1]; case=>hs2[E2 {h2}-> H2].
-exists (h0 :: hs1 ++ hs2); rewrite /bigjoin /bigand big_cons big_cat joinA; split=>//=.
+rewrite /seqjoin !big_cons /= =>{h1}->[H0 H1]; case=>hs2[E2 {h2}-> H2].
+exists (h0 :: hs1 ++ hs2); rewrite /seqjoin big_cons big_cat joinA; split=>//=.
 - by rewrite !size_cat E1 E2.
-rewrite big_cons zip_cat //=; split=>//.
-by apply/bigand_cat.
+rewrite zip_cat //=; split=>//.
+by apply/All_cat.
 Qed.
 
 Lemma sepit_perm s1 s2 (f : A -> Pred U) :
@@ -1439,15 +1462,15 @@ move/pperm_cons_cat_cons: H=>/IH {}IH.
 rewrite sepit_cons sepit_cat /= =>h; split.
 - case=>h1[h2][{h}-> H1]; rewrite IH sepit_cat.
   case=>_[_][{h2}-> [hs3][E3 -> H3] [hs4][E4 -> H4]]; rewrite joinCA.
-  exists (bigjoin hs3), (h1 \+ bigjoin hs4); split=>//; first by exists hs3.
-  by rewrite sepit_cons; exists h1, (bigjoin hs4); split=>//; exists hs4.
+  exists (seqjoin hs3), (h1 \+ seqjoin hs4); split=>//; first by exists hs3.
+  by rewrite sepit_cons; exists h1, (seqjoin hs4); split=>//; exists hs4.
 case=>_[h2][{h}-> [hs1][Hs1 -> H1]]; rewrite sepit_cons.
 case=>h3[_][{h2}-> H3 [hs2][Hs2 -> H2]]; rewrite joinCA.
-exists h3, (bigjoin hs1 \+ bigjoin hs2); split=>//.
+exists h3, (seqjoin hs1 \+ seqjoin hs2); split=>//.
 rewrite IH; exists (hs1 ++ hs2); split.
 - by rewrite !size_cat Hs1 Hs2.
-- by rewrite /bigjoin big_cat.
-by rewrite /bigand zip_cat //; apply/bigand_cat.
+- by rewrite /seqjoin big_cat.
+by rewrite zip_cat //; apply/All_cat.
 Qed.
 
 Lemma sepitF s (f1 f2 : A -> Pred U) :

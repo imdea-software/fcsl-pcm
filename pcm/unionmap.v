@@ -91,7 +91,7 @@ limitations under the License.
 (******************************************************************************)
 
 From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import ssrnat eqtype seq path.
+From mathcomp Require Import ssrnat eqtype seq path bigop.
 From pcm Require Import options prelude finmap seqperm pred seqext.
 From pcm Require Export ordtype.
 From pcm Require Import pcm morphism.
@@ -1197,83 +1197,6 @@ End DomEqLemmas.
 Hint Resolve domeq_refl : core.
 
 
-(***********)
-(* dom_eq2 *)
-(***********)
-
-(* for maps of different types *)
-
-Section DomEq2Def.
-Variable (K : ordType) (C : pred K) (V1 V2 : Type).
-Variable U1 : union_map_class C V1.
-Variable U2 : union_map_class C V2.
-
-Definition dom_eq2 (f1 : U1) (f2 : U2) :=
-  (valid f1 == valid f2) && (dom f1 == dom f2).
-
-End DomEq2Def.
-
-Section DomEq2Lemmas.
-Variable (K : ordType) (C : pred K) (V1 V2 V3 : Type).
-Variable U1 : union_map_class C V1.
-Variable U2 : union_map_class C V2.
-Variable U3 : union_map_class C V3.
-
-Lemma domeq2_undef : dom_eq2 (undef : U1) (undef : U2).
-Proof. by rewrite /dom_eq2 !valid_undef !dom_undef. Qed.
-
-Lemma domeq2P (f1 : U1) (f2 : U2) :
-        reflect (valid f1 = valid f2 /\ dom f1 = dom f2) (dom_eq2 f1 f2).
-Proof.
-case E: (dom_eq2 f1 f2); constructor; first by case/andP: E=>/eqP -> /eqP ->.
-by case=>V D; move/negbT/negP: E; apply; rewrite /dom_eq2 V D !eq_refl.
-Qed.
-
-Lemma domeq2_refl (f : U1) : dom_eq2 f f.
-Proof. by rewrite /dom_eq2 !eq_refl. Qed.
-
-Lemma domeq2_sym (f1 : U1) (f2 : U2) : dom_eq2 f1 f2 -> dom_eq2 f2 f1.
-Proof. by case/andP=>V D; apply/andP; rewrite (eqP V) (eqP D). Qed.
-
-Lemma domeq2_trans (f1 : U1) (f2 : U2) (f3 : U3) :
-        dom_eq2 f1 f2 -> dom_eq2 f2 f3 -> dom_eq2 f1 f3.
-Proof. by rewrite /dom_eq2=>/andP [/eqP -> /eqP ->]. Qed.
-
-Lemma domeq2VUnE (f1 f1' : U1) (f2 f2' : U2) :
-        dom_eq2 f1 f2 -> dom_eq2 f1' f2' ->
-        valid (f1 \+ f1') = valid (f2 \+ f2').
-Proof.
-suff L V1' V2' (U1' : union_map_class C V1')
-  (U2' : union_map_class C V2') (g1 g1' :  U1') (g2 g2' : U2') :
-  dom_eq2 g1 g2 -> dom_eq2 g1' g2' ->
-  valid (g1 \+ g1') -> valid (g2 \+ g2').
-- by move=>D D'; apply/idP/idP; apply: L=>//; apply: domeq2_sym.
-case/andP=>/eqP E /eqP D /andP [/eqP E' /eqP D']; case: validUn=>// V V' G _.
-case: validUn=>//; rewrite -?E ?V -?E' ?V' //.
-by move=>k; rewrite -D -D'=>/G/negbTE ->.
-Qed.
-
-Lemma domeq2VUn (f1 f1' : U1) (f2 f2' : U2) :
-        dom_eq2 f1 f2 -> dom_eq2 f1' f2' ->
-        valid (f1 \+ f1') -> valid (f2 \+ f2').
-Proof. by move=>D D'; rewrite -(domeq2VUnE D D'). Qed.
-
-Lemma domeq2Un (f1 f1' : U1) (f2 f2' : U2) :
-        dom_eq2 f1 f2 -> dom_eq2 f1' f2' ->
-        dom_eq2 (f1 \+ f1') (f2 \+ f2').
-Proof.
-move=>D D'; case/andP: (D)=>V E; case/andP: (D')=>V' E'.
-apply/andP; rewrite (domeq2VUnE D D') eq_refl; split=>//.
-apply/eqP; apply: ord_sorted_eq; try by apply: sorted_dom.
-by move=>k; rewrite !domUn !inE (domeq2VUnE D D') (eqP E) (eqP E').
-Qed.
-
-End DomEq2Lemmas.
-
-#[export]
-Hint Resolve domeq2_refl : core.
-
-
 (**********)
 (* update *)
 (**********)
@@ -2108,6 +2031,126 @@ Hint Resolve domeqPt domeqPtUn domeqUnPt : core.
 Prenex Implicits validPtUn_cond findPt_inv um_eta2 um_contra.
 Prenex Implicits validPtUnD validUnPtD.
 
+
+(***********)
+(* dom_eq2 *)
+(***********)
+
+(* for maps of different value types and conditions *)
+
+Section DomEq2Def.
+Variables (K : ordType) (C1 C2 : pred K) (V1 V2 : Type).
+Variable U1 : union_map_class C1 V1.
+Variable U2 : union_map_class C2 V2.
+
+Definition dom_eq2 (f1 : U1) (f2 : U2) :=
+  (valid f1 == valid f2) && (dom f1 == dom f2).
+
+End DomEq2Def.
+
+Section DomEq2Lemmas.
+Variables (K : ordType) (C1 C2 C3 : pred K) (V1 V2 V3 : Type).
+Variable U1 : union_map_class C1 V1.
+Variable U2 : union_map_class C2 V2.
+Variable U3 : union_map_class C3 V3.
+
+Lemma domeq2_unit : dom_eq2 (Unit : U1) (Unit : U2).
+Proof. by rewrite /dom_eq2 !valid_unit !dom0. Qed.
+
+Lemma domeq2_undef : dom_eq2 (undef : U1) (undef : U2).
+Proof. by rewrite /dom_eq2 !valid_undef !dom_undef. Qed.
+
+Lemma domeq2P (f1 : U1) (f2 : U2) :
+        reflect (valid f1 = valid f2 /\ dom f1 = dom f2) (dom_eq2 f1 f2).
+Proof. by rewrite /dom_eq2; apply/andPP/eqP/eqP. Qed.
+
+Lemma domeq2VE (f1 : U1) (f2 : U2) :
+        dom_eq2 f1 f2 -> valid f1 = valid f2.
+Proof. by case/domeq2P. Qed.
+
+Lemma domeq2DE (f1 : U1) (f2 : U2) :
+        dom_eq2 f1 f2 -> dom f1 = dom f2.
+Proof. by case/domeq2P. Qed.
+
+Lemma domeq2E (f1 : U1) (f2 : U2) :
+        dom_eq2 f1 f2 -> (valid f1 = valid f2) * (dom f1 = dom f2).
+Proof. by move=>H; rewrite (domeq2VE H) (domeq2DE H). Qed.
+
+Lemma domeq2_refl (f : U1) : dom_eq2 f f.
+Proof. by rewrite /dom_eq2 !eqxx. Qed.
+
+Lemma domeq2_sym (f1 : U1) (f2 : U2) : dom_eq2 f1 f2 -> dom_eq2 f2 f1.
+Proof. by case/andP=>V D; apply/andP; rewrite (eqP V) (eqP D). Qed.
+
+Lemma domeq2_trans (f1 : U1) (f2 : U2) (f3 : U3) :
+        dom_eq2 f1 f2 -> dom_eq2 f2 f3 -> dom_eq2 f1 f3.
+Proof. by rewrite /dom_eq2=>/andP [/eqP -> /eqP ->]. Qed.
+
+(* when we compare doms of two differently-typed maps *)
+Lemma dom2E (f1 : U1) (f2 : U2) :
+        dom f1 =i dom f2 <-> dom f1 = dom f2.
+Proof. split=>[|->] //; apply/ord_sorted_eq/sorted_dom/sorted_dom. Qed.
+
+Lemma domeq2Pt (k : K) (v1 : V1) (v2 : V2) :
+        C1 k = C2 k ->
+        dom_eq2 (pts k v1 : U1) (pts k v2 : U2).
+Proof. by move=>E; apply/domeq2P; rewrite !validPt !domPtK E. Qed.
+
+Lemma domeq2PtUn (k : K) (v1 : V1) (v2 : V2) (f1 : U1) (f2 : U2) :
+        C1 k = C2 k ->
+        dom_eq2 f1 f2 ->
+        dom_eq2 (pts k v1 \+ f1) (pts k v2 \+ f2).
+Proof.
+move=>E /domeq2P [D1 D2]; apply/domeq2P.
+set j := (X in X /\ _).
+have V : j by rewrite /j !validPtUn E D1 D2.
+by split=>//; apply/dom2E=>x; rewrite !domPtUn !inE V D2.
+Qed.
+
+Lemma domeq2VUnE (f1 f1' : U1) (f2 f2' : U2) :
+        dom_eq2 f1 f2 -> dom_eq2 f1' f2' ->
+        valid (f1 \+ f1') = valid (f2 \+ f2').
+Proof.
+suff L (C1' C2' : pred K) V1' V2' (U1' : union_map_class C1' V1')
+  (U2' : union_map_class C2' V2') (g1 g1' :  U1') (g2 g2' : U2') :
+  dom_eq2 g1 g2 -> dom_eq2 g1' g2' ->
+  valid (g1 \+ g1') -> valid (g2 \+ g2').
+- by move=>D D'; apply/idP/idP; apply: L=>//; apply: domeq2_sym.
+case/andP=>/eqP E /eqP D /andP [/eqP E' /eqP D']; case: validUn=>// V V' G _.
+case: validUn=>//; rewrite -?E ?V -?E' ?V' //.
+by move=>k; rewrite -D -D'=>/G/negbTE ->.
+Qed.
+
+Lemma domeq2VUn (f1 f1' : U1) (f2 f2' : U2) :
+        dom_eq2 f1 f2 -> dom_eq2 f1' f2' ->
+        valid (f1 \+ f1') -> valid (f2 \+ f2').
+Proof. by move=>D D'; rewrite -(domeq2VUnE D D'). Qed.
+
+Lemma domeq2Un (f1 f1' : U1) (f2 f2' : U2) :
+        dom_eq2 f1 f2 -> dom_eq2 f1' f2' ->
+        dom_eq2 (f1 \+ f1') (f2 \+ f2').
+Proof.
+move=>D D'; case/andP: (D)=>V E; case/andP: (D')=>V' E'.
+apply/andP; rewrite (domeq2VUnE D D') eq_refl; split=>//.
+apply/eqP; apply: ord_sorted_eq; try by apply: sorted_dom.
+by move=>k; rewrite !domUn !inE (domeq2VUnE D D') (eqP E) (eqP E').
+Qed.
+
+Lemma big_domeq2Un A (xs : seq A) (f1 : A -> U1) (f2 : A -> U2) :
+        (forall x, x \In xs -> dom_eq2 (f1 x) (f2 x)) ->
+        dom_eq2 (\big[PCM.join/Unit]_(i <- xs) (f1 i))
+                (\big[PCM.join/Unit]_(i <- xs) (f2 i)).
+Proof.
+elim: xs=>[|x xs IH] D; first by rewrite !big_nil domeq2_unit.
+rewrite !big_cons; apply: domeq2Un.
+- by apply: D; rewrite InE; left.
+by apply: IH=>z Z; apply: D; rewrite InE; right.
+Qed.
+
+End DomEq2Lemmas.
+
+#[export]
+Hint Resolve domeq2_refl : core.
 
 (******************************************************)
 (******************************************************)
@@ -3079,7 +3122,7 @@ case/mem_seqP/MapP; case=>a b X -> /=.
 have {}P : path ord k (map fst (assocs h1 ++ h2')).
 - by move: (sorted_dom h); rewrite assocs_dom Eh /=.
 suff {X} : forall x, x \In assocs h1 ++ h2' -> ord k x.1 by move/(_ _ X).
-apply/AllP/(order_path_min (x:=(k,v)) (leT:=fun k x=>ord k.1 x.1)).
+apply/allPIn/(order_path_min (x:=(k,v)) (leT:=fun k x=>ord k.1 x.1)).
 - by move=>???; apply: trans.
 by rewrite -path_map.
 Qed.
@@ -6075,6 +6118,210 @@ Proof. by rewrite (joinC f1) (joinC f2); apply: umall2KL. Qed.
 
 End BinaryMapAll.
 
+(* big join and union maps *)
+
+Section BigOpsUM.
+Variables (K : ordType) (C : pred K) (T : Type).
+Variables (U : union_map_class C T).
+Variables (I : Type) (f : I -> U).
+
+Lemma big_domUn (xs : seq I) :
+        dom (\big[PCM.join/Unit]_(i <- xs) f i) =i
+        [pred x | valid (\big[PCM.join/Unit]_(i <- xs) f i) &
+                  has (fun i => x \in dom (f i)) xs].
+Proof.
+elim: xs=>[|x xs IH] i; first by rewrite big_nil inE /= dom0 valid_unit.
+rewrite big_cons /= inE domUn inE IH inE /=.
+by case V : (valid _)=>//=; rewrite (validR V) /=.
+Qed.
+
+Lemma big_domUnE (xs : seq I) a :
+        valid (\big[PCM.join/Unit]_(i <- xs) f i) ->
+        a \in dom (\big[PCM.join/Unit]_(i <- xs) f i) =
+        has (fun i => a \in dom (f i)) xs.
+Proof. by move=>V; rewrite big_domUn inE V. Qed.
+
+(* we can construct a big validity, if we know that *)
+(* the list contains unique elements *)
+Lemma big_validV2I (xs : seq I) :
+        Uniq xs ->
+        (forall i, i \In xs -> valid (f i)) ->
+        (forall i j, i \In xs -> j \In xs -> i <> j -> valid (f i \+ f j)) ->
+        valid (\big[PCM.join/Unit]_(i <- xs) f i).
+Proof.
+elim: xs=>[|x xs IH] /=; first by rewrite big_nil valid_unit.
+case=>X Uq H1 H2; rewrite big_cons validUnAE.
+rewrite H1 /=; last by rewrite InE; left.
+rewrite IH //=; last first.
+- by move=>i j Xi Xj; apply: H2; rewrite InE; right.
+- by move=>i Xi; apply: H1; rewrite InE; right.
+apply/allP=>a /=; apply: contraL=>Dx; apply/negP.
+rewrite big_domUn inE=>/andP [V] /hasPIn [y Y Dy].
+have : x <> y by move=>N; rewrite N in X; move/X: Y.
+move/(H2 x y (or_introl erefl) (or_intror Y)).
+by case: validUn=>// _ _ /(_ a Dx); rewrite Dy.
+Qed.
+
+Lemma big_size_dom (xs : seq I) :
+       valid (\big[PCM.join/Unit]_(i <- xs) f i) ->
+       size (dom (\big[PCM.join/Unit]_(i <- xs) f i)) =
+         \sum_(i <- xs) (size (dom (f i))).
+Proof.
+elim: xs=>[|x xs IH] /=; first by rewrite !big_nil dom0.
+rewrite !big_cons=>V; rewrite size_domUn //; congr (size _ + _).
+by apply/IH/(validR V).
+Qed.
+
+Lemma big_find_some (xs : seq I) a i v :
+        valid (\big[PCM.join/Unit]_(i <- xs) f i) ->
+        i \In xs ->
+        find a (f i) = some v ->
+        find a (\big[PCM.join/Unit]_(i <- xs) f i) = some v.
+Proof.
+elim: xs=>[|x xs IH /[swap]] //; rewrite big_cons InE.
+case=>[<-{x}|Xi] V E; first by rewrite findUnL // (find_some E).
+rewrite findUnR // big_domUnE ?(validR V) //=.
+rewrite ifT; first by apply: IH (validR V) Xi E.
+by apply/hasPIn; exists i=>//; apply: find_some E.
+Qed.
+
+Lemma big_find_someD (xs : seq I) a i v :
+        i \In xs ->
+        a \in dom (f i) ->
+        find a (\big[PCM.join/Unit]_(x <- xs) f x) = Some v ->
+        find a (f i) = Some v.
+Proof.
+elim: xs v=>[|y xs IH] v //=; rewrite big_cons InE.
+case=>[->|Xi] Da /[dup]/In_find/In_valid V; first by rewrite findUnL // Da.
+rewrite findUnR // big_domUnE ?(validR V) //=.
+by rewrite ifT; [apply: IH | apply/hasPIn; exists i].
+Qed.
+
+Lemma big_find_someX (xs : seq I) a v :
+        find a (\big[PCM.join/Unit]_(i <- xs) f i) = Some v ->
+        exists2 i, i \In xs & find a (f i) = Some v.
+Proof.
+elim: xs=>[|x xs IH]; first by rewrite big_nil find0E.
+move/[dup]=>E1; rewrite big_cons=>/[dup] E /find_some.
+rewrite domUn inE=>/andP [V] /orP [] D; last first.
+- move: E; rewrite findUnR // D=>/IH [j Dj Xj].
+  by exists j=>//; rewrite InE; right.
+case/In_domX: D=>w /In_find /[dup] X.
+move/(big_find_some (dom_valid (find_some E1)) (or_introl erefl)).
+by rewrite E1; case=>->; exists x=>//; rewrite InE; left.
+Qed.
+
+Lemma bigIn (xs : seq I) a i v :
+        valid (\big[PCM.join/Unit]_(i <- xs) f i) ->
+        i \In xs ->
+        (a, v) \In f i ->
+        (a, v) \In \big[PCM.join/Unit]_(i <- xs) f i.
+Proof. by move=>V H /In_find/(big_find_some V H)/In_find. Qed.
+
+Lemma bigInD (xs : seq I) a x v :
+        x \In xs ->
+        a \in dom (f x) ->
+        (a, v) \In \big[PCM.join/Unit]_(i <- xs) f i ->
+        (a, v) \In f x.
+Proof. by move=>X D /In_find/(big_find_someD X D)/In_find. Qed.
+
+Lemma bigInX (xs : seq I) a v :
+        (a, v) \In \big[PCM.join/Unit]_(i <- xs) f i ->
+        exists2 i, i \In xs & (a, v) \In f i.
+Proof. by case/In_find/big_find_someX=>x X /In_find; exists x. Qed.
+
+End BigOpsUM.
+
+Prenex Implicits big_find_some big_find_someD.
+Prenex Implicits big_find_someX bigIn bigInD bigInX.
+
+(* if the index type is eqtype, we can have a somewhat better *)
+(* big validity lemma *)
+
+Section BigOpsUMEq.
+Variables (K : ordType) (C : pred K) (T : Type).
+Variables (U : union_map_class C T).
+Variables (I : eqType) (f : I -> U).
+
+Lemma big_validP (xs : seq I) :
+        reflect
+        [/\ forall i, i \in xs -> valid (f i),
+            forall i k, i \in xs -> k \in dom (f i) -> count_mem i xs = 1 &
+            forall i j, i \in xs -> j \in xs -> i <> j -> valid (f i \+ f j)]
+        (valid (\big[PCM.join/Unit]_(i <- xs) f i)).
+Proof.
+elim: xs=>[|x xs IH] /=; first by rewrite big_nil valid_unit; constructor.
+rewrite big_cons validUnAE.
+case H1 : (valid (f x))=>/=; last first.
+- by constructor; case=>/(_ x); rewrite inE eqxx H1=>/(_ erefl).
+rewrite andbC; case: allP=>/= H2; last first.
+- constructor; case=>H3 H4 H5; apply: H2=>k; rewrite big_domUn inE.
+  case/andP=>V /hasP [y]; case : (x =P y)=>[<- /[swap]|N X D].
+  - by move/(H4 x); rewrite inE eqxx add1n=>/(_ erefl) []/count_memPn/negbTE ->.
+  by apply: dom_inNR (H5 _ _ _ _ N) D; rewrite inE ?eqxx ?X ?orbT.
+case: {2 3}(valid _) / IH (erefl (valid (\big[PCM.join/Unit]_(j <- xs) f j)))
+=> H V; constructor; last first.
+- case=>H3 H4 H5; apply: H; split; last 1 first.
+  - by move=>i k X1 X2; apply: H5; rewrite inE ?X1 ?X2 orbT.
+  - by move=>i X; apply: H3; rewrite inE X orbT.
+  move=>i k X1 X2; move: (H4 i k); rewrite inE X1 orbT=>/(_ erefl X2).
+  case: (x =P i) X1 X2=>[<-{i} X1 X2|]; last by rewrite add0n.
+  by rewrite add1n; case=>/count_memPn; rewrite X1.
+case: H=>H3 H4 H5; split; first by move=>i; rewrite inE=>/orP [/eqP ->|/H3].
+- move=>i k; rewrite inE eq_sym; case: (x =P i)=>[<- _|X] /= D; last first.
+  - by rewrite add0n; apply: H4 D.
+  rewrite add1n; congr (_.+1); apply/count_memPn.
+  apply: contraL (D)=>X; apply: H2; rewrite big_domUn V inE.
+  by apply/hasP; exists x.
+move=>i j; rewrite !inE=>/orP [/eqP ->{i}| Xi] /orP [/eqP ->{j}|Xj] // N.
+- rewrite validUnAE H1 H3 //=; apply/allP=>k D; apply: H2.
+  by rewrite big_domUn V inE; apply/hasP; exists j.
+- rewrite validUnAE H3 ?H1 //=; apply/allP=>k; apply: contraL=>D; apply: H2.
+  by rewrite big_domUn V inE; apply/hasP; exists i.
+by apply: H5 Xi Xj N.
+Qed.
+
+End BigOpsUMEq.
+
+Section BigCatSeqUM.
+Variables (K : ordType) (C : pred K) (T : Type).
+Variables (U : union_map_class C T).
+Variables (I : eqType).
+Variables (g : I -> U).
+
+Lemma big_valid_dom_seq (xs : seq I) :
+        (valid (\big[PCM.join/Unit]_(i <- xs) g i) =
+         all (fun i => valid (g i)) xs &&
+         uniq (\big[cat/[::]]_(i <- xs) dom (g i))) *
+        (dom (\big[PCM.join/Unit]_(i <- xs) g i) =i
+         if valid (\big[PCM.join/Unit]_(i <- xs) g i) then
+           \big[cat/[::]]_(i <- xs) dom (g i)
+         else [::]).
+Proof.
+elim: xs=>[|x xs [IH1 IH2]]; first by rewrite !big_nil valid_unit /= dom0.
+rewrite !big_cons cat_uniq /=; split=>[|z]; last first.
+- rewrite domUn inE; case V : (valid _)=>//=.
+  by rewrite mem_cat IH2 (validR V).
+rewrite validUnAE IH1 -all_predC -!andbA uniq_dom /=.
+case V : (valid (g x))=>//=; case A : (all _)=>//=.
+rewrite [RHS]andbC; case Uq : (uniq _)=>//=.
+by apply: eq_all_r=>i; rewrite IH2 IH1 A Uq.
+Qed.
+
+Lemma big_valid_seq (xs : seq I) :
+        valid (\big[PCM.join/Unit]_(i <- xs) g i) =
+        all (fun i => valid (g i)) xs &&
+        uniq (\big[cat/[::]]_(i <- xs) dom (g i)).
+Proof. by rewrite big_valid_dom_seq. Qed.
+
+Lemma big_dom_seq (xs : seq I) :
+        dom (\big[PCM.join/Unit]_(i <- xs) g i) =i
+        if valid (\big[PCM.join/Unit]_(i <- xs) g i) then
+          \big[cat/[::]]_(i <- xs) dom (g i)
+        else [::].
+Proof. by move=>x; rewrite big_valid_dom_seq. Qed.
+
+End BigCatSeqUM.
 
 (********************************************************)
 (********************************************************)

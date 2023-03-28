@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import ssrnat seq path eqtype choice.
-From pcm Require Import options prelude.
+From mathcomp Require Import ssrnat seq path eqtype choice bigop.
+From pcm Require Import options prelude pred.
 
 (*********************)
 (* Extensions to seq *)
@@ -985,3 +985,140 @@ case/orP=>[/eqP ->|/IH]; first by rewrite L add1n addSn ltnS leq_addr.
 rewrite L=>N; rewrite L; apply: leq_trans N _.
 by rewrite addnAC leq_addr.
 Qed.
+
+Section BigCat.
+Context {A B : Type}.
+Implicit Types (xs : seq A) (f : A -> seq B).
+
+Lemma flatten_map_big xs f :
+        flatten (map f xs) = \big[cat/[::]]_(x <- xs) f x.
+Proof.
+elim: xs=>/= [|x xs IH]; first by rewrite big_nil.
+by rewrite big_cons IH.
+Qed.
+
+Lemma size_big_cat xs f :
+        size (\big[cat/[::]]_(x <- xs) f x) =
+        \sum_(x <- xs) (size (f x)).
+Proof.
+elim: xs=>[|x xs IH] /=; first by rewrite !big_nil.
+by rewrite !big_cons size_cat IH.
+Qed.
+
+Lemma has_big_cat (p : pred B) xs f :
+        has p (\big[cat/[::]]_(x <- xs) f x) =
+        has (fun x => has p (f x)) xs.
+Proof.
+elim: xs=>[|x xs IH]; first by rewrite big_nil.
+by rewrite big_cons has_cat /= IH.
+Qed.
+
+End BigCat.
+
+Section BigCatEq.
+Context {A : Type} {B : eqType}.
+Implicit Types (xs : seq A) (f : A -> seq B).
+
+Lemma big_cat_mem_seq xs f b :
+        b \in \big[cat/[::]]_(x <- xs) f x =
+        has (fun x => b \in f x) xs.
+Proof.
+rewrite -has_pred1 has_big_cat; apply: eq_has=>x.
+by rewrite has_pred1.
+Qed.
+
+Lemma big_cat_uniq xs f y :
+        uniq (\big[cat/[::]]_(x <- xs) f x) ->
+        y \In xs -> uniq (f y).
+Proof.
+elim: xs=>[|x xs IH] in y * => //.
+rewrite big_cons InE cat_uniq.
+case/and3P=>U _ Us; case=>[->|Hy] //.
+by apply: IH.
+Qed.
+
+Lemma big_cat_uniq_pairwise xs f x1 x2 :
+        uniq (\big[cat/[::]]_(x <- xs) f x) ->
+        x1 \In xs -> x2 \In xs -> has (mem (f x1)) (f x2) ->
+        x1 = x2.
+Proof.
+elim: xs=>[|x xs IH] //.
+rewrite big_cons cat_uniq; case/and3P=>U N Us.
+case/In_cons=>[->|H1]; case/In_cons=>[->|H2] //; last by apply: IH.
+- case/hasP=>/= b Hb1 Hb2.
+  exfalso; move/negP: N; apply.
+  apply/hasP; exists b=>//; rewrite big_cat_mem_seq.
+  by apply/hasPIn; exists x2.
+case/hasP=>/= b Hb1 Hb2.
+exfalso; move/negP: N; apply.
+apply/hasP; exists b=>//; rewrite big_cat_mem_seq.
+by apply/hasPIn; exists x1.
+Qed.
+
+Lemma uniq_big_cat xs f :
+        Uniq xs ->
+        (forall x, x \In xs -> uniq (f x)) ->
+        (forall x1 x2, x1 \In xs -> x2 \In xs -> has (mem (f x1)) (f x2) -> x1 = x2) ->
+        uniq (\big[cat/[::]]_(x <- xs) f x).
+Proof.
+elim: xs=>[|x xs IH] /=.
+- by rewrite big_nil /=; constructor.
+case=>Nx U H1 H2; rewrite big_cons cat_uniq.
+apply/and3P; split.
+- by apply: H1; left.
+- rewrite has_big_cat -all_predC; apply/allPIn=>x3 H3 /=.
+  by apply: contra_notN Nx=>H; rewrite (H2 _ _ _ _ H) //; [left | right].
+apply: IH=>//.
+- by move=>z Hz; apply: H1; right.
+by move=>z1 z2 Hz1 Hz2 N; apply: H2=>//; right.
+Qed.
+
+End BigCatEq.
+
+Section BigCatEq2.
+Variables (A B : eqType) (f : A -> seq B).
+
+Lemma big_cat_mem_seqX x (xs : seq A) :
+        reflect (exists2 i, i \in xs & x \in f i)
+                (x \in \big[cat/[::]]_(i <- xs) f i).
+Proof.
+by rewrite big_cat_mem_seq; exact: hasP.
+Qed.
+
+(* counterpart of big_validP *)
+Lemma uniq_big_catP (xs : seq A) :
+        reflect
+        [/\ forall i, i \in xs -> uniq (f i),
+            forall i k, i \in xs -> k \in f i -> count_mem i xs = 1 &
+            forall i j k, i \in xs -> j \in xs ->
+              k \in f i -> k \in f j -> i = j]
+        (uniq (\big[cat/[::]]_(i <- xs) f i)).
+Proof.
+elim: xs=>[|x xs IH] /=; first by rewrite big_nil; constructor.
+rewrite big_cons cat_uniq.
+case H1 : (uniq (f x))=>/=; last first.
+- by constructor; case=>/(_ x); rewrite inE eqxx H1=>/(_ erefl).
+case: hasPn=>/= V; last first.
+- constructor; case=>H2 H3 H4; elim: V=>z /big_cat_mem_seqX [i X Zi].
+  apply/negP=>Zx; move/(H3 i z): (Zi); rewrite inE X orbT=>/(_ erefl).
+  move: (H4 x i z); rewrite !inE eqxx X orbT=>/(_ erefl erefl Zx Zi)=>E.
+  by rewrite -{i Zi}E eqxx add1n in X *; case=>/count_memPn; rewrite X.
+case: IH=>H; constructor; last first.
+- case=>H2 H3 H4; apply: H; split; last 1 first.
+  - by move=>i j k Xi Xj; apply: H4; rewrite inE ?Xi ?Xj orbT.
+  - by move=>i X; apply: H2; rewrite inE X orbT.
+  move=>i k X D; move/(H3 i k): (D); rewrite inE X orbT=>/(_ erefl).
+  case: (x =P i) X D=>[<-{i}|N] X D; last by rewrite add0n.
+  by rewrite add1n=>[[]] /count_memPn; rewrite X.
+case: H=>H2 H3 H4; split; first by move=>i; rewrite inE=>/orP [/eqP ->|/H2].
+- move=>i k; rewrite inE eq_sym; case: (x =P i)=>[<- _|N /= Xi] K; last first.
+  - by rewrite add0n; apply: H3 Xi K.
+  rewrite add1n; congr S; apply/count_memPn; apply: contraL (K)=>X.
+  by apply/V/big_cat_mem_seqX; exists x.
+move=>i j k; rewrite !inE=>/orP [/eqP ->{i}|Xi] /orP [/eqP ->{j}|Xj] Ki Kj //.
+- by suff : k \notin f x; [rewrite Ki | apply/V/big_cat_mem_seqX; exists j].
+- by suff : k \notin f x; [rewrite Kj | apply/V/big_cat_mem_seqX; exists i].
+by apply: H4 Kj.
+Qed.
+
+End BigCatEq2.

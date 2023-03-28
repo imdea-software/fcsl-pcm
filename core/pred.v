@@ -533,43 +533,6 @@ rewrite IHs // => y s_y; apply: eq_a.
 by rewrite InE; right.
 Qed.
 
-Lemma AllP T (a : pred T) (s : seq T) :
-        reflect (forall x, x \In s -> a x) (all a s).
-Proof.
-elim: s=>[|x s IHs] /=; first by left.
-case: andP=>[[H1 H2]|H]; constructor.
-- by move=>z /In_cons [->|/(IHs H2)].
-move=>H1; elim: H; split; first by apply/H1/In_cons; left.
-by apply/IHs=>z H; apply/H1/In_cons; right.
-Qed.
-
-Lemma AllPn T (a : pred T) (s : seq T) :
-        reflect (exists2 x, x \In s & ~~ a x) (~~ all a s).
-Proof.
-elim: s => [|x s IHs]; first by right=> [[x Hx _]].
-rewrite /= andbC negb_and; case: IHs => IHs /=.
-  by left; case: IHs => y Hy Hay; exists y=>//; apply/In_cons; right.
-apply: (iffP idP) => [|[y]]; first by exists x=>//; apply/In_cons; left.
-by case/In_cons=>[->//|H1 H2]; elim: IHs; exists y.
-Qed.
-
-Lemma HasP T (a : pred T) (s : seq T) :
-        reflect (exists2 x, x \In s & a x) (has a s).
-Proof.
-elim: s => [|y s IHs] /=; first by right; case.
-case ay: (a y); first by left; exists y=>//; apply/In_cons; left.
-apply: (iffP IHs)=>[] [x ysx ax]; exists x => //; first by apply/In_cons; right.
-by case/In_cons: ysx ax ay=>[->->|].
-Qed.
-
-Lemma HasPn T (a : pred T) (s : seq T) :
-        reflect (forall x, x \In s -> ~~ a x) (~~ has a s).
-Proof.
-apply: (iffP idP) => not_a_s => [x s_x|].
-- by apply: contra not_a_s => a_x; apply/HasP; exists x.
-by apply/HasP=> [[x s_x]]; apply/negP; apply: not_a_s.
-Qed.
-
 (* for equality types, membership predicates coincide *)
 Lemma mem_seqP (A : eqType) x (s : seq A) : reflect (x \In s) (x \in s).
 Proof.
@@ -578,6 +541,115 @@ rewrite inE; case: eqP=>[<-|H /=]; first by constructor; left.
 by apply: equivP IH _; rewrite InE; split; [right | case].
 Qed.
 
+(* Big \In equivalences for all and has *)
+
+Section allhasP.
+Context {T : Type}.
+Variables (p : pred T).
+
+Lemma allPIn (s : seq T) :
+        reflect (forall x, x \In s -> p x) (all p s).
+Proof.
+elim: s=>[|x s IHs] /=; first by constructor.
+case: andP=>[[H1 H2]|H]; constructor.
+- by move=>z /In_cons [->|/(IHs H2)].
+move=>H1; elim: H; split; first by apply/H1/In_cons; left.
+by apply/IHs=>z H; apply/H1/In_cons; right.
+Qed.
+
+Lemma allPnIn (s : seq T) :
+        reflect (exists2 x, x \In s & ~~ p x) (~~ all p s).
+Proof.
+elim: s => [|x s IHs] /=; first by constructor=> [[x Hx _]].
+rewrite /= andbC negb_and; case: IHs => IHs /=.
+- by constructor; case: IHs => y Hy Hay; exists y=>//; apply/In_cons; right.
+apply: (iffP idP) => [|[y]]; first by exists x=>//; apply/In_cons; left.
+by case/In_cons=>[->//|H1 H2]; elim: IHs; exists y.
+Qed.
+
+Lemma hasPIn (s : seq T) :
+        reflect (exists2 x, x \In s & p x) (has p s).
+Proof.
+elim: s => [|y s IHs] /=; first by right; case.
+case Py: (p y); first by left; exists y=>//; apply/In_cons; left.
+apply: (iffP IHs)=>[] [x ysx Px]; exists x => //; first by apply/In_cons; right.
+by case/In_cons: ysx Px Py=>[->->|].
+Qed.
+
+Lemma hasPnIn (s : seq T) :
+        reflect (forall x, x \In s -> ~~ p x) (~~ has p s).
+Proof.
+apply: (iffP (negPP (hasPIn s)))=>H.
+- by move=>x Hx; apply: contra_notN H=>Px; exists x.
+by case=>x Hx; apply/negP/H.
+Qed.
+
+(* implication form of hasPIn is frequently used *)
+(* and if you don't have it, causes fluff in proofs *)
+
+Lemma hasPInX x xs : x \In xs -> p x -> has p xs.
+Proof. by move=>H1 H2; apply/hasPIn; exists x. Qed.
+
+End allhasP.
+
+Arguments hasPInX {T p x xs}.
+
+Section AllHasP.
+Context {T : Type}.
+Variables (P : Pred T).
+
+Fixpoint All xs := if xs is x :: xs then P x /\ All xs else True.
+
+Lemma AllP xs : All xs <-> forall x, x \In xs -> P x.
+Proof.
+elim: xs=>[|x xs IH] //=.
+split; first by case=>H1 /IH H2 z; rewrite InE; case=>[->//|]; apply: H2.
+move=>H; split; first by apply: H; rewrite InE; left.
+by apply/IH=>z Z; apply: H; rewrite InE; right.
+Qed.
+
+Lemma All_cat (s1 s2 : seq T) :
+        All (s1 ++ s2) <-> All s1 /\ All s2.
+Proof.
+split.
+- by move/AllP=>H; split; apply/AllP=>x Hx; apply/H/Mem_cat; [left|right].
+by case=>/AllP H1 /AllP H2; apply/AllP=>x /Mem_cat; case=>Hx; [apply: H1| apply: H2].
+Qed.
+
+Fixpoint Has xs := if xs is x :: xs then P x \/ Has xs else False.
+
+Lemma HasP xs : Has xs <-> exists2 x, x \In xs & P x.
+Proof.
+elim: xs=>[|x xs IH] /=; first by split=>//; case.
+split.
+- case=>[H|/IH]; first by exists x=>//; rewrite InE; left.
+  by case=>y H1 H2; exists y=>//; rewrite InE; right.
+case=>y; rewrite InE; case=>[->|H1 H2]; first by left.
+by right; apply/IH; exists y.
+Qed.
+
+Lemma Has_cat (s1 s2 : seq T) :
+        Has (s1 ++ s2) <-> Has s1 \/ Has s2.
+Proof.
+split.
+- by move/HasP=>[x] /Mem_cat; case=>Hx Px; [left|right]; apply/HasP; exists x.
+by case=>/HasP [x Hx Px]; apply/HasP; exists x=>//; apply/Mem_cat; [left|right].
+Qed.
+
+(* also prop uniqueness *)
+Fixpoint Uniq (xs : seq T) := if xs is x :: xs then x \Notin xs /\ Uniq xs else True.
+
+End AllHasP.
+
+Section AllHasT.
+Context {T : Type}.
+Variables (P : T -> Type).
+
+Fixpoint AllT xs : Type := if xs is x :: xs then P x * AllT xs else unit.
+
+Fixpoint HasT xs : Type := if xs is x :: xs then P x + HasT xs else Empty_set.
+
+End AllHasT.
 
 (***********************************)
 (* Image of a collective predicate *)
