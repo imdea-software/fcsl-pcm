@@ -375,17 +375,17 @@ Section OmegaMorph.
 Let U := nat_mapPCM (bool * bool).
 
 Definition omg_s := fun x y : U =>
-  [&& last_val false x ==> (last_key y < last_key x) &
-      last_val false y ==> (last_key x < last_key y)].
+  [&& last_atval false x ==> (last_key y < last_key x) &
+      last_atval false y ==> (last_key x < last_key y)].
 
 Lemma omg_sep_ax : seprel_axiom omg_s.
 Proof.
-rewrite /omg_s; split=>[|x y|x y|x y z] /=; first by rewrite lastval0.
+rewrite /omg_s; split=>[|x y|x y|x y z] /=; first by rewrite lastatval0.
 - by rewrite andbC.
-- move=>V /andP [H _]; rewrite lastkey0 lastval0.
+- move=>V /andP [H _]; rewrite lastkey0 lastatval0.
   by case: (x in x ==> _) H=>// /(leq_trans _) ->.
 move=>V /andP [X Y] /andP [].
-rewrite !lastkeyUn !lastvalUn !(validLE3 V).
+rewrite !lastkeyUn !lastatvalUn !(validLE3 V).
 rewrite {1 2}maxnC {1 2}/maxn gtn_max leq_max /=.
 case: (ltngtP (last_key x) (last_key y)) X Y=>H X Y Kx Kz;
  rewrite ?H ?X ?(negbTE Y) fun_if if_arg ?implybT ?Kx Kz if_same //= ?andbT.
@@ -394,12 +394,12 @@ Qed.
 
 Canonical omg_seprel := Eval hnf in seprel omg_s omg_sep_ax.
 
-Definition omg (x : U) : mtx2 := if last_val false x then own else nown.
+Definition omg (x : U) : mtx2 := if last_atval false x then own else nown.
 
 Lemma omg_morph_ax : morph_axiom omg_seprel omg.
 Proof.
-rewrite /omg; split=>[|x y V /andP [X Y]]; first by rewrite lastval0.
-rewrite lastvalUn V; case: ltngtP X Y=>H X Y;
+rewrite /omg; split=>[|x y V /andP [X Y]]; first by rewrite lastatval0.
+rewrite lastatvalUn V; case: ltngtP X Y=>H X Y;
 by rewrite ?(negbTE X) ?(negbTE Y) //; case: ifP.
 Qed.
 
@@ -408,47 +408,47 @@ Canonical omg_morph := Morphism' omg omg_morph_ax.
 (* transfer lemmas *)
 
 Lemma omgPos (V : pcm) (v : V) (ht : V -> natmap (bool * bool)) :
-        last_val false (ht v) = (omg (ht v) == own).
+        last_atval false (ht v) = (omg (ht v) == own).
 Proof. by rewrite /omg /=; case: ifP. Qed.
 
 Lemma omgPosMorph (V : pcm) (v1 v2 : V) (D : sep_rel V) (ht : @morphism V U D):
         valid (v1 \+ v2) -> 'preim ht omg_s v1 v2 ->
-        last_val false (ht v1 \+ ht v2) = (omg (ht v1) \+ omg (ht v2) == own).
+        last_atval false (ht v1 \+ ht v2) = (omg (ht v1) \+ omg (ht v2) == own).
 Proof.
 move=>W /andP [G] /andP []; rewrite /omg /= in G *.
-rewrite lastvalUn (pfVf ht W G); case: ltngtP=>H H1 H2;
+rewrite lastatvalUn (pfVf ht W G); case: ltngtP=>H H1 H2;
 by rewrite ?(negbTE H1) ?(negbTE H2) //; case: ifP.
 Qed.
 
 Lemma omgNeg (V : pcm) (v : V) (ht : V -> natmap (bool * bool)) :
-       ~~ last_val false (ht v) = (omg (ht v) == nown).
+       ~~ last_atval false (ht v) = (omg (ht v) == nown).
 Proof. by rewrite /omg /=; case: ifP. Qed.
 
 Lemma omgNegMorph (V : pcm) (v1 v2 : V) (D : sep_rel V) (ht : @morphism V U D) :
          valid (v1 \+ v2) ->'preim ht omg_s v1 v2 ->
-         ~~ last_val false (ht v1 \+ ht v2) = (omg (ht v1) \+ omg (ht v2) == nown).
+         ~~ last_atval false (ht v1 \+ ht v2) = (omg (ht v1) \+ omg (ht v2) == nown).
 Proof.
 move=>W /andP [G] /andP []; rewrite /= /omg in G *.
-rewrite lastvalUn (pfVf ht W G); case: ltngtP=>H H1 H2;
+rewrite lastatvalUn (pfVf ht W G); case: ltngtP=>H H1 H2;
 by rewrite ?(negbTE H1) ?(negbTE H2) //; case: ifP.
 Qed.
 
 Lemma omgidPos (v : U) :
-        last_val false v = (omg v == own).
+        last_atval false v = (omg v == own).
 Proof. by rewrite (omgPos _ id). Qed.
 
 Lemma omgidPosMorph (v1 v2 : U) :
         valid (v1 \+ v2) -> omg_s v1 v2 ->
-        last_val false (v1 \+ v2) = (omg v1 \+ omg v2 == own).
+        last_atval false (v1 \+ v2) = (omg v1 \+ omg v2 == own).
 Proof. by move=> W S; rewrite (@omgPosMorph _ _ _ _ (id_morph _)). Qed.
 
 Lemma omgidNeg (v : U) :
-        ~~ last_val false v = (omg v == nown).
+        ~~ last_atval false v = (omg v == nown).
 Proof. by rewrite (omgNeg _ id). Qed.
 
 Lemma omgidNegMorph (v1 v2 : U) :
         valid (v1 \+ v2) -> omg_s v1 v2 ->
-         ~~last_val false (v1 \+ v2) = (omg v1 \+ omg v2 == nown).
+         ~~last_atval false (v1 \+ v2) = (omg v1 \+ omg v2 == nown).
 Proof. by move=>W S; rewrite (@omgNegMorph _ _ _ _ (id_morph _)). Qed.
 
 Definition omgP := ((omgidNegMorph, omgidPosMorph, omgPosMorph, omgNegMorph), (omgidPos, omgidNeg, omgPos, omgNeg)).
@@ -466,7 +466,7 @@ Lemma omg_fresh_val (V : pcm) (v1 v2 : V) (D : sep_rel V) (ht : @morphism V U D)
 Proof.
 move=>A O; have Vh : valid (ht v1 \+ ht v2).
 - by move/pfV2: O; move/(_ _ ht A).
-by rewrite /omg !lastval_freshUn.
+by rewrite /omg !lastatval_freshUn.
 Qed.
 
 Lemma omg_fresh_sep (V : pcm) (v1 v2 : V) (D : sep_rel V) (ht : @morphism V U D) op :
@@ -479,7 +479,7 @@ Lemma omg_fresh_sep (V : pcm) (v1 v2 : V) (D : sep_rel V) (ht : @morphism V U D)
 Proof.
 move=>A O; have Vh : valid (ht v1 \+ ht v2).
 - by move/pfV2: O; move/(_ _ ht A).
-rewrite /omg_s lastval_freshUn // lastkey_freshUn //.
+rewrite /omg_s lastatval_freshUn // lastkey_freshUn //.
 split=>N; first by rewrite omgP N /fresh lastkeyUn Vh ltnS leq_maxr implybT.
 by rewrite omgP N lastkey_freshUn //= ltnS lastkeyUn Vh leq_maxl implybT.
 Qed.
@@ -497,7 +497,7 @@ Lemma omg_eta (h : natmap (bool * bool)):
 Proof.
 rewrite /omg; case: ifP=>// N V _; set k := last_key h.
 have D : k \in dom h.
-- rewrite /last_val /atval /oapp in N.
+- rewrite /last_atval /atval /oapp in N.
   by case: dom_find N=>[->//|].
 have K : k != 0 by apply: dom_cond D.
 case: (um_eta D); case=>v1 v2 [Ef Eh].
@@ -506,7 +506,7 @@ have Nd : k \notin dom h'.
 - rewrite Eh in V; case: validUn V=>// _ _ X _; apply: X.
   by rewrite domPt inE /= K eq_refl.
 exists h', v1; split=>//.
-- by rewrite /last_val /atval Ef /= in N; rewrite -N.
+- by rewrite /last_atval /atval Ef /= in N; rewrite -N.
 have: last_key h' <= k.
 - by rewrite /k Eh; apply: lastkeyUnf; rewrite -Eh.
 rewrite leq_eqVlt; case/orP=>// /eqP E.

@@ -987,6 +987,17 @@ Lemma dom_inNRX k f1 f2 :
         valid (f1 \+ f2) -> k \in dom f2 -> ~ k \in dom f1.
 Proof. by move=>W /(dom_inNR W)/negbTE ->. Qed.
 
+(* a more symmetric version of the above *)
+Lemma dom_inN k1 k2 f1 f2 :
+        valid (f1 \+ f2) ->
+        k1 \in dom f1 -> k2 \in dom f2 -> k1 != k2.
+Proof. by case: (k1 =P k2) =>// <- W H /(dom_inNLX W H). Qed.
+
+Lemma dom_inNX k1 k2 f1 f2 :
+        valid (f1 \+ f2) ->
+        k1 \in dom f1 -> k2 \in dom f2 -> k1 <> k2.
+Proof. by move=>W K1 K2; apply/eqP; apply: dom_inN K1 K2. Qed.
+
 End ValidLemmas.
 
 
@@ -2266,6 +2277,10 @@ Qed.
 Lemma In_condPt k v : C k -> (k, v) \In pts k v.
 Proof. by split; [rewrite validPt | exists Unit; rewrite unitR]. Qed.
 
+Lemma InPtE k v f :
+        C k -> f = pts k v -> (k, v) \In f.
+Proof. by move=>W ->; apply: In_condPt W. Qed.
+
 Lemma In_dom f x : x \In f -> x.1 \in dom f.
 Proof. by case=>W [z E]; subst f; rewrite domPtUn inE W eq_refl. Qed.
 
@@ -2311,6 +2326,11 @@ Qed.
 
 Lemma InPtUnL k v f : valid (pts k v \+ f) -> (k, v) \In pts k v \+ f.
 Proof. by move/InPtUnE=>->; left. Qed.
+
+(* a frequently used pattern *)
+Lemma InPtUnEL k v f f' :
+        valid f -> f = pts k v \+ f' -> (k, v) \In f.
+Proof. by move/[swap] ->; apply: InPtUnL. Qed.
 
 Lemma InPtUnEN k v x f :
         valid (pts k v \+ f) ->
@@ -2435,7 +2455,8 @@ Proof. by move=>H; case/In_dom/um_eta: (H)=>w [/In_find/(In_fun H) ->]. Qed.
 End MapMembership.
 
 Arguments In_condPt {K C V U k}.
-Prenex Implicits InPt In_eta InPtUn In_dom.
+Prenex Implicits InPt In_eta InPtUn In_dom InPtUnEL.
+
 
 (*********)
 (* range *)
@@ -3432,6 +3453,7 @@ End OMapDefLemmas.
 
 Arguments omap [K C V V' U U'].
 Arguments dom_omap_sub [K C V V' U U' a f] _.
+Arguments In_omap [K C V V' U U'] _ [k v w f].
 Prenex Implicits dom_omap_sub.
 
 Section OmapComp.
@@ -3459,6 +3481,20 @@ End OmapComp.
 Notation omapv f := (omap (f \o snd)).
 (* when the don't supply the key and the map is total *)
 Notation mapv f := (omapv (Some \o f)).
+
+Section OmapvMem.
+Variables (K : ordType) (C : pred K) (V V' : Type).
+Variables U : union_map_class C V.
+Variables U' : union_map_class C V'.
+
+Lemma In_omapv (a : V -> option V') k v w (f : U) :
+        (k, w) \In f -> a w = Some v ->
+        (k, v) \In (omapv a f : U').
+Proof. by apply: In_omap. Qed.
+
+End OmapvMem.
+
+Arguments In_omapv [K C V V' U U'] _ [k v w f].
 
 Section OmapvLemmas.
 Variables (K : ordType) (C : pred K) (V : Type).
@@ -3899,6 +3935,10 @@ have: ((if p (k, v) then Some v else None) = None).
 by case: (p (k, v)).
 Qed.
 
+Lemma umfilt_mem0X p f k v :
+        (k, v) \In f -> um_filter p f = Unit -> ~ p (k, v).
+Proof. by move=>H /umfilt_mem0/(_ _ _ H)/negP. Qed.
+
 Lemma umfilt_mem0L p f :
         valid f -> (forall k v, (k, v) \In f -> ~~ p (k, v)) ->
         um_filter p f = Unit.
@@ -4159,7 +4199,7 @@ apply: eq_in_omap; case=>k v H /=.
 by case X : (f v)=>[a|] //=; rewrite -(O v) X.
 Qed.
 
-Lemma In_omapv (h : Ur) k x :
+Lemma In_omapV (h : Ur) k x :
         ocancel f g -> pcancel g f ->
         (k, x) \In (omapv f h : Ua) <-> (k, g x) \In h.
 Proof.
@@ -4172,7 +4212,7 @@ Lemma In_rangev (h : Ur) (x : aT) :
         x \In range (omapv f h : Ua) <-> g x \In range h.
 Proof.
 move=>O P; rewrite !In_rangeX; split; case=>k H; exists k;
-by [rewrite -In_omapv | rewrite In_omapv].
+by [rewrite -In_omapV | rewrite In_omapV].
 Qed.
 
 End OmapMembershipLemmas.
@@ -4387,6 +4427,9 @@ by rewrite H1 H2 omap_comp.
 Qed.
 
 Canonical comp_omap_fun := OmapFun (f2 \o f1) comp_omf_ax.
+
+Lemma omf_comp h : f2 (f1 h) = comp_omap_fun h.
+Proof. by []. Qed.
 
 End OmapFunCompose.
 

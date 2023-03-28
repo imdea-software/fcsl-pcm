@@ -56,6 +56,9 @@ Lemma idfun0E (U V : Type) (f : U -> V):
         (idfun \o f = f) * (f \o idfun = f).
 Proof. by []. Qed.
 
+Lemma trans_eq A (x y z : A) : x = y -> x = z -> y = z.
+Proof. by move/esym; apply: eq_trans. Qed.
+
 (* Triples *)
 Section TripleLemmas.
 Variables (A B C : Type).

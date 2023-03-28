@@ -1020,7 +1020,7 @@ Definition gseprel_axiom :=
       (* is x is in the domain (i.e., x is considered) *)
       (* then it is separate from at least Unit *)
       forall k x y, valid (x \+ y) -> P k x -> Q k x y -> Q k x Unit,
-      (* if the first arguments is Unit, then nsep trivially holds *)
+      (* if the first argument is Unit, then nsep trivially holds *)
       forall k y, valid y -> P k Unit -> Q k Unit y,
       (* associativity 1 *)
       forall k x y z, valid (x \+ y \+ z) ->
@@ -1050,6 +1050,75 @@ by apply: X2 H.
 Qed.
 
 End GuardedSeprels.
+
+(* Further optimization *)
+(* Most of the time, the guard is not only disjunctive, but *)
+(* exclusively disjunctive. This allows to weaken the conditions. *)
+(* We have to prove a couple of additional side-conditions however *)
+(* so we'll see how useful this is. *)
+(* I wasn't able to find a simpler formulation. *)
+
+Section ExclusiveGuardedSeprels.
+Variable (U : pcm) (X : Type) (P : X -> U -> Prop) (Q : X -> U -> U -> Prop).
+Variable (nsep : rel U).
+
+Hypothesis pf1 : forall x y, reflect (forall k, P k x -> Q k x y) (nsep x y).
+
+Definition xgseprel_axiom :=
+  [/\ (* P is disjunctive *)
+      forall k x y, valid (x \+ y) -> P k (x \+ y) <-> P k x \/ P k y,
+      (* P is exclusive *)
+      forall k1 k2 x y, valid (x \+ y) -> P k1 x -> P k2 y -> k1 <> k2,
+      forall k1 k2 x y z, valid (x \+ y \+ z) ->
+        P k1 x -> Q k1 x y -> Q k2 (x \+ y) z -> k1 = k2,
+      forall k1 k2 x y z, valid (x \+ y \+ z) ->
+        P k1 x -> Q k1 x (y \+ z) -> P k2 y-> Q k2 y (x \+ z) -> k1 = k2,
+      (* unit is separated from unit *)
+      forall k, P k Unit -> Q k Unit Unit,
+      (* is x is in the domain (i.e., x is considered) *)
+      (* then it is separate from at least Unit *)
+      forall k x y, valid (x \+ y) -> P k x -> Q k x y -> Q k x Unit,
+      (* if the first argument is Unit, then nsep trivially holds *)
+      forall k y, valid y -> P k Unit -> Q k Unit y,
+      (* associativity 1 *)
+      forall k x y z, valid (x \+ y \+ z) ->
+        P k x -> (forall k', ~ P k' y) ->
+        Q k x y -> Q k (x \+ y) z -> Q k x (y \+ z) &
+      (* associativity 2 *)
+      forall k x y z, valid (x \+ y \+ z) ->
+        P k x -> (forall k', ~ P k' y) ->
+        Q k x (y \+ z) -> Q k x y /\ Q k (x \+ y) z].
+
+Lemma xorth_gsep :
+        xgseprel_axiom -> seprel_axiom (fun x y => nsep x y && nsep y x).
+Proof.
+case=>H1 Xp Xq1 Xq2 H2 H3 H4 H5 H6; apply: orth_nsep.
+split=>[|x y V|y V|x y z V|x y z V].
+- by apply/pf1.
+- by move/pf1=>H; apply/pf1=>k /[dup] Y /H; apply: H3 V Y.
+- by apply/pf1=>x; apply: H4.
+- have V' : valid (x \+ y) by rewrite (validLE3 V).
+  move/pf1=>X1 /pf1 X2; apply/pf1=>k Hx; apply: (H5)=>//; last first.
+  - by apply: X2; apply/H1=>//; left.
+  - by apply: X1.
+  move=>k' Hy; apply: Xp (V') (Hx) (Hy) _.
+  have Hxy : P k' (x \+ y) by rewrite H1 //; right.
+  by apply: Xq1 V (Hx) (X1 _ Hx) (X2 _ Hxy).
+have V' : valid (x \+ y) by rewrite (validLE3 V).
+move/pf1=>X1 /pf1 X2; split; apply/pf1=>k Hx.
+- case: (H6 k x y z V Hx)=>//; last by apply: X1.
+  move=>k' Hy; apply: Xp V' (Hx) (Hy) _.
+  by apply: Xq2 (X1 _ Hx) _ (X2 _ Hy).
+case/H1: Hx; first by rewrite (validLE3 V).
+- move=>Hx; case: (H6 k x y z V Hx)=>//; last by apply: X1.
+  by move=>k' Hy; apply: Xp V' (Hx) (Hy) _; apply: Xq2 (X1 _ Hx) _ (X2 _ Hy).
+move=>Hy; rewrite joinC.
+case: (H6 k y x z)=>//; first by rewrite (validLE3 V).
+- by move=>k' Hx; apply: Xp V' (Hx) (Hy) _; apply: Xq2 (X1 _ Hx) _ (X2 _ Hy).
+by apply: X2.
+Qed.
+
+End ExclusiveGuardedSeprels.
 
 
 (***********************************************************)
@@ -1115,6 +1184,10 @@ Proof. by case: X=>pval psub [H1 H2 H3 H4]; apply: H3. Qed.
 
 Lemma pval_inj : injective pval.
 Proof. by move=>x y E; rewrite -[x]psub_pval -[y]psub_pval E. Qed.
+
+Lemma valid_psubUn (x y : V) :
+        valid (x \+ y) -> D x y -> valid (psub x \+ psub y).
+Proof. by move=>W H; rewrite valid_psubU W H. Qed.
 
 (* this is a weaker version of valid_psubU *)
 (* we can prove valid_sep from valid_psubU, but not vice-versa *)
@@ -1246,10 +1319,11 @@ Qed.
 End Repack.
 
 Arguments valid_psubU [U V D] X.
+Arguments valid_psubUn [U V D] X.
 Arguments valid_psub [U V D] X.
 Arguments valid_psub1 [U V D] X.
 Arguments valid_psub2 [U V D] X.
-Prenex Implicits valid_psubU valid_psub valid_psub1 valid_psub2 psub_inj.
+Prenex Implicits valid_psubU valid_psubUn valid_psub valid_psub1 valid_psub2 psub_inj.
 Prenex Implicits valid_psubXUn valid_psubUnX pvalXUn pvalUnX psubXUn psubUnX.
 
 Arguments pval {U V D}.
@@ -1260,6 +1334,17 @@ End SubPCM_st.
 Export SubPCM_st.Exports.
 
 Arguments subpcm_st : clear implicits.
+
+Section IdSubPCM_st.
+Variable U : pcm.
+Lemma idsubpcm_valid_psub (x y : U) :
+         valid (x \+ y) -> valid (x \+ y) && sepT x y.
+Proof. by rewrite andbT. Qed.
+Definition id_subpcmMix_st :=
+   @subPCMMix_st U U _ (id_morph U) (id_morph U)
+   idsubpcm_valid_psub (fun x => erefl) (fun x y z=>erefl) (fun x y=>y).
+Definition id_subpcm_st := subPCM_st id_subpcmMix_st.
+End IdSubPCM_st.
 
 (* we can package the subpcm structure into subpcm type *)
 
@@ -1315,7 +1400,6 @@ End SubPCM.
 Export SubPCM.Exports.
 
 (* In the case of TPCMs *)
-
 Lemma psub_undef (V : tpcm) (D : rel V) (U : sub_pcm D) : ~~ valid (psub U undef).
 Proof. by rewrite valid_psub tpcmE. Qed.
 
@@ -1384,6 +1468,17 @@ End SubTPCM_st.
 Export SubTPCM_st.Exports.
 
 Arguments subtpcm_st : clear implicits.
+
+Section IdSubTPCM_st.
+Variable U : tpcm.
+Lemma idsubtpcm_valid_psub (x y : U) :
+         valid (x \+ y) -> valid (x \+ y) && sepT x y.
+Proof. by rewrite andbT. Qed.
+
+Definition id_subtpcmMix_st := subTPCMMix_st (@id_subpcmMix_st U) erefl.
+Definition id_subtpcm_st := subTPCM_st id_subtpcmMix_st.
+End IdSubTPCM_st.
+
 
 (* we can package subtpcm structure into a type *)
 
@@ -1539,7 +1634,6 @@ Definition xsepPCMMix :=
 Canonical xsepPCM := Eval hnf in PCM _ xsepPCMMix.
 
 (* the topped pcm *)
-
 Definition xsep_unitb x := unitb (xval x).
 
 Lemma xsep_undefP : xsepP undef.
@@ -1751,7 +1845,6 @@ Export SepSub.
 (* trivial sep relation, via the xsep construction. *)
 
 Module Type PairingSig.
-
 Parameter pprod : tpcm -> tpcm -> Type.
 
 Section PairingSig.

@@ -77,7 +77,7 @@ Notation "[ 'pcm' 'of' T 'for' C ]" := (@clone T C _ idfun id)
 Notation "[ 'pcm' 'of' T ]" := (@clone T _ _ id id)
   (at level 0, format "[ 'pcm'  'of'  T ]") : pcm_scope.
 
-Notation "x \+ y" := (join x y)
+Infix "\+" := join
   (at level 43, left associativity) : pcm_scope.
 Notation valid := valid.
 Notation Unit := Unit.
@@ -785,10 +785,10 @@ Proof. by case=>a ->; exists a; rewrite joinAC. Qed.
 Lemma pleq_join2l x x1 x2 : [pcm x1 <= x2] -> [pcm x \+ x1 <= x \+ x2].
 Proof. by rewrite !(joinC x); apply: pleq_join2r. Qed.
 
-Lemma pleq_joinr x1 x2 : [pcm x1 <= x1 \+ x2].
+Lemma pleq_joinr {x1 x2} : [pcm x1 <= x1 \+ x2].
 Proof. by exists x2. Qed.
 
-Lemma pleq_joinl x1 x2 : [pcm x2 <= x1 \+ x2].
+Lemma pleq_joinl {x1 x2} : [pcm x2 <= x1 \+ x2].
 Proof. by rewrite joinC; apply: pleq_joinr. Qed.
 
 (* validity lemmas *)
@@ -818,7 +818,12 @@ End PleqLemmas.
 
 #[export]
 Hint Resolve pleq_unit pleq_refl pleq_joinr pleq_joinl : core.
-Prenex Implicits pleq_refl.
+Prenex Implicits pleq_refl pleq_joinl pleq_joinr.
+
+(* shorter names *)
+Notation pcmR := pleq_refl.
+Notation pcmS := pleq_joinr.
+Notation pcmO := pleq_joinl.
 
 (*******************)
 (* Local functions *)

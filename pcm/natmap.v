@@ -910,6 +910,65 @@ Proof. by move=>W H1; rewrite pfjoin //; case/InUn; eauto. Qed.
 
 End Membership.
 
+
+Section LastVal.
+Variable A : Type.
+Implicit Type h : natmap A.
+
+Definition last_val h := find (last_key h) h.
+
+Lemma lastval0 : last_val Unit = None.
+Proof. by rewrite /last_val lastkey0 find0E. Qed.
+
+Lemma lastval_undef : last_val um_undef = None.
+Proof. by rewrite /last_val lastkey_undef find_undef. Qed.
+
+Variant lastval_specx h : option A -> Type :=
+| lastval_somex r kv of last_val h = Some r & kv \In h :
+    lastval_specx h (Some r)
+| lastval_nonex of valid h & h = Unit : lastval_specx h None
+| lastval_undefx of h = um_undef : lastval_specx h None.
+
+Lemma lastvalPX h : lastval_specx h (last_val h).
+Proof.
+case E : (last_val h)=>[a|].
+- move/find_some: (E); case: dom_find=>// v /In_find H _ _.
+  by apply: lastval_somex E H.
+move/find_none: E=>E.
+case V : (valid h).
+- by move/(lastkey_dom V)/(lastval_nonex V): E.
+by move/negbT/invalidE: V=>->; apply: lastval_undefx.
+Qed.
+
+Variant lastval_spec h : option A -> Type :=
+| lastval_some r kv of last_val h = Some r & kv \In h :
+    lastval_spec h (Some r)
+| lastval_none of last_val h = None & (forall kv, kv \Notin h) :
+    lastval_spec h None.
+
+Lemma lastvalP h : lastval_spec h (last_val h).
+Proof.
+case: lastvalPX=>[r kv|_ ->|->].
+- by apply: lastval_some.
+- by apply: lastval_none=>[|kv /In0//]; rewrite lastval0.
+by apply: lastval_none=>[|kv /In_undef//]; rewrite lastval_undef.
+Qed.
+
+Lemma lastvalS h : reflect (exists kv, kv \In h) (isSome (last_val h)).
+Proof.
+case: lastvalP=>[r kv E H|E H]; constructor.
+- by exists kv.
+by case=>kv /H.
+Qed.
+
+Lemma lastval_mem kv h : kv \In h -> exists r, last_val h = Some r.
+Proof. by case: lastvalP=>[r|_ H /H//]; exists r. Qed.
+
+Lemma lastval_mem_none kv h : last_val h = None -> kv \Notin h.
+Proof. by case: lastvalP. Qed.
+
+End LastVal.
+
 (***********************************************)
 (***********************************************)
 (* Executing up to (and including/excluding) t *)
@@ -1720,29 +1779,29 @@ move=>G V H K; case/(gapless_pleq G V): {V} H (V)=>h [->{h2} H] V.
 by apply: atvalUn.
 Qed.
 
-Definition last_val v h := atval v (last_key h) h.
+Definition last_atval v h := atval v (last_key h) h.
 
-Lemma lastval0 v : last_val v Unit = v.
-Proof. by rewrite /last_val /atval lastkey0 find0E. Qed.
+Lemma lastatval0 v : last_atval v Unit = v.
+Proof. by rewrite /last_atval /atval lastkey0 find0E. Qed.
 
-Lemma lastvalPt v p x : p != 0 -> last_val v (p \-> x) = x.2.
+Lemma lastatvalPt v p x : p != 0 -> last_atval v (p \-> x) = x.2.
 Proof.
-by move=>V; rewrite /last_val /atval lastkeyPt // findPt /= V.
+by move=>V; rewrite /last_atval /atval lastkeyPt // findPt /= V.
 Qed.
 
-Lemma lastval_fresh v x h :
-        valid h -> last_val v (fresh h \-> x \+ h) = x.2.
+Lemma lastatval_fresh v x h :
+        valid h -> last_atval v (fresh h \-> x \+ h) = x.2.
 Proof.
-by move=>V; rewrite /last_val /atval lastkey_fresh // findPtUn // valid_fresh.
+by move=>V; rewrite /last_atval /atval lastkey_fresh // findPtUn // valid_fresh.
 Qed.
 
-Lemma lastvalUn v h1 h2 :
-        last_val v (h1 \+ h2) =
+Lemma lastatvalUn v h1 h2 :
+        last_atval v (h1 \+ h2) =
         if valid (h1 \+ h2) then
-          if last_key h1 < last_key h2 then last_val v h2 else last_val v h1
+          if last_key h1 < last_key h2 then last_atval v h2 else last_atval v h1
         else v.
 Proof.
-rewrite /last_val /atval lastkeyUn maxnC /maxn.
+rewrite /last_atval /atval lastkeyUn maxnC /maxn.
 case: ifP; last by move/negbT/invalidE=>->; rewrite find_undef.
 case: (ltngtP (last_key h1) (last_key h2)) => N V.
 - by rewrite findUnR // (dom_lastkeyE N).
@@ -1750,20 +1809,25 @@ case: (ltngtP (last_key h1) (last_key h2)) => N V.
 by rewrite !(lastkeyUn0 V N) unitL lastkey0 find0E.
 Qed.
 
-Lemma lastval_freshUn v x h1 h2 :
+Lemma lastatval_freshUn v x h1 h2 :
         valid h1 -> [pcm h2 <= h1] ->
-        last_val v (fresh h1 \-> x \+ h2) = x.2.
+        last_atval v (fresh h1 \-> x \+ h2) = x.2.
 Proof.
-move=>V H; rewrite /last_val /atval.
+move=>V H; rewrite /last_atval /atval.
 rewrite lastkey_freshUn // findPtUn // valid_freshUn //.
 by case: H V=>h -> /validL.
 Qed.
 
-Lemma lastval_indom v h :
-        last_val v h <> v -> last_key h \in dom h.
-Proof. by rewrite /last_val /atval; case: dom_find=>// ->. Qed.
+Lemma lastatval_indom v h :
+        last_atval v h <> v -> last_key h \in dom h.
+Proof. by rewrite /last_atval /atval; case: dom_find=>// ->. Qed.
 
 End AtVal.
+
+(* in case A = bool *)
+Lemma lastatval_indomb h :
+        last_atval false h -> last_key h \in dom h.
+Proof. by move=>H; apply: (lastatval_indom (v:=false)); rewrite H. Qed.
 
 (* Continuous maps with binary range *)
 
@@ -1783,7 +1847,7 @@ Proof. by move=>x w; rewrite find0E. Qed.
 Lemma cn_fresh v h x :
         valid h ->
         continuous v (fresh h \-> x \+ h) <->
-        continuous v h /\ last_val v h = x.1.
+        continuous v h /\ last_atval v h = x.1.
 Proof.
 rewrite -(valid_fresh x (leqnn _))=>V; split; last first.
 - case=>C H k y; rewrite !findPtUn2 // eqSS; case: ltngtP=>N.
@@ -1816,21 +1880,21 @@ Variable A : Type.
 Implicit Type h : natmap (A * A).
 
 Definition complete v0 h vn :=
-  [/\ valid h, gapless h, continuous v0 h & last_val v0 h = vn].
+  [/\ valid h, gapless h, continuous v0 h & last_atval v0 h = vn].
 
 Lemma cm_valid v0 h vn : complete v0 h vn -> valid h.
 Proof. by case. Qed.
 
 Lemma cm0 v : complete v Unit v.
-Proof. by split=>//; [apply: gp0 | apply: cn0 | rewrite lastval0]. Qed.
+Proof. by split=>//; [apply: gp0 | apply: cn0 | rewrite lastatval0]. Qed.
 
 Lemma cm_fresh v0 vn h x :
         complete v0 (fresh h \-> x \+ h) vn <-> vn = x.2 /\ complete v0 h x.1.
 Proof.
 split.
-- by case=>/validR V /gp_fresh G /(cn_fresh V) []; rewrite lastval_fresh.
+- by case=>/validR V /gp_fresh G /(cn_fresh V) []; rewrite lastatval_fresh.
 case=>-> [V] /(gp_fresh x) G C E; split=>//;
-by [rewrite valid_fresh | apply/(cn_fresh V) | rewrite lastval_fresh].
+by [rewrite valid_fresh | apply/(cn_fresh V) | rewrite lastatval_fresh].
 Qed.
 
 Lemma cmPtUn v0 vn h k x :
@@ -1842,7 +1906,7 @@ Proof.
 case; rewrite validPt; case: k=>//= k _ /(_ 1).
 rewrite lastkeyPt //= domPt inE /= => /(_ (erefl _))/eqP ->.
 move/(_ 0 x); rewrite findPt findPt2 /= => -> //.
-by rewrite /last_val lastkeyPt // /atval findPt /= => <-; case: x.
+by rewrite /last_atval lastkeyPt // /atval findPt /= => <-; case: x.
 Qed.
 
 Lemma cmCons v0 vn k x h :
