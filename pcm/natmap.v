@@ -19,9 +19,12 @@ limitations under the License.
 (******************************************************************************)
 
 From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import ssrnat eqtype seq path.
-From pcm Require Import options prelude pred finmap rtc seqext seqint.
+From mathcomp Require Import ssrnat eqtype seq path interval.
+From pcm Require Import options prelude pred finmap rtc seqext useqord uslice uconsec.
 From pcm Require Export pcm morphism unionmap.
+
+From mathcomp Require order.
+Import order.Order.NatOrder.
 
 (************************)
 (************************)
@@ -413,7 +416,7 @@ Lemma lastkeyF h :
 Proof.
 move=>D; case: (um_eta D)=>v [Ef] Eh.
 have N : last_key h \notin dom (free h (last_key h)).
-- by rewrite domF inE eq_refl.
+- by rewrite domF inE eqxx.
 have: last_key (free h (last_key h)) <= last_key h.
 - by apply: lastkey_mono=>x; rewrite domF inE; case: ifP.
 rewrite leq_eqVlt; case/orP=>// /eqP E; rewrite -{1}E in N.
@@ -552,7 +555,7 @@ Lemma lastkey_freshX h1 h2 v :
         last_key (fresh h1 \-> v \+ h2) = fresh h1.
 Proof.
 move=>V1 V2 N; apply: max_lastkey=>[|y] /=.
-- rewrite domUn inE valid_freshX //= V2 /= domPt inE /= eq_refl. by [].
+- by rewrite domUn inE valid_freshX //= V2 /= domPt inE /= eqxx.
 rewrite dom_fresh // mem_rcons inE.
 case/orP=>[/eqP ->//|/dom_ordfresh].
 by rewrite ltnS=>H; apply: leq_trans H (ltnW _).
@@ -570,7 +573,7 @@ Lemma lastkey_freshUn h1 h2 v :
         last_key (fresh h1 \-> v \+ h2) = fresh h1.
 Proof.
 move=>V [x E]; rewrite {h1}E in V *; apply: max_lastkey=>[|y] /=;
-  rewrite domUn inE valid_freshUn // (validE2 V) /= domPt inE ?eq_refl //.
+  rewrite domUn inE valid_freshUn // (validE2 V) /= domPt inE ?eqxx //.
 rewrite andbC eq_sym leq_eqVlt; case: eqP=>//= _ D.
 by apply: lastkey_max; rewrite domUn inE V D.
 Qed.
@@ -578,7 +581,7 @@ Qed.
 Lemma lastkey_fresh h v : valid h -> last_key (fresh h \-> v \+ h) = fresh h.
 Proof.
 move=>Vf; apply: max_lastkey=>[|x] /=.
-- by rewrite domUn inE valid_fresh // Vf domPt inE eq_refl.
+- by rewrite domUn inE valid_fresh // Vf domPt inE eqxx.
 rewrite domUn inE /= valid_fresh // Vf /= domPt inE /= eq_sym.
 by rewrite leq_eqVlt; case: eqP=>//= _; apply: dom_ordfresh.
 Qed.
@@ -976,33 +979,30 @@ End LastVal.
 (***********************************************)
 
 Definition oexec_le V R (a : R -> V -> R) ks t (h : natmap V) z0 :=
-  oevalv a {sqint t ks] h z0.
+  oevalv a (&=ks `]-oo, t]) h z0.
 Definition oexec_lt V R (a : R -> V -> R) ks t (h : natmap V) z0 :=
-  oevalv a {sqint t ks| h z0.
+  oevalv a (&=ks `]-oo, t[) h z0.
 
 (* Main transfer lemmas *)
 
 Lemma oexleE V R a t v (h : natmap V) ks (z0 : R) :
-        uniq ks ->
         t \in ks -> (t, v) \In h ->
         oexec_le a ks t h z0 = a (oexec_lt a ks t h z0) v.
 Proof.
-move=>U K H; rewrite /oexec_le/oexec_lt (squxR U K) oev_cat /=.
-by move/In_find: H=>->.
+by move=>K H; rewrite /oexec_le/oexec_lt eqsl_uxR K (oev_rconsP _ _ _ H).
 Qed.
 
 Arguments oexleE [V R a t v h ks z0].
 
 Lemma oexleNE V R a t (h : natmap V) ks (z0 : R) :
-        uniq ks ->
         (t \notin ks) || (t \notin dom h) ->
         oexec_le a ks t h z0 = oexec_lt a ks t h z0.
 Proof.
-rewrite /oexec_le/oexec_lt; move=>U /orP [] K.
-- by rewrite (sq_uoxx (t1:=t) (t2:=t)) // sqkk_xx //= (negbTE K) cats0.
-rewrite [LHS]oevFK [RHS]oevFK; congr oeval; rewrite -!filter_predI.
-apply: eq_in_filter=>/= x X; case D: (x \in dom h)=>//=.
-by rewrite ole_eqVlt; [case: eqP D K=>// ->-> | by left].
+rewrite /oexec_le/oexec_lt; case K: (t \in ks)=>/= H; last first.
+- rewrite (eqsl_uoxx (t1:=t) (t2:=t)); last by exact: sle_refl.
+  by rewrite eqsl_kk1 /= K cats0.
+rewrite [LHS]oevFK [RHS]oevFK; congr oeval.
+by rewrite eqsl_uxR K filter_rcons (negbTE H).
 Qed.
 
 Arguments oexleNE [V R a t h ks z0].
@@ -1014,59 +1014,57 @@ Arguments oexleNE [V R a t h ks z0].
 Lemma oexlt_notin V R a ks t (h : natmap V) (z0 : R) :
         t \notin ks ->
         oexec_lt a ks t h z0 = oevalv a ks h z0.
-Proof. by move=>K; rewrite /oexec_lt squo_notinE. Qed.
+Proof. by move=>K; rewrite /oexec_lt eqsl_uL_notinE. Qed.
 
 Arguments oexlt_notin [V R a ks t h z0].
 
 Lemma oexle_notin V R a ks t (h : natmap V) (z0 : R) :
         t \notin ks ->
         oexec_le a ks t h z0 = oevalv a ks h z0.
-Proof. by move=>K; rewrite /oexec_le squx_notinE. Qed.
+Proof. by move=>K; rewrite /oexec_le eqsl_uL_notinE. Qed.
 
 Arguments oexle_notin [V R a ks t h z0].
 
 Lemma oexlt_cat V R a ks1 ks2 t (h : natmap V) (z0 : R) :
-        t \notin ks1 -> ~~ has (mem ks1) ks2 ->
+        t \notin ks1 ->
         oexec_lt a (ks1 ++ ks2) t h z0 =
         if t \in ks1 then oexec_lt a ks1 t h z0
         else oexec_lt a ks2 t h (oexec_lt a ks1 t h z0).
 Proof.
-move=>T U; rewrite /oexec_lt squo_catE //.
-by case: ifP=>//; rewrite oev_cat (squo_notinE (ks:=ks1)).
+move=>T; rewrite /oexec_lt eqsl_uL_catE (negbTE T).
+by rewrite oev_cat (eqsl_uL_notinE (s:=ks1)).
 Qed.
 
 Arguments oexlt_cat [V R a ks1 ks2 t h z0].
 
 Lemma oexle_cat V R a ks1 ks2 t (h : natmap V) (z0 : R) :
-        t \notin ks1 -> ~~ has (mem ks1) ks2 ->
+        t \notin ks1 ->
         oexec_le a (ks1 ++ ks2) t h z0 =
         if t \in ks1 then oexec_le a ks1 t h z0
         else oexec_le a ks2 t h (oexec_le a ks1 t h z0).
 Proof.
-move=>T U; rewrite /oexec_le squx_catE // (negbTE T).
-by rewrite oev_cat (squx_notinE (ks:=ks1)).
+move=>T; rewrite /oexec_le eqsl_uL_catE (negbTE T).
+by rewrite oev_cat (eqsl_uL_notinE (s:=ks1)).
 Qed.
 
 Arguments oexle_cat [V R a ks1 ks2 t h z0].
 
 Lemma oexlt_cons V R a ks k t v (h : natmap V) (z0 : R) :
-        k \notin ks ->
         (k, v) \In h -> t != k ->
         oexec_lt a (k :: ks) t h z0 = oexec_lt a ks t h (a z0 v).
 Proof.
-move=>U H Ntk; rewrite /oexec_lt squo_consE // (negbTE Ntk) /=.
+move=>H Ntk; rewrite /oexec_lt eqsl_uL_consE (negbTE Ntk) /=.
 by move/In_find: H=>->.
 Qed.
 
 Arguments oexlt_cons [V R a ks k t v h z0].
 
 Lemma oexle_cons V R a ks k t v (h : natmap V) (z0 : R) :
-        k \notin ks ->
         (k, v) \In h ->
         oexec_le a (k :: ks) t h z0 =
         if t == k then a z0 v else oexec_le a ks t h (a z0 v).
 Proof.
-move=>U H; rewrite /oexec_le squx_consE //=.
+move=>H; rewrite /oexec_le eqsl_uL_consE.
 by case: eqP=>/=; move/In_find: H=>->.
 Qed.
 
@@ -1075,7 +1073,7 @@ Arguments oexle_cons [V R a ks k t v h z0].
 (* for oexlt, we need to cover the case when k == t *)
 Lemma oexlt_cons_same V R a ks k (h : natmap V) (z0 : R) :
         oexec_lt a (k :: ks) k h z0 = z0.
-Proof. by rewrite /oexec_lt squo_consL. Qed.
+Proof. by rewrite /oexec_lt eqsl_uL_consL. Qed.
 
 Arguments oexlt_cons_same {V R a ks k h z0}.
 
@@ -1083,12 +1081,8 @@ Lemma oexlt_cons_notin V R a ks k t (h : natmap V) (z0 : R) :
         k \notin dom h -> t != k ->
         oexec_lt a (k :: ks) t h z0 = oexec_lt a ks t h z0.
 Proof.
-move=>H Ntk; rewrite /oexec_lt /sq_olt /= oltL Ntk /=.
-case: dom_find (H)=>// -> _.
-rewrite [in LHS]oevFK [in RHS]oevFK; congr oeval.
-rewrite -!filter_predI; apply: eq_in_filter=>x X /=.
-case Dx: (x \in dom h)=>//=; rewrite olt_cons Ntk /=.
-by case: eqP Dx H=>// ->->.
+move=>H Ntk; rewrite /oexec_lt eqsl_uL_consE (negbTE Ntk) /=.
+by case: dom_find H=>//= -> _.
 Qed.
 
 Arguments oexlt_cons_notin [V R a ks k t h z0].
@@ -1098,10 +1092,7 @@ Lemma oexle_cons_same_notin V R a ks k (h : natmap V) (z0 : R) :
         k \notin dom h -> oexec_le a (k :: ks) k h z0 = z0.
 Proof.
 move=>H.
-rewrite /oexec_le [in LHS]oevFK squx_consLX /= (negbTE H).
-set j := filter _ _; rewrite (_ : j = [::]) //.
-apply/eqP/filter_nilP=>x; rewrite mem_filter /=.
-by case: eqP H=>// -> /negbTE ->.
+by rewrite /oexec_le [in LHS]oevFK eqsl_uL_consL /= (negbTE H).
 Qed.
 
 Arguments oexle_cons_same_notin [V R a ks k h z0].
@@ -1111,43 +1102,40 @@ Lemma oexle_cons_notin V R a ks k t (h : natmap V) (z0 : R) :
         oexec_le a (k :: ks) t h z0 = oexec_le a ks t h z0.
 Proof.
 move=>H Ntk; rewrite /oexec_le [in LHS]oevFK [in RHS]oevFK.
-rewrite -!filter_predI /= (negbTE H) /=.
-congr oeval; apply: eq_in_filter=>x X /=.
-by rewrite ole_cons Ntk /=; case: eqP H=>// -> /negbTE ->.
+by rewrite eqsl_uL_consE (negbTE Ntk) /= (negbTE H).
 Qed.
 
 Arguments oexle_cons_notin [V R a ks k t h z0].
 
 Lemma oexlt_rcons V R a ks k t (h : natmap V) (z0 : R) :
-        k \notin ks -> t \in ks ->
+        t \in ks ->
         oexec_lt a (rcons ks k) t h z0 = oexec_lt a ks t h z0.
-Proof. by move=>U T; rewrite /oexec_lt squo_rconsE // T. Qed.
+Proof. by move=>T; rewrite /oexec_lt eqsl_uL_rconsE T. Qed.
 
 Arguments oexlt_rcons [V R a ks k t h z0].
 
 Lemma oexle_rcons V R a ks k t (h : natmap V) (z0 : R) :
-        k \notin ks -> t \in ks ->
+        t \in ks ->
         oexec_le a (rcons ks k) t h z0 = oexec_le a ks t h z0.
-Proof. by move=>U T; rewrite /oexec_le squx_rconsE // T. Qed.
+Proof. by move=>T; rewrite /oexec_le eqsl_uL_rconsE T. Qed.
 
 Arguments oexle_rcons [V R a ks k t h z0].
 
 Lemma oexlt_rcons_notin V R a ks k t v (h : natmap V) (z0 : R) :
-        k \notin ks ->
         (k, v) \In h -> t \notin ks -> t != k ->
         oexec_lt a (rcons ks k) t h z0 =
         a (oexec_lt a ks t h z0) v.
 Proof.
-move=>U H T Ntk; rewrite /oexec_lt squo_rconsE // (negbTE T) (negbTE Ntk).
-by rewrite oev_rconsE squo_notinE //; move/In_find: H=>->.
+move=>H T Ntk; rewrite /oexec_lt eqsl_uL_rconsE /= (negbTE T) Ntk.
+by rewrite oev_rconsE eqsl_uL_notinE //; move/In_find: H=>->.
 Qed.
 
 Arguments oexlt_rcons_notin [V R a ks k t v h z0].
 
 Lemma oexle_rcons_notin V R a ks k t (h : natmap V) (z0 : R) :
-        k \notin ks -> t \notin ks ->
+        t \notin ks ->
         oexec_le a (rcons ks k) t h z0 = oevalv a (rcons ks k) h z0.
-Proof. by move=>U T; rewrite /oexec_le squx_rconsE // (negbTE T). Qed.
+Proof. by move=>T; rewrite /oexec_le eqsl_uL_rconsE (negbTE T). Qed.
 
 Arguments oexle_rcons_notin [V R a ks k t h z0].
 
@@ -1155,27 +1143,27 @@ Arguments oexle_rcons_notin [V R a ks k t h z0].
 Lemma oexlt_rcons_same V R a ks k (h : natmap V) (z0 : R) :
         k \notin ks ->
         oexec_lt a (rcons ks k) k h z0 = oevalv a ks h z0.
-Proof. by move=>U; rewrite /oexec_lt squo_rcons_sameE. Qed.
+Proof. by move=>U; rewrite /oexec_lt eqsl_uL_rconsE eqxx /= (negbTE U). Qed.
 
 Arguments oexlt_rcons_same [V R a ks k h z0].
 
 (* in case of oexle, case t == k can be optimized *)
+(* TODO doesn't simplify anything *)
 Lemma oexle_rcons_same V R a ks k (h : natmap V) (z0 : R) :
         k \notin ks ->
         oexec_le a (rcons ks k) k h z0 = oevalv a (rcons ks k) h z0.
-Proof. by move=>U; rewrite oexle_rcons_notin. Qed.
+Proof. exact: oexle_rcons_notin. Qed.
 
 Arguments oexle_rcons_same [V R a ks k h z0].
 
 (* in case of oexle, when we know the value at k *)
 (* we can further expand the right-hand side *)
 Lemma oexle_rcons_notin_in V R a ks k t v (h : natmap V) (z0 : R) :
-        k \notin ks -> uniq ks ->
         (k, v) \In h -> t \notin ks ->
         oexec_le a (rcons ks k) t h z0 = a (oexec_le a ks t h z0) v.
 Proof.
-move=>K U H T; rewrite oexle_rcons_notin // oev_rconsE.
-by move/In_find: (H)=>->; rewrite oexleNE ?T //= /oexec_lt squo_notinE.
+move=>H T; rewrite oexle_rcons_notin // oev_rconsE.
+by move/In_find: (H)=>->; rewrite oexleNE ?T // /oexec_lt eqsl_uL_notinE.
 Qed.
 
 Arguments oexle_rcons_notin_in [V R a ks k t v h z0].
@@ -1184,14 +1172,14 @@ Arguments oexle_rcons_notin_in [V R a ks k t v h z0].
 
 Lemma oexlt_umfilt V R a ks p t (h : natmap V) (z0 : R) :
         oexec_lt a ks t (um_filterk p h) z0 =
-        oevalv a (filter p {sqint t ks|) h z0.
+        oevalv a (filter p (&=ks `]-oo, t[)) h z0.
 Proof. by rewrite /oexec_lt oev_filter. Qed.
 
 Arguments oexlt_umfilt {V R a ks p t h z0}.
 
 Lemma oexle_umfilt V R a ks p t (h : natmap V) (z0 : R) :
         oexec_le a ks t (um_filterk p h) z0 =
-        oevalv a (filter p {sqint t ks]) h z0.
+        oevalv a (filter p (&=ks `]-oo, t])) h z0.
 Proof. by rewrite /oexec_le oev_filter. Qed.
 
 Arguments oexle_umfilt {V R a ks p t h z0}.
@@ -1202,12 +1190,9 @@ Lemma oexlt_umfiltN V R a ks p t (h : natmap V) (z0 : R) :
         oexec_lt a ks t (um_filterk p h) z0 =
         oexec_lt a (filter p ks) t h z0.
 Proof.
-move=>H; rewrite /oexec_lt !oev_filter !oev_umfilt.
-apply: eq_in_oevK; rewrite -!filter_predI; apply: eq_in_filter.
-move=>k Ks /=; rewrite !find_umfilt.
-case D : (k \in dom h)=>//=; case/In_domX: D=>v /In_find ->.
-case Pk : (p k); case: ifP=>//= H1; first by rewrite (olt_filterR _ H1) ?H.
-by apply: contraFF H1=>H1; rewrite (olt_filterL _ H1) // Pk !orbT.
+move=>H; rewrite /oexec_lt oev_umfilt eqsl_filterL //=.
+apply: eq_in_oevK; rewrite -!filter_predI; apply: eq_in_filter=>k Ks /=.
+by case D : (k \in dom h)=>//=; case/In_domX: D=>v /In_find ->.
 Qed.
 
 Arguments oexlt_umfiltN [V R a ks p t h z0].
@@ -1217,17 +1202,15 @@ Lemma oexle_umfiltN V R a ks p t (h : natmap V) (z0 : R) :
         oexec_le a ks t (um_filterk p h) z0 =
         oexec_le a (filter p ks) t h z0.
 Proof.
-move=>H; rewrite /oexec_le !oev_filter !oev_umfilt.
-apply: eq_in_oevK; rewrite -!filter_predI; apply: eq_in_filter.
-move=>k Ks /=; rewrite find_umfilt find_umfilt.
-case D : (k \in dom h)=>//=; case/In_domX: D=>v /In_find ->.
-case Pk : (p k); case: ifP=>//= H1; first by rewrite (ole_filterR _ H1) ?H.
-by apply: contraFF H1=>H1; rewrite (ole_filterL _ H1) // Pk !orbT.
+move=>H; rewrite /oexec_le oev_umfilt eqsl_filterL //=.
+apply: eq_in_oevK; rewrite -!filter_predI; apply: eq_in_filter=>k Ks /=.
+by case D : (k \in dom h)=>//=; case/In_domX: D=>v /In_find ->.
 Qed.
 
 Arguments oexle_umfiltN [V R a ks p t h z0].
 
 (* restating the last two lemmas for the other direction *)
+(* TODO why not just state them like this initially? *)
 Lemma oexlt_filter V R a ks p t (h : natmap V) (z0 : R) :
         (t \notin ks) || (p t) ->
         oexec_lt a (filter p ks) t h z0 =
@@ -1259,10 +1242,10 @@ Proof. by move=>H; rewrite oexle_filter // umfiltk_dom'. Qed.
 Lemma oexlt_oexle_last V R a k ks t (h : natmap V) (z0 : R) :
         uniq (k::ks) -> t != k ->
         oexec_lt a (k::ks) t h z0 =
-        oexec_le a (k::ks) (last k {sqint t ks|) h z0.
+        oexec_le a (k::ks) (last k (&=ks `]-oo, t[)) h z0.
 Proof.
-move=>U Ntk; rewrite /oexec_lt/oexec_le [LHS]oevFK [RHS]oevFK -!filter_predI.
-by congr oeval; apply: eq_in_filter=>x X /=; rewrite olt_ole_last.
+move=>U Ntk; rewrite /oexec_lt/oexec_le [LHS]oevFK [RHS]oevFK.
+by rewrite eqsl_uox_last.
 Qed.
 
 Lemma oev_oexle_last V R a k ks (h : natmap V) (z0 : R) :
@@ -1270,13 +1253,10 @@ Lemma oev_oexle_last V R a k ks (h : natmap V) (z0 : R) :
         oevalv a (k::ks) h z0 =
         oexec_le a (k::ks) (last k ks) h z0.
 Proof.
-move=>U; move: (U)=>/= /andP [U1 U2].
-rewrite /oexec_le squx_consE //.
-case: eqP=>[/last_nochange|/eqP/last_change H].
-- by rewrite (negbTE U1); move/eqP=>->.
-rewrite /sq_ole /=; congr oeval.
-rewrite -[LHS]filter_predT; apply/esym/eq_in_filter.
-by move=>x X; apply: ole_last.
+case/andP=>U1 U2; rewrite /oexec_le eqsl_uL_consE.
+case: eqP=>/= [/last_nochange|/eqP/last_change H].
+- by rewrite (negbTE U1)=>/eqP->.
+by congr oeval; apply/eqsl_lastR_uniq.
 Qed.
 
 (*******************************************************)
@@ -1296,18 +1276,21 @@ Definition oex_inv V R (P : R -> Prop) a ks (h : natmap V) (z0 : R) :=
 
 Lemma oex_ox V R (P : R -> Prop) a ks (h : natmap V) t1 t2 (z0 : R) :
         uniq ks -> t1 <[ks] t2 ->
-        {in |sqint t1 t2 ks|, oex_inv P a ks h z0} ->
+        {in &=ks `]t1, t2[, oex_inv P a ks h z0} ->
         P (oexec_le a ks t1 h z0) -> P (oexec_lt a ks t2 h z0).
 Proof.
-move=>U T IH P0; rewrite /oexec_lt (sq_uxoo U T) oev_cat.
+move=>U T IH P0; rewrite /oexec_lt (eqsl_uxoo T) oev_cat.
 apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->; rewrite -oev_cat.
-have Us : uniq (ks1 ++ k :: ks2) by rewrite -Eh filter_uniq //; case/andP: U.
-have Nk : k \notin ks1 by apply: contraL Us=>E; rewrite cat_uniq /= E andbF.
-have K : k \in |sqint t1 t2 ks| by rewrite Eh mem_cat inE eq_refl orbT.
-move: (K); rewrite mem_filter -andbA=>/and3P [T1K _ Ks].
-rewrite (sq_oxoo (x:=k)) // sqoxR // -catA /= in Eh.
-suff -> : ks1 = |sqint t1 k ks| by rewrite -sq_uxoo //; apply: IH.
-by rewrite (cat_cancel _ _ Eh) // mem_filter olt_irr andbF.
+have K : k \in &=ks `]t1, t2[ by rewrite Eh mem_cat inE eqxx orbT.
+have Nk : k \notin ks1.
+- move/(eqslice_uniq `]t1, t2[): U.
+  by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
+case/mem_oo: (K)=>// [_ T1K T2K].
+suff {IH U K}-> : ks1 = &=ks `]t1, k[ by rewrite -eqsl_uxoo //; apply: IH.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=;
+  last by apply/andP; rewrite !lteBSide /= leEnat; split=>//=; apply: ltnW.
+rewrite eqsl_xoL T2K /= => Eh; rewrite (cat_cancel _ _ Eh) //.
+by apply: eqsliceRO_notin.
 Qed.
 
 (* one can try to derive the next lemma from the previous *)
@@ -1317,50 +1300,57 @@ Qed.
 
 Lemma oex_oo V R (P : R -> Prop) a ks (h : natmap V) t1 t2 (z0 : R) :
         uniq ks -> t1 <=[ks] t2 ->
-        {in [sqint t1 t2 ks|, oex_inv P a ks h z0} ->
+        {in &=ks `[t1, t2[, oex_inv P a ks h z0} ->
         P (oexec_lt a ks t1 h z0) -> P (oexec_lt a ks t2 h z0).
 Proof.
-move=>U T IH P0; rewrite /oexec_lt (sq_uoxo U T) oev_cat.
+move=>U T IH P0; rewrite /oexec_lt (eqsl_uoxo T) oev_cat.
 apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->; rewrite -oev_cat.
-have Us : uniq (ks1 ++ k :: ks2) by rewrite -Eh filter_uniq //; case/andP: U.
-have Nk : k \notin ks1 by apply: contraL Us=>E; rewrite cat_uniq /= E andbF.
-have K : k \in [sqint t1 t2 ks| by rewrite Eh mem_cat inE eq_refl orbT.
-move: (K); rewrite mem_filter -andbA=>/and3P [T1K _ Ks].
-rewrite (sq_xxoo (x:=k)) // sqxxR // -catA /= in Eh.
-suff -> : ks1 = [sqint t1 k ks| by rewrite -sq_uoxo //; apply: IH.
-by rewrite (cat_cancel _ _ Eh) // mem_filter olt_irr andbF.
+have K : k \in &=ks `[t1, t2[ by rewrite Eh mem_cat inE eqxx orbT.
+have Nk : k \notin ks1.
+- move/(eqslice_uniq `[t1, t2[): U.
+  by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
+case/mem_xo: (K)=>// [_ T1K T2K].
+suff {IH U K}-> : ks1 = &=ks `[t1, k[ by rewrite -eqsl_uoxo //; apply: IH.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=;
+  last by apply/andP; rewrite !lteBSide /= !leEnat; split=>//=; apply: ltnW.
+rewrite (eqsl_xoL k) T2K /= => Eh; rewrite (cat_cancel _ _ Eh) //.
+by apply: eqsliceRO_notin.
 Qed.
 
 Lemma oex_xo V R (P : R -> Prop) a ks (h : natmap V) t1 t2 (z0 : R) :
         uniq ks -> t1 <=[ks] t2 ->
-        {in [sqint t1 t2 ks], oex_inv P a ks h z0} ->
+        {in &=ks `[t1, t2], oex_inv P a ks h z0} ->
         P (oexec_lt a ks t1 h z0) -> P (oexec_le a ks t2 h z0).
 Proof.
-move=>U T IH P0; rewrite /oexec_le (sq_uoxx U T) oev_cat.
+move=>U T IH P0; rewrite /oexec_le (eqsl_uoxx T) oev_cat.
 apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->; rewrite -oev_cat.
-have Us : uniq (ks1 ++ k :: ks2) by rewrite -Eh filter_uniq //; case/andP: U.
-have Nk : k \notin ks1 by apply: contraL Us=>E; rewrite cat_uniq /= E andbF.
-have K : k \in [sqint t1 t2 ks] by rewrite Eh mem_cat inE eq_refl orbT.
-move: (K); rewrite mem_filter -andbA=>/and3P [T1K _ Ks].
-rewrite (sq_xxox (x:=k)) // sqxxR // -catA /= in Eh.
-suff -> : ks1 = [sqint t1 k ks| by rewrite -sq_uoxo //; apply: IH.
-by rewrite (cat_cancel _ _ Eh) // mem_filter olt_irr andbF.
+have K : k \in &=ks `[t1, t2] by rewrite Eh mem_cat inE eqxx orbT.
+have Nk : k \notin ks1.
+- move/(eqslice_uniq `[t1, t2]): U.
+  by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
+case/mem_xx: (K)=>// [Ks T1K T2K].
+suff {IH U K}-> : ks1 = &=ks `[t1, k[ by rewrite -eqsl_uoxo //; apply: IH.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last by apply/andP.
+rewrite eqsl_xxL T2K Ks /= => Eh; rewrite (cat_cancel _ _ Eh) //.
+by apply: eqsliceRO_notin.
 Qed.
 
 Lemma oex_xx V R (P : R -> Prop) a ks (h : natmap V) t1 t2 (z0 : R) :
         uniq ks -> t1 <=[ks] t2 ->
-        {in |sqint t1 t2 ks], oex_inv P a ks h z0} ->
+        {in &=ks `]t1, t2], oex_inv P a ks h z0} ->
         P (oexec_le a ks t1 h z0) -> P (oexec_le a ks t2 h z0).
 Proof.
-move=>U T IH P0; rewrite /oexec_le (sq_uxox U T) oev_cat.
+move=>U T IH P0; rewrite /oexec_le (eqsl_uxox T) oev_cat.
 apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->; rewrite -oev_cat.
-have Us : uniq (ks1 ++ k :: ks2) by rewrite -Eh filter_uniq //; case/andP: U.
-have Nk : k \notin ks1 by apply: contraL Us=>E; rewrite cat_uniq /= E andbF.
-have K : k \in |sqint t1 t2 ks] by rewrite Eh mem_cat inE eq_refl orbT.
-move: (K); rewrite mem_filter -andbA=>/and3P [T1K _ Ks].
-rewrite (sq_oxox (x:=k)) // sqoxR // -catA /= in Eh.
-suff -> : ks1 = |sqint t1 k ks| by rewrite -sq_uxoo //; apply: IH.
-by rewrite (cat_cancel _ _ Eh) // mem_filter olt_irr andbF.
+have K : k \in &=ks `]t1, t2] by rewrite Eh mem_cat inE eqxx orbT.
+have Nk : k \notin ks1.
+- move/(eqslice_uniq `]t1, t2]): U.
+  by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
+case/mem_ox: (K)=>// [Ks T1K T2K].
+suff {IH U K}-> : ks1 = &=ks `]t1, k[ by rewrite -eqsl_uxoo //; apply: IH.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last by apply/andP.
+rewrite eqsl_xxL T2K Ks /= => Eh; rewrite (cat_cancel _ _ Eh) //.
+by apply: eqsliceRO_notin.
 Qed.
 
 Arguments oex_ox [V R] P [a ks h t1 t2 z0].
@@ -1372,64 +1362,73 @@ Arguments oex_xx [V R] P [a ks h t1 t2 z0].
 
 Lemma oex_ux V R (P : R -> Prop) a ks (h : natmap V) t (z0 : R) :
         uniq ks ->
-        {in |sqint t ks}, oex_inv P a ks h z0} ->
+        {in &=ks `]t,+oo[, oex_inv P a ks h z0} ->
         P (oexec_le a ks t h z0) -> P (oevalv a ks h z0).
 Proof.
-move=>U IH P0; rewrite (sq_uxou t U) oev_cat.
+move=>U IH P0; rewrite (eqsl_uxou ks t) oev_cat.
 apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->; rewrite -oev_cat.
-have Us : uniq (ks1 ++ k :: ks2) by rewrite -Eh filter_uniq //; case/andP: U.
-have Nk : k \notin ks1 by apply: contraL Us=>E; rewrite cat_uniq /= E andbF.
-have K : k \in |sqint t ks} by rewrite Eh mem_cat inE eq_refl orbT.
-move: (K); rewrite mem_filter=>/andP [TK Ks].
-rewrite (sq_oxou (t2:=k)) ?(oltW TK) // sqoxR // -catA /= in Eh.
-suff -> : ks1 = |sqint t k ks| by rewrite -sq_uxoo //; apply: IH.
-by rewrite (cat_cancel _ _ Eh) // mem_filter olt_irr andbF.
+have K : k \in &=ks `]t, +oo[ by rewrite Eh mem_cat inE eqxx orbT.
+have Nk : k \notin ks1.
+- move/(eqslice_uniq `]t, +oo[): U.
+  by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
+case/mem_ou: (K)=>// [Ks TK].
+suff {IH U K}-> : ks1 = &=ks `]t, k[ by rewrite -eqsl_uxoo //; apply: IH.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last by apply/andP.
+rewrite eqsl_xuL Ks /= => Eh; rewrite (cat_cancel _ _ Eh) //.
+by apply: eqsliceRO_notin.
 Qed.
 
 Lemma oex_uo V R (P : R -> Prop) a ks (h : natmap V) t (z0 : R) :
         uniq ks ->
-        {in [sqint t ks}, oex_inv P a ks h z0} ->
+        {in &=ks `[t,+oo[, oex_inv P a ks h z0} ->
         P (oexec_lt a ks t h z0) -> P (oevalv a ks h z0).
 Proof.
-move=>U IH P0; rewrite (sq_uoxu t U) oev_cat.
+move=>U IH P0; rewrite (eqsl_uoxu ks t) oev_cat.
 apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->; rewrite -oev_cat.
-have Us : uniq (ks1 ++ k :: ks2) by rewrite -Eh filter_uniq //; case/andP: U.
-have Nk : k \notin ks1 by apply: contraL Us=>E; rewrite cat_uniq /= E andbF.
-have K : k \in [sqint t ks} by rewrite Eh mem_cat inE eq_refl orbT.
-move: (K); rewrite mem_filter=>/andP [TK Ks].
-rewrite (sq_xxou (t2:=k)) // sqxxR // -catA /= in Eh.
-suff -> : ks1 = [sqint t k ks| by rewrite -sq_uoxo //; apply: IH.
-by rewrite (cat_cancel _ _ Eh) // mem_filter olt_irr andbF.
+have K : k \in &=ks `[t, +oo[ by rewrite Eh mem_cat inE eqxx orbT.
+have Nk : k \notin ks1.
+- move/(eqslice_uniq `[t, +oo[): U.
+  by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
+case/mem_xu: (K)=>// [Ks TK].
+suff {IH U K}-> : ks1 = &=ks `[t, k[ by rewrite -eqsl_uoxo //; apply: IH.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last by apply/andP.
+rewrite eqsl_xuL Ks => Eh; rewrite (cat_cancel _ _ Eh) //.
+by apply: eqsliceRO_notin.
 Qed.
 
 Lemma oex_xu V R (P : R -> Prop) a ks (h : natmap V) t (z0 : R) :
         uniq ks ->
-        {in {sqint t ks], oex_inv P a ks h z0} ->
+        {in &=ks `]-oo, t], oex_inv P a ks h z0} ->
         P z0 -> P (oexec_le a ks t h z0).
 Proof.
 move=>U IH P0; apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->.
-have Us : uniq (ks1 ++ k :: ks2) by rewrite -Eh filter_uniq //; case/andP: U.
-have Nk : k \notin ks1 by apply: contraL Us=>E; rewrite cat_uniq /= E andbF.
-have K : k \in {sqint t ks] by rewrite Eh mem_cat inE eq_refl orbT.
-move: (K); rewrite mem_filter=>/andP [TK Ks].
-rewrite (sq_uxox (t1:=k)) // squxR // -catA /= in Eh.
-suff -> : ks1 = {sqint k ks| by apply: IH.
-by rewrite (cat_cancel _ _ Eh) // mem_filter olt_irr.
+have K : k \in &=ks `]-oo, t] by rewrite Eh mem_cat inE eqxx orbT.
+have Nk : k \notin ks1.
+- move/(eqslice_uniq `]-oo, t]): U.
+  by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
+case/mem_ux: (K)=>// [Ks TK].
+suff {IH U K}-> : ks1 = &=ks `]-oo, k[ by apply: IH.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) //=.
+rewrite eqsl_xxL TK Ks /= => Eh; rewrite (cat_cancel _ _ Eh) //.
+by apply: eqsliceRO_notin.
 Qed.
 
 Lemma oex_ou V R (P : R -> Prop) a ks (h : natmap V) t (z0 : R) :
         uniq ks ->
-        {in {sqint t ks|, oex_inv P a ks h z0} ->
+        {in &=ks `]-oo, t[, oex_inv P a ks h z0} ->
         P z0 -> P (oexec_lt a ks t h z0).
 Proof.
 move=>U IH P0; apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->.
-have Us : uniq (ks1 ++ k :: ks2) by rewrite -Eh filter_uniq //; case/andP: U.
-have Nk : k \notin ks1 by apply: contraL Us=>E; rewrite cat_uniq /= E andbF.
-have K : k \in {sqint t ks| by rewrite Eh mem_cat inE eq_refl orbT.
-move: (K); rewrite mem_filter=>/andP [TK Ks].
-rewrite (sq_uxoo (t1:=k)) // squxR // -catA /= in Eh.
-suff -> : ks1 = {sqint k ks| by apply: IH.
-by rewrite (cat_cancel _ _ Eh) // mem_filter olt_irr.
+have K : k \in &=ks `]-oo, t[ by rewrite Eh mem_cat inE eqxx orbT.
+have Nk : k \notin ks1.
+- move/(eqslice_uniq `]-oo, t[): U.
+  by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
+case/mem_uo: (K)=>// [Ks TK].
+suff {IH U K}-> : ks1 = &=ks `]-oo, k[ by apply: IH.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=;
+  last by rewrite lteBSide /= leEnat; apply: ltnW.
+rewrite eqsl_xoL TK => Eh; rewrite (cat_cancel _ _ Eh) //.
+by apply: eqsliceRO_notin.
 Qed.
 
 Arguments oex_ux [V R] P [a ks h t z0].
@@ -1445,12 +1444,13 @@ Lemma oex_uu V R (P : R -> Prop) a ks (h : natmap V) (z0 : R) :
         P z0 -> P (oevalv a ks h z0).
 Proof.
 move=>U IH P0; apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->.
-have Us : uniq (ks1 ++ k :: ks2) by rewrite -Eh.
-have Nk : k \notin ks1 by apply: contraL Us=>E; rewrite cat_uniq /= E andbF.
-have K : k \in ks by rewrite Eh mem_cat inE eq_refl orbT.
-rewrite (sq_uxou k U) squxR // -catA /= in Eh.
-suff -> : ks1 = {sqint k ks| by apply: IH.
-by rewrite (cat_cancel _ _ Eh) // mem_filter olt_irr.
+have K : k \in ks by rewrite Eh mem_cat inE eqxx orbT.
+have Nk : k \notin ks1.
+- move: U.
+  by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
+suff -> : ks1 = &=ks `]-oo, k[ by apply: IH.
+move: Eh; rewrite {1}(eqsl_uxou ks k) eqsl_uxR K -cats1 -catA /= => Eh.
+by rewrite (cat_cancel _ _ Eh) //=; apply: eqsliceRO_notin.
 Qed.
 
 Arguments oex_uu [V R] P [a ks h z0].
@@ -1467,7 +1467,7 @@ Definition oexF_inv V R X (f : R -> X) a ks (h : natmap V) (z0 : R) :=
 
 Lemma oexF_ox V R X (f : R -> X) a ks (h : natmap V) t1 t2 (z0 : R) :
         uniq ks -> t1 <[ks] t2 ->
-        {in |sqint t1 t2 ks|, oexF_inv f a ks h z0} ->
+        {in &=ks `]t1, t2[, oexF_inv f a ks h z0} ->
         f (oexec_lt a ks t2 h z0) = f (oexec_le a ks t1 h z0).
 Proof.
 move=>U T H; pose P := fun x => f x = f (oexec_le a ks t1 h z0).
@@ -1476,7 +1476,7 @@ Qed.
 
 Lemma oexF_oo V R X (f : R -> X) a ks (h : natmap V) t1 t2 (z0 : R) :
         uniq ks -> t1 <=[ks] t2 ->
-        {in [sqint t1 t2 ks|, oexF_inv f a ks h z0} ->
+        {in &=ks `[t1, t2[, oexF_inv f a ks h z0} ->
         f (oexec_lt a ks t2 h z0) = f (oexec_lt a ks t1 h z0).
 Proof.
 move=>U T H; pose P := fun x => f x = f (oexec_lt a ks t1 h z0).
@@ -1485,7 +1485,7 @@ Qed.
 
 Lemma oexF_xo V R X (f : R -> X) a ks (h : natmap V) t1 t2 (z0 : R) :
         uniq ks -> t1 <=[ks] t2 ->
-        {in [sqint t1 t2 ks], oexF_inv f a ks h z0} ->
+        {in &=ks `[t1, t2], oexF_inv f a ks h z0} ->
         f (oexec_le a ks t2 h z0) = f (oexec_lt a ks t1 h z0).
 Proof.
 move=>U T H; pose P := fun x => f x = f (oexec_lt a ks t1 h z0).
@@ -1494,7 +1494,7 @@ Qed.
 
 Lemma oexF_xx V R X (f : R -> X) a ks (h : natmap V) t1 t2 (z0 : R) :
         uniq ks -> t1 <=[ks] t2 ->
-        {in |sqint t1 t2 ks], oexF_inv f a ks h z0} ->
+        {in &=ks `]t1, t2], oexF_inv f a ks h z0} ->
         f (oexec_le a ks t2 h z0) = f (oexec_le a ks t1 h z0).
 Proof.
 move=>U T H; pose P := fun x => f x = f (oexec_le a ks t1 h z0).
@@ -1510,7 +1510,7 @@ Arguments oexF_xx [V R X] f [a ks h t1 t2 z0].
 
 Lemma oexF_ux V R X (f : R -> X) a ks (h : natmap V) t (z0 : R) :
         uniq ks ->
-        {in |sqint t ks}, oexF_inv f a ks h z0} ->
+        {in &=ks `]t, +oo[, oexF_inv f a ks h z0} ->
         f (oevalv a ks h z0) = f (oexec_le a ks t h z0).
 Proof.
 move=>U H; pose P := fun x => f x = f (oexec_le a ks t h z0).
@@ -1519,7 +1519,7 @@ Qed.
 
 Lemma oexF_uo V R X (f : R -> X) a ks (h : natmap V) t (z0 : R) :
         uniq ks ->
-        {in [sqint t ks}, oexF_inv f a ks h z0} ->
+        {in &=ks `[t, +oo[, oexF_inv f a ks h z0} ->
         f (oevalv a ks h z0) = f (oexec_lt a ks t h z0).
 Proof.
 move=>U H; pose P := fun x => f x = f (oexec_lt a ks t h z0).
@@ -1528,7 +1528,7 @@ Qed.
 
 Lemma oexF_xu V R X (f : R -> X) a ks (h : natmap V) t (z0 : R) :
         uniq ks ->
-        {in {sqint t ks], oexF_inv f a ks h z0} ->
+        {in &=ks `]-oo, t], oexF_inv f a ks h z0} ->
         f (oexec_le a ks t h z0) = f z0.
 Proof.
 move=>U H; pose P := fun x => f x = f z0.
@@ -1537,7 +1537,7 @@ Qed.
 
 Lemma oexF_ou V R X (f : R -> X) a ks (h : natmap V) t (z0 : R) :
         uniq ks ->
-        {in {sqint t ks|, oexF_inv f a ks h z0} ->
+        {in &=ks `]-oo, t[, oexF_inv f a ks h z0} ->
         f (oexec_lt a ks t h z0) = f z0.
 Proof.
 move=>U H; pose P := fun x => f x = f z0.
@@ -1567,44 +1567,43 @@ Arguments oexF_uu [V R X] f [a ks h z0].
 (* when the middle point is in the map *)
 
 Lemma oev2_split V R a t1 v (h : natmap V) ks (z0 : R) :
-        uniq ks -> t1 \in ks -> (t1, v) \In h ->
+        t1 \in ks -> (t1, v) \In h ->
         oevalv a ks h z0 =
-        oevalv a |sqint t1 ks} h (a (oexec_lt a ks t1 h z0) v).
+        oevalv a (&=ks `]t1, +oo[) h (a (oexec_lt a ks t1 h z0) v).
 Proof.
-move=>U D H; rewrite {1}(sq_uoxu t1 U) oev_cat.
-by rewrite sqxuL //=; move/In_find: H=>->.
+move=>D H; rewrite {1}(eqsl_uoxu ks t1) oev_cat.
+by rewrite eqsl_xuL D /=; move/In_find: H=>->.
 Qed.
 
-Arguments oev2_split [V R a t1 v h ks z0] _ _ _.
+Arguments oev2_split [V R a t1 v h ks z0] _ _.
 
 Lemma oex2_split V R a t1 t2 v (h : natmap V) ks (z0 : R) :
-        uniq ks -> t1 <[ks] t2 -> t1 \in ks -> (t1, v) \In h ->
+        t1 <[ks] t2 -> (t1, v) \In h ->
         oexec_lt a ks t2 h z0 =
-        oevalv a |sqint t1 t2 ks| h (a (oexec_lt a ks t1 h z0) v).
+        oevalv a (&=ks `]t1, t2[) h (a (oexec_lt a ks t1 h z0) v).
 Proof.
-move=>U T D H; rewrite /oexec_lt.
-rewrite (sq_uoxo U (oltW T)) oev_cat sqxoL //=.
+move=>T H; rewrite /oexec_lt.
+rewrite (eqsl_uoxo (sltW T)) oev_cat eqsl_xoL T /=.
 by move/In_find: H=>->.
 Qed.
 
-Arguments oex2_split [V R a t1 t2 v h ks z0] _ _ _ _.
+Arguments oex2_split [V R a t1 t2 v h ks z0] _ _.
 
 (* we frequently iterate oex2_split, so the following saves verbiage *)
 Lemma oex3_split V R a t1 t2 t3 v1 v2 (h : natmap V) ks (z0 : R) :
-        uniq ks ->
-        t1 <[ks] t2 -> t1 \in ks -> (t1, v1) \In h ->
-        t2 <[ks] t3 -> t2 \in ks -> (t2, v2) \In h ->
+        t1 <[ks] t2 -> (t1, v1) \In h ->
+        t2 <[ks] t3 -> (t2, v2) \In h ->
         oexec_lt a ks t3 h z0 =
-        oevalv a |sqint t2 t3 ks| h
-                 (a (oevalv a |sqint t1 t2 ks| h
+        oevalv a (&=ks `]t2, t3[) h
+                 (a (oevalv a (&=ks `]t1, t2[) h
                     (a (oexec_lt a ks t1 h z0) v1))
                  v2).
 Proof.
-move=>U T1 D1 H1 T2 D2 H2.
-by rewrite (oex2_split U T2 D2 H2) (oex2_split U T1 D1 H1).
+move=>T1 H1 T2 H2.
+by rewrite (oex2_split T2 H2) (oex2_split T1 H1).
 Qed.
 
-Arguments oex3_split [V R a t1 t2 t3 v1 v2 h ks z0] _ _ _ _ _ _ _.
+Arguments oex3_split [V R a t1 t2 t3 v1 v2 h ks z0] _ _ _ _.
 
 (******************************************)
 (* Interaction of consec with oexlt/oexle *)
@@ -1615,7 +1614,7 @@ Lemma oexlt_consec V R a ks t1 t2 (h : natmap V) (z0 : R) :
         consec ks t1 t2 ->
         oexec_lt a ks t2 h z0 = oexec_le a ks t1 h z0.
 Proof.
-move=>U C; apply: (oexF_ox id)=>//; first by apply: consec_olt.
+move=>U C; apply: (oexF_ox id)=>//; first by apply: consec_slt.
 by move=>x; rewrite consec_oo.
 Qed.
 
@@ -1628,8 +1627,8 @@ Lemma oexlt_split V R a x1 t1 t2 x2 (h : natmap V) (z0 : R) :
         oexec_le a (x1++t1::t2::x2) t1 h z0.
 Proof.
 move=>U; apply: oexlt_consec=>//; apply/consecP_split=>//.
-- by rewrite mem_cat !inE eq_refl !orbT.
-by eauto.
+- by rewrite mem_cat !inE eqxx !orbT.
+by exists x1, x2.
 Qed.
 
 Lemma oexlt_consec_in V R a t1 t2 v (h : natmap V) ks (z0 : R) :
@@ -1638,8 +1637,8 @@ Lemma oexlt_consec_in V R a t1 t2 v (h : natmap V) ks (z0 : R) :
         consec ks t1 t2 ->
         oexec_lt a ks t2 h z0 = a (oexec_lt a ks t1 h z0) v.
 Proof.
-move=>U H C; move/olt_memE: (consec_olt C)=>T.
-by rewrite (oexlt_consec U C) (oexleE U T H).
+move=>U H C; move/slt_memE: (consec_slt C)=>T.
+by rewrite (oexlt_consec U C) (oexleE T H).
 Qed.
 
 Lemma oexlt_consec_fst V R a t (h : natmap V) k ks (z0 : R) :
@@ -1649,7 +1648,7 @@ Lemma oexlt_consec_fst V R a t (h : natmap V) k ks (z0 : R) :
 Proof.
 move=>U K T C; case/(consecP_split _ U T): C=>xs1 [xs2] X.
 case: xs1 X U {T}=>[|x xs1]; last first.
-- by case=>->-> /=; rewrite mem_cat inE eq_refl !orbT.
+- by case=>->-> /=; rewrite mem_cat inE eqxx !orbT.
 case=>->{ks}; rewrite /= inE negb_or -andbA; case/and4P=>U1 U2 U3 U4.
 rewrite oexlt_cons_notin ?inE 1?negb_or ?(eq_sym t) ?U1 ?U2 //.
 by rewrite oexlt_cons_same.
@@ -1659,11 +1658,12 @@ Lemma oexlt_consec_find V R a t1 t2 (h : natmap V) ks (z0 : R) :
         uniq ks ->
         consec ks t1 t2 ->
         oexec_lt a ks t2 h z0 =
-        if find t1 h is Some e then a (oexec_lt a ks t1 h z0) e
-        else oexec_lt a ks t1 h z0.
+        if find t1 h is Some e
+          then a (oexec_lt a ks t1 h z0) e
+          else oexec_lt a ks t1 h z0.
 Proof.
 move=>U C; rewrite (oexlt_consec U C).
-case E : (find t1 h)=>[e|]; first by move/In_find: E=>/(oexleE U (consec_mem C)) ->.
+case E : (find t1 h)=>[e|]; first by move/In_find: E=>/(oexleE (consec_mem C)) ->.
 by rewrite oexleNE // orbC; move/In_findN: E=>->.
 Qed.
 
@@ -1856,7 +1856,7 @@ rewrite -(valid_fresh x (leqnn _))=>V; split; last first.
   by case=><-; rewrite N ltn_eqF.
 move=>C; split; last first.
 - move: (C (last_key h) x).
-  by rewrite !findPtUn2 // eq_refl ltn_eqF //; apply.
+  by rewrite !findPtUn2 // eqxx ltn_eqF //; apply.
 move=>k w; case: (ltnP k (last_key h))=>N; last first.
 - by move/find_some /dom_ordfresh /(leq_ltn_trans N); rewrite ltnn.
 by move: (C k w); rewrite !findPtUn2 // eqSS !ltn_eqF // (ltn_trans N _).
@@ -1866,7 +1866,7 @@ Lemma cn_sub v h x y k :
         valid (k.+1 \-> (x, y) \+ h) -> continuous v (k.+1 \-> (x, y) \+ h) ->
         oapp snd v (find k h) = x.
 Proof.
-by move=>V /(_ k (x, y)); rewrite !findPtUn2 // eq_refl ltn_eqF //; apply.
+by move=>V /(_ k (x, y)); rewrite !findPtUn2 // eqxx ltn_eqF //; apply.
 Qed.
 
 End Continuous.
@@ -1980,7 +1980,7 @@ Proof.
 move=>V D; rewrite -(umfilt_pred0 V).
 apply/eq_in_umfilt; case=>k v [/= _][z E]; subst h.
 rewrite leqNgt; apply: contraTF (D k _)=>//.
-by rewrite domPtUn inE V eq_refl.
+by rewrite domPtUn inE V eqxx.
 Qed.
 
 Lemma umfilt_le_split A (h : natmap A) t1 t2 :
