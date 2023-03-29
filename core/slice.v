@@ -326,6 +326,12 @@ rewrite ?implybF ?implybT //=.
 by move/lteifW.
 Qed.
 
+(* splitting whole list *)
+
+Corollary slice_split_full s b (x : nat) :
+            s = &:s (Interval -oo (BSide b x)) ++ &:s (Interval (BSide b x) +oo).
+Proof. by rewrite -[LHS](slice_uu s); apply: slice_split. Qed.
+
 (* slice extrusion *)
 
 Lemma slice_extrude s (i : interval nat) :

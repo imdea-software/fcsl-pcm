@@ -16,6 +16,7 @@ core/seqint.v
 core/slice.v
 core/useqord.v
 core/uslice.v
+core/uconsec.v
 pcm/pcm.v
 pcm/autopcm.v
 pcm/morphism.v
