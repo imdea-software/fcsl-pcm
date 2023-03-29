@@ -12,7 +12,6 @@ core/seqperm.v
 core/finmap.v
 core/rtc.v
 core/seqext.v
-core/seqint.v
 core/slice.v
 core/useqord.v
 core/uslice.v
