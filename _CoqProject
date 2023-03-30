@@ -2,7 +2,7 @@
 -arg -w -arg -notation-overridden
 -arg -w -arg -redundant-canonical-projection
 
-options.v
+core/options.v
 core/axioms.v
 core/auto.v
 core/prelude.v
