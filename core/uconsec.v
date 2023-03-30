@@ -279,7 +279,7 @@ case X : (t2 \in ks2); last first.
   case/orP=>[/eqP/last_nochange|/[swap] Xp1].
   - by rewrite (negbTE Nt1ks2)=>/eqP ->.
   move: (@sle_last _ x t1 ks2)=>/(_ Uks2 (slt_memE Xp1)) Z.
-  by move/(sle_slt_trans Z); apply: contraLR=>_; rewrite slt_irr.
+  by move/(sle_slt_trans Z); rewrite slt_irr.
 case/splitP: {ks2} X Hks2 Nt1ks2 Uks2=>p1 p2 H2.
 rewrite mem_cat cat_uniq /= negb_or rcons_uniq mem_rcons inE.
 rewrite (negbTE Nt1t2) /= -!andbA.
@@ -339,7 +339,7 @@ case Xks1 : (x \in ks1)=>/=.
 - by move/slt_memE=>E; rewrite E in N1.
 move=>Nxt1; rewrite (negbTE Nxt1) /=; case: ifP=>// _.
 case/andP=>_ /(sle_slt_trans (@sle_head _ t2 ks2 x))=>+ _.
-by apply: contraLR=>_; rewrite slt_irr.
+by rewrite slt_irr.
 Qed.
 
 (* previous element is uniquely determined *)
@@ -647,7 +647,7 @@ case/orP: K1 E=>[/eqP ->{k1}|K1] E.
   rewrite sle_refl; apply: contraL; rewrite mem_rcons inE.
   case/orP=>[/eqP ->|K2]; first by rewrite slt_irr.
   rewrite slt_rcons K2; apply/negP.
-  by move/(slt_trans (slt_memI K2 K)); apply/negP; exact: slt_irr.
+  by move/(slt_trans (slt_memI K2 K)); rewrite slt_irr.
 case: eqP K1 K=>[->->//|/eqP N K1 K /=]; case: ifP=>K2; last first.
 - move/negbT: K2; rewrite negbK=>K2; apply/consecP_inlt=>//.
   split=>// z Z; move: (E z); rewrite mem_rcons inE Z orbT=>/(_ erefl).
@@ -666,7 +666,7 @@ move: (E (last k1 ks)); rewrite mem_rcons inE L orbT=>/(_ erefl).
 rewrite slt_rcons sle_rcons (negbTE K2) L /=.
 move/esym; rewrite sle_eqVlt; last by rewrite L.
 rewrite (negbTE M) /=.
-by move/(sle_slt_trans (sle_last k1 U K1)); apply/negP; exact: slt_irr.
+by move/(sle_slt_trans (sle_last k1 U K1)); rewrite slt_irr.
 Qed.
 
 Lemma consec_rconsEP k k1 k2 ks :

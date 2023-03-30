@@ -65,7 +65,7 @@ Proof. by rewrite /seq_le. Qed.
 
 (****************** irreflexivity ***************)
 
-Lemma slt_irr x ks : ~~ x <[ks] x.
+Lemma slt_irr x ks : x <[ks] x = false.
 Proof. by rewrite /seq_lt ltnn. Qed.
 
 (****************** antisymmetry ****************)
@@ -134,7 +134,7 @@ Proof. by rewrite sltNge negbK. Qed.
 (****************** slt_neq ***************)
 
 Corollary slt_neq x y ks : x <[ks] y -> x != y.
-Proof. by apply/contraL=>/eqP->; apply: slt_irr. Qed.
+Proof. by apply/contraL=>/eqP->; rewrite slt_irr. Qed.
 
 End SeqLeBase.
 
