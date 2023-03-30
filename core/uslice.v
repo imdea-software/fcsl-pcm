@@ -548,6 +548,10 @@ Lemma eqslice_mem (i : interval A) (ks : seq A) (k : A) :
         has (fun j => j \in ix_itv ks i) (indexall k ks).
 Proof. by rewrite /eq_slice slice_memE. Qed.
 
+Lemma eqslice_sorted r s i :
+        sorted r s -> sorted r (&=s i).
+Proof. by exact: slice_sorted. Qed.
+
 End Lemmas.
 
 Section LemmasUniq.

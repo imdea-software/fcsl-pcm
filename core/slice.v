@@ -729,4 +729,11 @@ move=>U; rewrite /slice /=; case: i=>l u.
 by apply/drop_uniq/take_uniq.
 Qed.
 
+Lemma slice_sorted r s i :
+        sorted r s -> sorted r (&:s i).
+Proof.
+move=>S; rewrite /slice /=; case: i=>l u.
+by apply/drop_sorted/take_sorted.
+Qed.
+
 End LemmasEq.
