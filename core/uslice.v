@@ -639,7 +639,7 @@ elim: s k=>/= [|y s IH] k //=.
 rewrite inE negb_or -andbA; case/and4P=>Nky K Y U Nkt.
 rewrite slt_cons sle_cons Nkt /=; case: (eqVneq x k)=>//= Nkx.
 rewrite eqsl_uL_consE; case: (eqVneq t y)=>/= [E|Nty].
-- by rewrite eqxx /= E; apply/negbTE/sltR.
+- by rewrite eqxx /= E sltR.
 suff -> /= : last y (&=s `]-oo, t[) != k by rewrite IH //= Y.
 apply: contraTneq (mem_last y (&=s `]-oo, t[))=> E.
 rewrite inE E negb_or Nky /=; apply: contra K.

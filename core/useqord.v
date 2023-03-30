@@ -184,7 +184,7 @@ Proof. by rewrite slt_cons eq_refl andbT. Qed.
 Lemma sleL x y ks : x <=[x :: ks] y.
 Proof. by rewrite sle_cons eq_refl. Qed.
 
-Lemma sltR x y ks : ~~ x <[y :: ks] y.
+Lemma sltR x y ks : x <[y :: ks] y = false.
 Proof. by rewrite sltNge sleL. Qed.
 
 Lemma sleR x y ks : x <=[y :: ks] y = (y == x).
