@@ -2,7 +2,7 @@
 -arg -w -arg -notation-overridden
 -arg -w -arg -redundant-canonical-projection
 
-options.v
+core/options.v
 core/axioms.v
 core/auto.v
 core/prelude.v
@@ -12,10 +12,10 @@ core/seqperm.v
 core/finmap.v
 core/rtc.v
 core/seqext.v
-core/seqint.v
 core/slice.v
 core/useqord.v
 core/uslice.v
+core/uconsec.v
 pcm/pcm.v
 pcm/autopcm.v
 pcm/morphism.v

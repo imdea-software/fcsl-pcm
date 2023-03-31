@@ -1,9 +1,13 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path interval order.
-From pcm Require Import options prelude ordtype slice seqext.
+From pcm Require Import options prelude ordtype seqext.
 
 Open Scope order_scope.
 Import Order.Theory.
+
+(* We assume the sequences are unique and use the first index, however most *)
+(* lemmas don't require this condition explicitly. The ones that do are     *)
+(* grouped in a separate section.                                           *)
 
 (***********************************)
 (***********************************)
@@ -61,7 +65,7 @@ Proof. by rewrite /seq_le. Qed.
 
 (****************** irreflexivity ***************)
 
-Lemma slt_irr x ks : ~~ x <[ks] x.
+Lemma slt_irr x ks : x <[ks] x = false.
 Proof. by rewrite /seq_lt ltnn. Qed.
 
 (****************** antisymmetry ****************)
@@ -130,7 +134,7 @@ Proof. by rewrite sltNge negbK. Qed.
 (****************** slt_neq ***************)
 
 Corollary slt_neq x y ks : x <[ks] y -> x != y.
-Proof. by apply/contraL=>/eqP->; apply: slt_irr. Qed.
+Proof. by apply/contraL=>/eqP->; rewrite slt_irr. Qed.
 
 End SeqLeBase.
 
@@ -144,15 +148,6 @@ Implicit Type (ks : seq A).
 Lemma sltW ks t1 t2 : t1 <[ks] t2 -> t1 <=[ks] t2.
 Proof. by apply: ltnW. Qed.
 
-Lemma slt_subseq ks1 ks2 k t :
-        subseq ks1 ks2 -> uniq ks2 -> k \in ks1 -> t \in ks1 ->
-        k <[ks1] t = k <[ks2] t.
-Proof. by move=>S U T K; apply/idP/idP=>/(index_subseq S U T K). Qed.
-
-Lemma sle_subseq ks1 ks2 k t :
-        subseq ks1 ks2 -> uniq ks2 -> k \in ks1 -> t \in ks1 ->
-        k <=[ks1] t = k <=[ks2] t.
-Proof. by move=>S U T K; rewrite !sleNgt (slt_subseq S U K T). Qed.
 
 (* membership properties of the sequence orderings *)
 
@@ -189,40 +184,11 @@ Proof. by rewrite slt_cons eq_refl andbT. Qed.
 Lemma sleL x y ks : x <=[x :: ks] y.
 Proof. by rewrite sle_cons eq_refl. Qed.
 
-Lemma sltR x y ks : ~~ x <[y :: ks] y.
+Lemma sltR x y ks : x <[y :: ks] y = false.
 Proof. by rewrite sltNge sleL. Qed.
 
 Lemma sleR x y ks : x <=[y :: ks] y = (y == x).
 Proof. by rewrite sleNgt sltL negbK. Qed.
-
-(* sequence orderings and last *)
-
-Lemma sle_last x k ks :
-        uniq ks -> x \in ks -> x <=[ks] (last k ks).
-Proof. by apply: index_last_mono. Qed.
-
-Lemma sle_last_cons x k ks :
-        uniq (k :: ks) -> x \in k::ks -> x <=[k::ks] (last k ks).
-Proof.
-move=>/= /andP [U1 U2].
-rewrite inE sle_cons; case: eqP=>//= /eqP Nxk K.
-by rewrite (last_notin K) //=; apply: sle_last.
-Qed.
-
-Lemma slt_last x k ks :
-        uniq ks -> x \in ks -> last k ks != x -> x <[ks] (last k ks).
-Proof.
-move=>U X N; move: (sle_last k U X); rewrite sle_eqVlt; last by rewrite X.
-by rewrite eq_sym (negbTE N).
-Qed.
-
-Lemma slt_last_cons x k ks :
-        uniq (k :: ks) -> x \in k::ks ->
-        last k ks != x -> x <[k::ks] (last k ks).
-Proof.
-move=>U X N; rewrite slt_neqAle; last by rewrite X.
-by rewrite eq_sym N sle_last_cons.
-Qed.
 
 (* sequence ordering and head *)
 
@@ -413,32 +379,7 @@ Qed.
 
 (* sequence orderings and sortedness *)
 
-(* every list is sorted by its slt relation, assuming uniqueness *)
-Lemma sorted_slt ks : uniq ks -> sorted (seq_lt ks) ks.
-Proof.
-case: ks=>//= k ks; elim: ks k=>[|k1 ks IH] k2 //=.
-rewrite inE negb_or -andbA=>/and4P [N1 N2 N3 N4].
-rewrite sltL eq_sym N1 /=.
-have : path (seq_lt [:: k1 & ks]) k1 ks by apply: IH; rewrite N3 N4.
-apply: (@sub_in_path _ (mem (k1::ks))); last by apply/allP.
-move=>x y /=; rewrite !inE !slt_cons.
-case/orP=>[/eqP ->{x}|X].
-- rewrite (eq_sym k1 k2) (negbTE N1) /= eq_refl andbT.
-  case/orP=>[/eqP ->|Y ->]; first by rewrite eq_refl.
-  by case: eqP Y N2=>// ->->.
-case/orP=>[/eqP ->|Y]; first by rewrite eq_refl.
-case: eqP Y N3=>[->|/eqP N Y N3] //=.
-case: eqP X N3=>[->->|/eqP M X K1] //= H.
-by rewrite H orbT andbT; case: eqP Y N2=>// ->->.
-Qed.
-
-Lemma sorted_sle ks : uniq ks -> sorted (seq_le ks) ks.
-Proof.
-move=>U; apply: sub_sorted (sorted_slt U).
-by move=>x y; rewrite /seq_lt/seq_le; case: ltngtP.
-Qed.
-
-(* olt/ole under general sorted relations *)
+(* slt/sle under general sorted relations *)
 Lemma slt_sorted_lt ltT ks x y :
         transitive ltT ->
         sorted ltT ks ->
@@ -494,6 +435,76 @@ by rewrite (slt_sorted_leE As T S X Y); case: eqP.
 Qed.
 
 End SeqLeProp.
+
+Section SeqLeUniq.
+Variable (A : eqType).
+Implicit Type (ks : seq A).
+
+Lemma slt_subseq ks1 ks2 k t :
+        subseq ks1 ks2 -> uniq ks2 -> k \in ks1 -> t \in ks1 ->
+        k <[ks1] t = k <[ks2] t.
+Proof. by move=>S U T K; apply/idP/idP=>/(index_subseq S U T K). Qed.
+
+Lemma sle_subseq ks1 ks2 k t :
+        subseq ks1 ks2 -> uniq ks2 -> k \in ks1 -> t \in ks1 ->
+        k <=[ks1] t = k <=[ks2] t.
+Proof. by move=>S U T K; rewrite !sleNgt (slt_subseq S U K T). Qed.
+
+(* sequence orderings and last *)
+
+Lemma sle_last x k ks :
+        uniq ks -> x \in ks -> x <=[ks] (last k ks).
+Proof. by apply: index_last_mono. Qed.
+
+Lemma sle_last_cons x k ks :
+        uniq (k :: ks) -> x \in k::ks -> x <=[k::ks] (last k ks).
+Proof.
+move=>/= /andP [U1 U2].
+rewrite inE sle_cons; case: eqP=>//= /eqP Nxk K.
+by rewrite (last_notin K) //=; apply: sle_last.
+Qed.
+
+Lemma slt_last x k ks :
+        uniq ks -> x \in ks -> last k ks != x -> x <[ks] (last k ks).
+Proof.
+move=>U X N; move: (sle_last k U X); rewrite sle_eqVlt; last by rewrite X.
+by rewrite eq_sym (negbTE N).
+Qed.
+
+Lemma slt_last_cons x k ks :
+        uniq (k :: ks) -> x \in k::ks ->
+        last k ks != x -> x <[k::ks] (last k ks).
+Proof.
+move=>U X N; rewrite slt_neqAle; last by rewrite X.
+by rewrite eq_sym N sle_last_cons.
+Qed.
+
+(* every list is sorted by its slt relation, assuming uniqueness *)
+Lemma sorted_slt ks : uniq ks -> sorted (seq_lt ks) ks.
+Proof.
+case: ks=>//= k ks; elim: ks k=>[|k1 ks IH] k2 //=.
+rewrite inE negb_or -andbA=>/and4P [N1 N2 N3 N4].
+rewrite sltL eq_sym N1 /=.
+have : path (seq_lt [:: k1 & ks]) k1 ks by apply: IH; rewrite N3 N4.
+apply: (@sub_in_path _ (mem (k1::ks))); last by apply/allP.
+move=>x y /=; rewrite !inE !slt_cons.
+case/orP=>[/eqP ->{x}|X].
+- rewrite (eq_sym k1 k2) (negbTE N1) /= eq_refl andbT.
+  case/orP=>[/eqP ->|Y ->]; first by rewrite eq_refl.
+  by case: eqP Y N2=>// ->->.
+case/orP=>[/eqP ->|Y]; first by rewrite eq_refl.
+case: eqP Y N3=>[->|/eqP N Y N3] //=.
+case: eqP X N3=>[->->|/eqP M X K1] //= H.
+by rewrite H orbT andbT; case: eqP Y N2=>// ->->.
+Qed.
+
+Lemma sorted_sle ks : uniq ks -> sorted (seq_le ks) ks.
+Proof.
+move=>U; apply: sub_sorted (sorted_slt U).
+by move=>x y; rewrite /seq_lt/seq_le; case: ltngtP.
+Qed.
+
+End SeqLeUniq.
 
 Section SeqLeOrd.
 Variable (A : ordType).

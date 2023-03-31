@@ -5,67 +5,8 @@ From pcm Require Import options prelude ordtype seqext.
 Open Scope order_scope.
 Import Order.Theory.
 
-(* TODO move to prelude *)
-Lemma if_triv b : (if b then true else false) = b.
-Proof. by case: b. Qed.
-
-Lemma drop_take_id {A} x (s : seq A) : drop x (take x s) = [::].
-Proof. by rewrite -{2}(add0n x) -take_drop take0. Qed.
-
-Lemma drop_take_mask {A} (s : seq A) x y :
-        drop x (take y s) = mask (nseq x false ++ nseq (y-x) true) s.
-Proof.
-case: (ltnP x (size s))=>Hx; last first.
-- rewrite drop_oversize; last by rewrite size_take_min geq_min Hx orbT.
-  rewrite -{1}(subnKC Hx) nseqD -catA -{3}(cats0 s) mask_cat; last by rewrite size_nseq.
-  by rewrite mask0 mask_false.
-have Hx': size (nseq x false) = size (take x s).
-- by rewrite size_nseq size_take_min; symmetry; apply/minn_idPl/ltnW.
-rewrite -{2}(cat_take_drop x s) mask_cat // mask_false /= -takeEmask take_drop.
-case: (leqP x y)=>[Hxy|/ltnW Hxy]; first by rewrite subnK.
-move: (Hxy); rewrite -subn_eq0=>/eqP->; rewrite add0n drop_take_id.
-by rewrite drop_oversize // size_take_min geq_min Hxy.
-Qed.
-
-(* weaker form of in_mask *)
-Lemma in_mask_count {A : eqType} x m (s : seq A) :
-        (count_mem x s <= 1)%N ->
-        x \in mask m s = (x \in s) && nth false m (index x s).
-Proof.
-elim: s m => [|y s IHs] m /=; first by rewrite mask0 in_nil.
-case: m=>/=[|b m]; first by rewrite in_nil nth_nil andbF.
-case: b; rewrite !inE eq_sym; case: eqP=>//= _.
-- by rewrite add0n; apply: IHs.
-- rewrite -{2}(addn0 1%N) leq_add2l leqn0 => /eqP Hc.
-  rewrite IHs; last by rewrite Hc.
-  by move/count_memPn/negbTE: Hc=>->.
-by rewrite add0n; apply: IHs.
-Qed.
-
-Lemma mem_take_index {A : eqType} x (s : seq A) :
-        x \notin take (index x s) s.
-Proof.
-elim: s=>//=h s; case: eqP=>//= /eqP H IH.
-by rewrite inE negb_or eq_sym H.
-Qed.
-
-Lemma mem_drop_indexlast {A : eqType} x (s : seq A) :
-        x \notin drop (indexlast x s).+1 s.
-Proof.
-elim: s=>//=h s; rewrite indexlast_cons.
-case: eqP=>//= _ H.
-by case: ifP=>//=; rewrite drop0.
-Qed.
-
-Lemma prefix_drop_sub {A : eqType} (s1 s2 : seq A) :
-        seq.prefix s1 s2 ->
-        forall n, {subset (drop n s1) <= drop n s2}.
-Proof.
-case/seq.prefixP=>s0 {s2}-> n x H.
-rewrite drop_cat; case: ltnP=>Hn.
-- by rewrite mem_cat H.
-by move: H; rewrite drop_oversize.
-Qed.
+(* sequence slicing by nat indices *)
+(* reuses mathcomp interval infrastructure *)
 
 (* convert bound to nat *)
 (* maps -oo -> 0, +oo -> m *)
@@ -148,8 +89,6 @@ Qed.
 Lemma mem_itv_inf (n : nat) : n \in `]-oo,+oo[.
 Proof. by rewrite in_itv. Qed.
 
-(* Compute (&[::1%nat;2;3;4;5;6;7] `[1%nat,4[). *)
-
 Section Lemmas.
 Variable (A : Type).
 Implicit Type (s : seq A).
@@ -223,7 +162,7 @@ rewrite /slice /=; apply: drop_oversize.
 by rewrite size_take_min; apply: geq_minr.
 Qed.
 
-(* TODO unify these two? *)
+(* TODO unify the next two? *)
 Lemma itv_swapped_bnd s (i j : itv_bound nat) :
         j <= i ->
         &:s (Interval i j) = [::].
@@ -325,6 +264,12 @@ rewrite ?implybF ?implybT //=.
 - by move/lteifW.
 by move/lteifW.
 Qed.
+
+(* splitting whole list *)
+
+Corollary slice_split_full s b (x : nat) :
+            s = &:s (Interval -oo (BSide b x)) ++ &:s (Interval (BSide b x) +oo).
+Proof. by rewrite -[LHS](slice_uu s); apply: slice_split. Qed.
 
 (* slice extrusion *)
 
@@ -631,8 +576,7 @@ Lemma slice_count p s i :
         count p (&:s i) =
         count (fun j => j \in i) (findall p s).
 Proof.
-elim: s i=>/= [|x s IH] i.
-- by rewrite slice0.
+elim: s i=>/= [|x s IH] i; first by rewrite slice0.
 rewrite findall_cons slice_cons.
 case/boolP: (p x)=>/= Hpx; case/boolP: (0 \in i)=>I0 /=.
 - rewrite Hpx !add1n; congr S.
@@ -658,7 +602,7 @@ End Lemmas.
 (* map *)
 
 Lemma slice_map {A B} (f : A -> B) i s :
-  [seq f x | x <- &:s i] = &: [seq f x | x <- s] i.
+        [seq f x | x <- &:s i] = &: [seq f x | x <- s] i.
 Proof. by rewrite !slice_mask /= map_mask /= size_map. Qed.
 
 Section LemmasEq.
@@ -667,28 +611,26 @@ Implicit Type (s : seq A).
 
 (* membership *)
 
-Corollary slice_memE (x : A) s i :
+Corollary slice_memE x s i :
             x \in &:s i =
             has (fun j => j \in i) (indexall x s).
 Proof. by rewrite /indexall -has_pred1; apply: slice_has. Qed.
 
-(*
-Lemma slice_memE (x : A) s i :
-        (count_mem x s <= 1)%N ->
-        (x \in &:s i) = (x \in s) && (bnd i.1 (size s) <= index x s < bnd i.2 (size s)).
+Corollary slice_memE1 x s i :
+            (count_mem x s <= 1)%N ->
+            x \in &:s i =
+            (x \in s) && (bnd i.1 (size s) <= index x s < bnd i.2 (size s)).
 Proof.
-move=>H; rewrite slice_mask; case: i=>i j /=.
-rewrite (in_mask_count _ H); case Hx: (x \in s)=>//=.
-rewrite ltEnat leEnat /= nth_cat size_nseq; case: ltngtP=>Hi /=.
-- by rewrite nth_nseq Hi.
-- rewrite nth_nseq if_triv; case: (ltnP (index _ _))=>Hj.
-  - by apply: ltn_sub2r=>//; apply/ltn_trans/Hj.
-  - by apply/negbTE; rewrite -leqNgt; apply/leq_sub2r.
-rewrite -Hi subnn nth0; case: ltnP.
-- by rewrite -subn_gt0; set q := bnd j (size s) - index x s; case: q.
-by rewrite -subn_eq0=>/eqP->.
+move=>H; rewrite slice_memE indexall_count1 //; case: ifP=>//= Hx; rewrite orbF.
+by case: i=>/= [[[] i|[]][[] j|[]]]; rewrite in_itv /= ?ltEnat ?leEnat /=
+     ?ltn0 ?addn0 ?addn1 ?andbT ?andbF // ?(leqNgt (size _)) index_mem Hx //= andbT.
 Qed.
-*)
+
+Corollary slice_uniq_memE x s i :
+            uniq s ->
+            x \in &:s i =
+            (x \in s) && (bnd i.1 (size s) <= index x s < bnd i.2 (size s)).
+Proof. by move=>U; apply: slice_memE1; rewrite (count_uniq_mem _ U) leq_b1. Qed.
 
 (* subset *)
 
@@ -716,11 +658,22 @@ Proof.
 by rewrite -{2}(slice_uu s); apply/slice_subset/itv_lex1.
 Qed.
 
+(* slicing preserves uniqueness *)
+
 Lemma slice_uniq s i :
         uniq s -> uniq (&:s i).
 Proof.
 move=>U; rewrite /slice /=; case: i=>l u.
 by apply/drop_uniq/take_uniq.
+Qed.
+
+(* slicing preserves sortedness *)
+
+Lemma slice_sorted r s i :
+        sorted r s -> sorted r (&:s i).
+Proof.
+move=>S; rewrite /slice /=; case: i=>l u.
+by apply/drop_sorted/take_sorted.
 Qed.
 
 End LemmasEq.
