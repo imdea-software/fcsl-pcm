@@ -46,6 +46,24 @@ Corollary zip_mapr {P Q S} (g : Q -> S) (s1 : seq P) (s2 : seq Q) :
             map (fun '(x1,x2) => (x1,g x2)) (zip s1 s2).
 Proof. by rewrite -{1}(map_id s1) zip_map2. Qed.
 
+Lemma drop_take_id {A} x (s : seq A) : drop x (take x s) = [::].
+Proof. by rewrite -{2}(add0n x) -take_drop take0. Qed.
+
+Lemma drop_take_mask {A} (s : seq A) x y :
+        drop x (take y s) = mask (nseq x false ++ nseq (y-x) true) s.
+Proof.
+case: (ltnP x (size s))=>Hx; last first.
+- rewrite drop_oversize; last by rewrite size_take_min geq_min Hx orbT.
+  rewrite -{1}(subnKC Hx) nseqD -catA -{3}(cats0 s) mask_cat; last by rewrite size_nseq.
+  by rewrite mask0 mask_false.
+have Hx': size (nseq x false) = size (take x s).
+- by rewrite size_nseq size_take_min; symmetry; apply/minn_idPl/ltnW.
+rewrite -{2}(cat_take_drop x s) mask_cat // mask_false /= -takeEmask take_drop.
+case: (leqP x y)=>[Hxy|/ltnW Hxy]; first by rewrite subnK.
+move: (Hxy); rewrite -subn_eq0=>/eqP->; rewrite add0n drop_take_id.
+by rewrite drop_oversize // size_take_min geq_min Hxy.
+Qed.
+
 Section LemmasEq.
 Variables (A : eqType).
 Implicit Type xs : seq A.
@@ -207,6 +225,39 @@ Lemma head_notin (x y : A) xs :
 Proof.
 move=>Y X; apply/negP=>/eqP; move/(head_nilp X)/nilP=>E.
 by rewrite E in Y.
+Qed.
+
+(* weaker form of in_mask *)
+(* TODO contribute to mathcomp *)
+Lemma in_mask_count x m xs :
+        count_mem x xs <= 1 ->
+        x \in mask m xs = (x \in xs) && nth false m (index x xs).
+Proof.
+elim: xs m => [|y xs IHs] m /=; first by rewrite mask0 in_nil.
+case: m=>/=[|b m]; first by rewrite in_nil nth_nil andbF.
+case: b; rewrite !inE eq_sym; case: eqP=>//= _.
+- by rewrite add0n; apply: IHs.
+- rewrite -{2}(addn0 1%N) leq_add2l leqn0 => /eqP Hc.
+  rewrite IHs; last by rewrite Hc.
+  by move/count_memPn/negbTE: Hc=>->.
+by rewrite add0n; apply: IHs.
+Qed.
+
+Lemma mem_take_index x xs :
+        x \notin take (index x xs) xs.
+Proof.
+elim: xs=>//=h xs; case: eqP=>//= /eqP H IH.
+by rewrite inE negb_or eq_sym H.
+Qed.
+
+Lemma prefix_drop_sub (s1 s2 : seq A) :
+        seq.prefix s1 s2 ->
+        forall n, {subset (drop n s1) <= drop n s2}.
+Proof.
+case/seq.prefixP=>s0 {s2}-> n x H.
+rewrite drop_cat; case: ltnP=>Hn.
+- by rewrite mem_cat H.
+by move: H; rewrite drop_oversize.
 Qed.
 
 End LemmasEq.
@@ -477,6 +528,14 @@ case: eqP=>[->{k} _|_ /= S] /=.
 - case: eqP=>//= _.
   by case: ifP=>// /negbT; rewrite negbK=>H; case; apply: IH.
 by case: ifP=>// _ []; apply: IH.
+Qed.
+
+Lemma mem_drop_indexlast x s :
+        x \notin drop (indexlast x s).+1 s.
+Proof.
+elim: s=>//=h s; rewrite indexlast_cons.
+case: eqP=>//= _ H.
+by case: ifP=>//=; rewrite drop0.
 Qed.
 
 Variant splitLast x : seq T -> seq T -> seq T -> Type :=

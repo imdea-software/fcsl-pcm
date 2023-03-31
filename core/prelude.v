@@ -547,6 +547,11 @@ Qed.
 
 End Fold.
 
+(* TODO upstream to mathcomp *)
+Lemma pmap_pcomp {S T U} (f : T -> option U) (g : S -> option T) s :
+        pmap (pcomp f g) s = pmap f (pmap g s).
+Proof. by elim: s=>//= x s ->; rewrite /pcomp; case: (g x). Qed.
+
 (* sequence prefixes *)
 
 (* Two helper concepts for searching in sequences:                       *)
@@ -692,6 +697,8 @@ Lemma op_if A B (b : bool) (vS vN : option A)  (vS1 : A -> B) (vN1 : B) :
         else if vN is Some v then vS1 v else vN1.
 Proof. by case: b. Qed.
 
+Lemma if_triv b : (if b then true else false) = b.
+Proof. by case: b. Qed.
 
 (*************************************************************)
 (* quick ways to extract projections and transitivity proofs *)
