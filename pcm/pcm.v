@@ -1349,6 +1349,14 @@ Proof. by elim: s x y=>[|k s IH] x y //=; rewrite H IH. Qed.
 
 End PCMfold.
 
+Corollary foldr_join A (U : pcm) h (s : seq A) (a : A -> U):
+        foldr (fun t h => h \+ a t) h s =
+        h \+ foldr (fun t h => h \+ a t) Unit s.
+Proof.
+apply/esym/fusion_foldr; last by rewrite unitR.
+by move=>x y; rewrite joinA.
+Qed.
+
 Section BigOps.
 Variables (U : pcm).
 Variables (I : Type) (f : I -> U).

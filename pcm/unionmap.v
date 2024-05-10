@@ -3456,6 +3456,23 @@ Arguments dom_omap_sub [K C V V' U U' a f] _.
 Arguments In_omap [K C V V' U U'] _ [k v w f].
 Prenex Implicits dom_omap_sub.
 
+Section OMapBig.
+Variables (K : ordType) (C : pred K) (T T' : Type).
+Variables (U : union_map_class C T) (U' : union_map_class C T').
+Variables (I : Type) (f : I -> U).
+
+Lemma omapVUnBig (a : K * T -> option T') ts :
+        omap a (\big[PCM.join/Unit]_(x <- ts) f x) =
+        if valid (\big[PCM.join/Unit]_(x <- ts) f x)
+          then \big[PCM.join/Unit]_(x <- ts) omap a (f x)
+          else um_undef : U'.
+Proof.
+elim: ts=>[|t ts IH]; first by rewrite !big_nil omap0 valid_unit.
+by rewrite !big_cons omapVUn IH; case: ifP=>//= /validR=>->.
+Qed.
+
+End OMapBig.
+
 Section OmapComp.
 Variables (K : ordType) (C : pred K) (V1 V2 V3 : Type).
 Variables (U1 : union_map_class C V1).
@@ -6175,7 +6192,7 @@ Lemma big_domUn (xs : seq I) :
 Proof.
 elim: xs=>[|x xs IH] i; first by rewrite big_nil inE /= dom0 valid_unit.
 rewrite big_cons /= inE domUn inE IH inE /=.
-by case V : (valid _)=>//=; rewrite (validR V) /=.
+by case V : (valid _)=>//=; rewrite (validR V).
 Qed.
 
 Lemma big_domUnE (xs : seq I) a :
@@ -6228,6 +6245,17 @@ rewrite ifT; first by apply: IH (validR V) Xi E.
 by apply/hasPIn; exists i=>//; apply: find_some E.
 Qed.
 
+Lemma big_find_someP (xs : seq I) P a i v :
+        valid (\big[PCM.join/Unit]_(i <- xs | P i) f i) ->
+        i \In xs ->
+        P i ->
+        find a (f i) = some v ->
+        find a (\big[PCM.join/Unit]_(i <- xs | P i) f i) = some v.
+Proof.
+rewrite -big_filter=>V H1 H2; apply: big_find_some V _.
+by rewrite Mem_filter.
+Qed.
+
 Lemma big_find_someD (xs : seq I) a i v :
         i \In xs ->
         a \in dom (f i) ->
@@ -6254,6 +6282,13 @@ move/(big_find_some (dom_valid (find_some E1)) (or_introl erefl)).
 by rewrite E1; case=>->; exists x=>//; rewrite InE; left.
 Qed.
 
+Lemma big_find_someXP (xs : seq I) P a v :
+        find a (\big[PCM.join/Unit]_(i <- xs | P i) f i) = Some v ->
+        exists i, [/\ i \In xs, P i & find a (f i) = Some v].
+Proof.
+by rewrite -big_filter=>/big_find_someX [i] /Mem_filter [H1 H2 H3]; exists i.
+Qed.
+
 Lemma bigIn (xs : seq I) a i v :
         valid (\big[PCM.join/Unit]_(i <- xs) f i) ->
         i \In xs ->
@@ -6272,6 +6307,11 @@ Lemma bigInX (xs : seq I) a v :
         (a, v) \In \big[PCM.join/Unit]_(i <- xs) f i ->
         exists2 i, i \In xs & (a, v) \In f i.
 Proof. by case/In_find/big_find_someX=>x X /In_find; exists x. Qed.
+
+Lemma bigInXP (xs : seq I) P a v :
+        (a, v) \In \big[PCM.join/Unit]_(i <- xs | P i) f i ->
+        exists i, [/\ i \In xs, P i & (a, v) \In f i].
+Proof. by case/In_find/big_find_someXP=>x [X1 X2 /In_find]; exists x. Qed.
 
 End BigOpsUM.
 
