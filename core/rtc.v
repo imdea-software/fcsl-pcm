@@ -22,7 +22,7 @@ Section TransitiveClosure.
 Variables (h : seq nat) (R : rel nat).
 Hypothesis Rclosed : forall x y, R x y -> (x \in h) = (y \in h).
 
-Local Definition tp := [finType of seq_sub h].
+Local Definition tp : finType := seq_sub h.
 
 Definition Rtp (x y : tp) : bool := R (eqtype.val x) (eqtype.val y).
 

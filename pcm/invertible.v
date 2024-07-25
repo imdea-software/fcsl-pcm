@@ -44,15 +44,15 @@ Definition inv_morph f := inv_rel /\ inv_morph_axiom f.
 End Invertible.
 
 (* trivial seprel in invertible *)
-Lemma inv_sepT U : inv_rel (@sepT_seprel U). Proof. by []. Qed.
+Lemma inv_sepT U : inv_rel (@sepT U : sep_rel U). Proof. by []. Qed.
 
-Lemma inv_idfun (U : pcm) : inv_morph [morphism of @idfun U].
+Lemma inv_idfun (U : pcm) : inv_morph (@idfun U).
 Proof. by split=>// a b1 b2 V _ E; exists b1, b2; rewrite -E. Qed.
 
 (* composition of invertible morhpsisms is invertible *)
 Lemma inv_comp (U V W : pcm) (C : sep_rel V) (D : sep_rel U)
                (f : morphism V D) (g : morphism W C) :
-        inv_morph g -> inv_morph f -> inv_morph [morphism of g \o f].
+        inv_morph g -> inv_morph f -> inv_morph (g \o f).
 Proof.
 case=>HC Hg [HD Hf]; split=>[a1 a2 a' V1|a b1 b2 V1] /andP [].
 - move=>/(HD _ _ _ V1) H1 H2 /andP [/H1] /andP [D1 D2].
@@ -68,7 +68,7 @@ Qed.
 
 Lemma inv_cprod (U1 U2 V1 V2 : pcm) (D1 : sep_rel U1)  (D2 : sep_rel U2)
                 (f : morphism V1 D1) (g : morphism V2 D2) :
-        inv_morph f -> inv_morph g -> inv_morph [morphism of f \* g].
+        inv_morph f -> inv_morph g -> inv_morph (f \* g).
 Proof.
 case=>HD1 Hf [HD2 Hg]; split=>[a1 a2 a'|]; rewrite /sep_prod /=.
 - case/andP=>Va Vb /andP [/(HD1 _ _ _ Va) H1 /(HD2 _ _ _ Vb) H2].
@@ -97,7 +97,7 @@ Qed.
 
 Lemma inv_eqlz U (V : eqpcm) (D1 D2 : sep_rel U)
                (f : morphism V D1) (g : morphism V D2) :
-        (forall x x1 x2 : EQPCM.pcm V, valid (x \+ x1) ->
+        (forall x x1 x2 : (V : pcm), valid (x \+ x1) ->
            x \+ x1 = x \+ x2 -> x1 = x2) ->
         inv_rel D1 -> inv_rel D2 -> inv_rel ('eqlz f g).
 Proof.
@@ -115,9 +115,10 @@ Qed.
 (* (the one in the paper worked with xsub explicitly) *)
 (* can be further generalised to any D' that is compatible with D *)
 
+(* TODO
 Lemma inv_comp_sub (U : tpcm) (V : pcm) (D : sep_rel U) (W : sub_pcm D)
                    (f : {morphism D >-> V}) :
-        inv_morph f -> inv_morph [morphism of f \o pval W].
+        inv_morph f -> inv_morph (f \o pval W).
 Proof.
 case=>HD Hf; split=>[a1 a2 a' V1|].
 - by rewrite !sepE !pfjoin ?(validLE3 V1) //; apply: HD; apply: pfV3.
@@ -126,3 +127,4 @@ case/(Hf _ _ _ (pfV _ V1 (erefl _)) H1)=>c1 [c2][Eq Vc H2 F1 F2].
 exists (psub W c1), (psub W c2); rewrite !sepE -!pfjoin // -Eq psub_pval //=.
 by rewrite !pval_psub ?(validL Vc, validR Vc, sep0E Vc).
 Qed.
+*)

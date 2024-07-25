@@ -17,6 +17,7 @@ limitations under the License.
 (* Lifting turns an unlifted structure into a PCM and preserves equality.     *)
 (******************************************************************************)
 
+From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype.
 From pcm Require Import options prelude.
@@ -146,15 +147,15 @@ case=>[|x][|y] /=; try by constructor.
 by apply: (iffP eqP)=>[->|[]].
 Qed.
 
-Definition liftEqMixin := EqMixin LiftEqType.lift_eqP.
-Canonical liftEqType := Eval hnf in EqType _ liftEqMixin.
+#[export]
+HB.instance Definition _ := hasDecEq.Build (lift A) LiftEqType.lift_eqP.
 
 End LiftEqType.
 
 Module Exports.
 Arguments down {A}.
 Arguments up [A].
-Canonical liftEqType.
+HB.reexport.
 
 Section Exports.
 (* View for pattern-matching lifted pcm's *)
@@ -168,10 +169,9 @@ Proof. by case: x=>[|a]; [apply: undef_spec | apply: up_spec]. Qed.
 
 Variable A : unlifted.
 
-Definition liftPCMMixin :=
-  PCMMixin (@Lift.joinC A) (@Lift.joinA A)
-           (@Lift.unitL A) (@Lift.validL A) (@Lift.validU A).
-Canonical liftPCM := Eval hnf in PCM (lift A) liftPCMMixin.
+HB.instance Definition _ := isPCM.Build (lift A)
+  (@Lift.joinC A) (@Lift.joinA A)
+  (@Lift.unitL A) (@Lift.validL A) (@Lift.validU A).
 
 Lemma upE (a1 a2 : A) :
         up a1 \+ up a2 = if ojoin a1 a2 is Some a then up a else down.
@@ -227,7 +227,7 @@ Definition natUnliftedMix :=
 Canonical natUnlifted := Eval hnf in Unlifted nat natUnliftedMix.
 
 Definition lnat := lift nat.
-Canonical lnatPCM := Eval hnf in [pcm of lnat].
+HB.instance Definition _ := PCM.on lnat.
 
 Section LNatTPCM.
 
@@ -240,8 +240,8 @@ Proof. by []. Qed.
 Lemma lnat_undef_join x : down \+ x = down :> lnat.
 Proof. by []. Qed.
 
-Definition lnatTPCMMix := TPCMMixin lnat_unitb lnat_valid_undef lnat_undef_join.
-Canonical lnatTPCM := Eval hnf in TPCM lnat lnatTPCMMix.
+HB.instance Definition _ := hasTop.Build lnat
+  lnat_unitb lnat_valid_undef lnat_undef_join.
 End LNatTPCM.
 
 (* some lemmas for lifted nats *)
@@ -267,5 +267,5 @@ Definition nat_unlift (n : lift nat) : nat := if n is up m then m else 0.
 Lemma natunlift_morph_ax : morph_axiom (@sepT _) nat_unlift.
 Proof. by rewrite /nat_unlift; split=>//; case=>// x; case. Qed.
 
-Canonical natunlift_morph :=
-  Morphism' nat_unlift natunlift_morph_ax.
+HB.instance Definition _ := isMorphism.Build (lift nat) nat (@sepT _) nat_unlift
+  natunlift_morph_ax.

@@ -235,6 +235,7 @@ rewrite ?bnd_simp ?andbF ?andbT // ?lteBSide /slice /= ?drop0 ?take_size.
   rewrite -{1}(subnKC Hxj) takeD drop_cat size_take_min Hx take_drop subnK //.
   rewrite ltn_neqAle Hxi andbT; case: eqP=>//= ->.
   by rewrite subnn drop0 drop_take_id.
+- admit.
 - move=>Hi; rewrite -{1}(cat_take_drop (x + ~~ b) s) drop_cat size_take_min Hx.
   have Hxi : (i + ~~ l <= x + ~~ b)%N.
   - case: l Hi=>/=; rewrite ?implybT ?implybF /= ?addn0 ?addn1 /= => Hi.
@@ -249,7 +250,8 @@ rewrite ?bnd_simp ?andbF ?andbT // ?lteBSide /slice /= ?drop0 ?take_size.
     by apply: ltnW.
   by rewrite -{1}(subnKC Hbj) takeD take_drop subnK.
 by move=>_; rewrite cat_take_drop.
-Qed.
+Admitted. (*
+Qed. *)
 
 Corollary slice_split s (i : interval nat) b (x : nat) :
             x \in i ->

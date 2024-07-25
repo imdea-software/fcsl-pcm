@@ -16,6 +16,7 @@ limitations under the License.
 (* are not included in the other libraries.                                   *)
 (******************************************************************************)
 
+From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun Eqdep.
 From mathcomp Require Import ssrnat seq eqtype choice fintype.
 From pcm Require Import options axioms.
@@ -443,8 +444,7 @@ Proof. by split=>[->|] //; move/iffPb/eqP. Qed.
 Lemma false_eqP : Equality.axiom (fun _ _ : False => true).
 Proof. by case. Qed.
 
-Definition false_EqMixin := EqMixin false_eqP.
-Canonical false_EqType := Eval hnf in EqType False false_EqMixin.
+HB.instance Definition _ := hasDecEq.Build False false_eqP.
 
 (*************)
 (* sum types *)
@@ -497,18 +497,16 @@ Definition Side_eq x y :=
   match x, y with LL, LL => true | RR, RR => true | _, _ => false end.
 Lemma Side_eqP : Equality.axiom Side_eq.
 Proof. by case; case; constructor. Qed.
-Definition Side_EqMix := EqMixin Side_eqP.
-Canonical Side_EqType := Eval hnf in EqType Side Side_EqMix.
+
+#[hnf]
+HB.instance Definition _ := hasDecEq.Build Side Side_eqP.
 Definition nat2Side x := if odd x then LL else RR.
 Definition Side2nat x := if x is RR then 0 else 1.
 Lemma ssrcanc : ssrfun.cancel Side2nat nat2Side. Proof. by case. Qed.
-Definition Side_choiceMixin := CanChoiceMixin ssrcanc.
-Canonical Side_choiceType := Eval hnf in ChoiceType Side Side_choiceMixin.
-Definition Side_countMixin := CanCountMixin ssrcanc.
-Canonical Side_countType := Eval hnf in CountType Side Side_countMixin.
+HB.instance Definition _ := Countable.copy Side (can_type ssrcanc).
 Lemma Side_enumP : Finite.axiom [:: LL; RR]. Proof. by case. Qed.
-Definition Side_finMixin := Eval hnf in FinMixin Side_enumP.
-Canonical Side_finType := Eval hnf in FinType Side Side_finMixin.
+#[hnf]
+HB.instance Definition _ := isFinite.Build Side Side_enumP.
 
 (*************)
 (* sequences *)

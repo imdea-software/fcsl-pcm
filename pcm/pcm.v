@@ -17,6 +17,7 @@ limitations under the License.
 (* concrete instances.                                                        *)
 (******************************************************************************)
 
+From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq bigop fintype finset.
 From pcm Require Import options axioms prelude seqperm pred seqext.
@@ -29,61 +30,27 @@ Open Scope pcm_scope.
 (* Partial Commutative Monoids *)
 (*******************************)
 
-Module PCM.
+HB.mixin Record isPCM T := {
+  valid : T -> bool;
+  join : T -> T -> T;
+  Unit : T;
+  joinC : commutative join;
+  joinA : associative join;
+  unitL : left_id Unit join;
+  (* monotonicity of valid *)
+  validL : forall x y, valid (join x y) -> valid x;
+  (* unit is valid *)
+  valid_unit : valid Unit}.
 
-Record mixin_of (T : Type) := Mixin {
-    valid_op : T -> bool;
-    join_op : T -> T -> T;
-    unit_op : T;
-    _ : commutative join_op;
-    _ : associative join_op;
-    _ : left_id unit_op join_op;
-    (* monotonicity of valid *)
-    _ : forall x y, valid_op (join_op x y) -> valid_op x;
-    (* unit is valid *)
-    _ : valid_op unit_op}.
+#[short(type="pcm"), primitive]
+HB.structure Definition PCM := { T of isPCM T }.
 
-Section ClassDef.
-
-Notation class_of := mixin_of (only parsing).
-
-Structure type : Type := Pack {sort : Type; _ : class_of sort}.
-Local Coercion sort : type >-> Sortclass.
-
-Variables (T : Type) (cT : type).
-Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
-
-Definition pack c := @Pack T c.
-Definition clone := fun c & cT -> T & phant_id (pack c) cT => pack c.
-
-Definition valid := valid_op class.
-Definition join := join_op class.
-Definition Unit := unit_op class.
-
-End ClassDef.
-
-Arguments Unit {cT}.
-
-Module Exports.
-Coercion sort : type >-> Sortclass.
-Notation pcm := type.
-Notation PCMMixin := Mixin.
-Notation PCM T m := (@pack T m).
-
-Notation "[ 'pcmMixin' 'of' T ]" := (class _ : mixin_of T)
-  (at level 0, format "[ 'pcmMixin'  'of'  T ]") : pcm_scope.
-Notation "[ 'pcm' 'of' T 'for' C ]" := (@clone T C _ idfun id)
-  (at level 0, format "[ 'pcm'  'of'  T  'for'  C ]") : pcm_scope.
-Notation "[ 'pcm' 'of' T ]" := (@clone T _ _ id id)
-  (at level 0, format "[ 'pcm'  'of'  T ]") : pcm_scope.
+Arguments validL {s} [x y].
 
 Infix "\+" := join
   (at level 43, left associativity) : pcm_scope.
-Notation valid := valid.
-Notation Unit := Unit.
 
-Arguments Unit {cT}.
-Arguments valid {cT} !_ / : simpl nomatch.
+Arguments valid {s} !_ / : simpl nomatch.
 Prenex Implicits join Unit.
 
 (* Restating the laws, with the notation. *)
@@ -92,27 +59,11 @@ Prenex Implicits join Unit.
 Section Laws.
 Variable U V : pcm.
 
-Lemma joinC (x y : U) : x \+ y = y \+ x.
-Proof.
-by rewrite /join; case: U x y=>tp [v j z Cj *]; apply: Cj.
-Qed.
-
-Lemma joinA (x y z : U) : x \+ (y \+ z) = x \+ y \+ z.
-Proof.
-by rewrite /join; case: U x y z=>tp [v j z Cj Aj *]; apply: Aj.
-Qed.
-
 Lemma joinAC (x y z : U) : x \+ y \+ z = x \+ z \+ y.
 Proof. by rewrite -joinA (joinC y) joinA. Qed.
 
 Lemma joinCA (x y z : U) : x \+ (y \+ z) = y \+ (x \+ z).
 Proof. by rewrite joinA (joinC x) -joinA. Qed.
-
-Lemma validL (x y : U) : valid (x \+ y) -> valid x.
-Proof.
-rewrite /valid/join.
-by case: U x y=>tp [v j z Cj Aj Uj /= Mj inv f ?]; apply: Mj.
-Qed.
 
 Lemma validR (x y : U) : valid (x \+ y) -> valid y.
 Proof. by rewrite joinC; apply: validL. Qed.
@@ -121,20 +72,8 @@ Proof. by rewrite joinC; apply: validL. Qed.
 Lemma validE2 (x y : U) : valid (x \+ y) -> (valid x * valid y) * (valid (x \+ y) * valid (y \+ x)).
 Proof. by move=>X; rewrite (validL X) (validR X) X joinC X. Qed.
 
-Lemma unitL (x : U) : Unit \+ x = x.
-Proof.
-rewrite /Unit/join.
-by case: U x=>tp [v j z Cj Aj Uj *]; apply: Uj.
-Qed.
-
 Lemma unitR (x : U) : x \+ Unit = x.
 Proof. by rewrite joinC unitL. Qed.
-
-Lemma valid_unit : valid (@Unit U).
-Proof.
-rewrite /valid/Unit.
-by case: U=>tp [v j z Cj Aj Uj Vm Vu *].
-Qed.
 
 (* some helper lemmas for easier extraction of validity claims *)
 Lemma validAR (x y z : U) : valid (x \+ y \+ z) -> valid (y \+ z).
@@ -190,27 +129,10 @@ Hint Resolve valid_unit : core.
 Section UnfoldingRules.
 Variable U : pcm.
 
-Lemma pcm_joinE (x y : U) : x \+ y = join_op (class U) x y.
-Proof. by rewrite /join. Qed.
-
-Lemma pcm_validE (x : U) : valid x = valid_op (class U) x.
-Proof. by rewrite /valid. Qed.
-
-Lemma pcm_unitE : Unit = unit_op (class U).
-Proof. by rewrite /Unit. Qed.
-
-Definition pcmE := (pcm_joinE, pcm_validE, pcm_unitE).
-
 (* also a simple rearrangment equation *)
 Definition pull (x y : U) := (joinC y x, joinCA y x).
 
 End UnfoldingRules.
-
-End Exports.
-
-End PCM.
-
-Export PCM.Exports.
 
 (*********************)
 (* Cancellative PCMs *)
@@ -223,55 +145,17 @@ Definition precise (U : pcm) (P : U -> Prop) :=
     valid (s1 \+ t1) -> P s1 -> P s2 ->
     s1 \+ t1 = s2 \+ t2 -> s1 = s2.
 
-Module CancellativePCM.
+HB.mixin Record isCancellative U of PCM U := {
+  joinKx : forall x1 x2 x : U, valid (x1 \+ x) -> x1 \+ x = x2 \+ x -> x1 = x2
+}.
 
-Variant mixin_of (U : pcm) := Mixin of
-  forall x1 x2 x : U, valid (x1 \+ x) -> x1 \+ x = x2 \+ x -> x1 = x2.
+#[short(type="cpcm")]
+HB.structure Definition CancellativePCM := { U of PCM U & isCancellative U }.
 
-Section ClassDef.
-
-Record class_of (U : Type) := Class {
-  base : PCM.mixin_of U;
-  mixin : mixin_of (PCM.Pack base)}.
-
-Local Coercion base : class_of >-> PCM.mixin_of.
-
-Structure type : Type := Pack {sort : Type; _ : class_of sort}.
-Local Coercion sort : type >-> Sortclass.
-
-Variables (T : Type) (cT : type).
-Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
-Definition clone c of phant_id class c := @Pack T c.
-
-(* produce a cancellative type out of the mixin *)
-(* equalize m0 and m by means of a phantom *)
-Definition pack b0 (m0 : mixin_of (PCM.Pack b0)) :=
-  fun m & phant_id m0 m => Pack (@Class T b0 m).
-
-Definition pcm := PCM.Pack class.
-
-End ClassDef.
-
-Module Exports.
-Coercion base : class_of >-> PCM.mixin_of.
-Coercion sort : type >-> Sortclass.
-Coercion pcm : type >-> PCM.type.
-Canonical Structure pcm.
-
-Notation cpcm := type.
-Notation CPCMMixin := Mixin.
-Notation CPCM T m := (@pack T _ _ m id).
-
-Notation "[ 'cpcm' 'of' T 'for' cT ]" := (@clone T cT _ idfun)
-  (at level 0, format "[ 'cpcm'  'of'  T  'for' cT ]") : pcm_scope.
-Notation "[ 'cpcm' 'of' T ]" := (@clone T _ _ id)
-  (at level 0, format "[ 'cpcm'  'of'  T ]") : pcm_scope.
+Arguments joinKx {s} [x1 x2 x].
 
 Section Lemmas.
 Variable U : cpcm.
-
-Lemma joinKx (x1 x2 x : U) : valid (x1 \+ x) -> x1 \+ x = x2 \+ x -> x1 = x2.
-Proof. by case: U x1 x2 x=>V [b][K] T; apply: K. Qed.
 
 Lemma joinxK (x x1 x2 : U) : valid (x \+ x1) -> x \+ x1 = x \+ x2 -> x1 = x2.
 Proof. by rewrite !(joinC x); apply: joinKx. Qed.
@@ -293,11 +177,6 @@ by rewrite !(cancPL H V H1 H2 E).
 Qed.
 
 End Lemmas.
-End Exports.
-
-End CancellativePCM.
-
-Export CancellativePCM.Exports.
 
 (***************)
 (* Topped PCMs *)
@@ -309,67 +188,21 @@ Export CancellativePCM.Exports.
 (* for undefb, that should be valid, so we don't add anything special *)
 (* OTOH, unit should not be decomposable *)
 
-Module TPCM.
+HB.mixin Record hasTop U of PCM U := {
+  undef : U;
+  unitb : U -> bool;
+  unitbP : forall x, reflect (x = Unit) (unitb x);
+  valid_undefN : ~~ valid undef;
+  undef_join : forall x, undef \+ x = undef
+}.
 
-Record mixin_of (U : pcm) := Mixin {
-  undef_op : U;
-  unitb_op : U -> bool;
-  _ : forall x, reflect (x = Unit) (unitb_op x);
-  _ : ~~ valid undef_op;
-  _ : forall x, undef_op \+ x = undef_op}.
+#[short(type="tpcm"), primitive]
+HB.structure Definition TPCM := { U of PCM U & hasTop U }.
 
-Section ClassDef.
-
-Record class_of (U : Type) := Class {
-  base : PCM.mixin_of U;
-  mixin : mixin_of (PCM.Pack base)}.
-
-Local Coercion base : class_of >-> PCM.mixin_of.
-
-Structure type : Type := Pack {sort : Type; _ : class_of sort}.
-Local Coercion sort : type >-> Sortclass.
-
-Variables (T : Type) (cT : type).
-Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
-Definition clone c of phant_id class c := @Pack T c.
-
-(* produce a topped pcm out of the mixin *)
-(* equalize m0 and m by means of a phantom *)
-Definition pack b0 (m0 : mixin_of (PCM.Pack b0)) :=
-  fun m & phant_id m0 m => Pack (@Class T b0 m).
-
-Definition pcm := PCM.Pack class.
-Definition unitb := unitb_op (mixin class).
-Definition undef : pcm := undef_op (mixin class).
-
-End ClassDef.
-
-Module Exports.
-Coercion base : class_of >-> PCM.mixin_of.
-Coercion sort : type >-> Sortclass.
-Coercion pcm : type >-> PCM.type.
-Canonical Structure pcm.
-Notation tpcm := type.
-Notation TPCMMixin := Mixin.
-Notation TPCM T m := (@pack T _ _ m id).
-
-Notation "[ 'tpcmMixin' 'of' T ]" := (mixin (class (@clone T _ _ id)))
-  (at level 0, format "[ 'tpcmMixin'  'of'  T ]") : pcm_scope.
-Notation "[ 'tpcm' 'of' T 'for' cT ]" := (@clone T cT _ idfun)
-  (at level 0, format "[ 'tpcm'  'of'  T  'for' cT ]") : pcm_scope.
-Notation "[ 'tpcm' 'of' T ]" := (@clone T _ _ id)
-  (at level 0, format "[ 'tpcm'  'of'  T ]") : pcm_scope.
-
-Notation undef := undef.
-Notation unitb := unitb.
-Arguments undef {cT}.
 Prenex Implicits undef.
 
 Section Lemmas.
 Variable U : tpcm.
-
-Lemma unitbP (x : U) : reflect (x = Unit) (unitb x).
-Proof. by case: U x=>V [b][u]. Qed.
 
 Lemma unitbE (f : U) : f = Unit <-> unitb f.
 Proof. by case: unitbP. Qed.
@@ -377,14 +210,8 @@ Proof. by case: unitbP. Qed.
 Lemma unitb0 : unitb (Unit : U).
 Proof. by case: unitbP. Qed.
 
-Lemma valid_undefN : ~~ valid (@undef U).
-Proof. by case: U=>V [b][u]. Qed.
-
-Lemma valid_undef : valid (@undef U) = false.
+Lemma valid_undef : @valid U (@undef U) = false.
 Proof. by rewrite (negbTE valid_undefN). Qed.
-
-Lemma undef_join (x : U) : undef \+ x = undef.
-Proof. by case: U x=>V [b][u]. Qed.
 
 Lemma join_undef (x : U) : x \+ undef = undef.
 Proof. by rewrite joinC undef_join. Qed.
@@ -395,76 +222,23 @@ Proof. by move=>E; move: (@valid_unit U); rewrite -E valid_undef. Qed.
 Lemma unitb_undef : unitb (undef : U) = false.
 Proof. by case: unitbP =>// /undef0. Qed.
 
-Definition tpcmE := (undef_join, join_undef, valid_undef, unitb0, unitb_undef).
+Definition tpcmE := (@undef_join U, join_undef, valid_undef, unitb0, unitb_undef).
 
 End Lemmas.
-End Exports.
-
-End TPCM.
-
-Export TPCM.Exports.
 
 (********************************)
 (* PCMs with decidable equality *)
 (********************************)
 
-Module EQPCM.
-Section ClassDef.
-
-Record mixin_of (U : eqType) := Mixin {
-  base : PCM.mixin_of U}.
-
-Record class_of (U : Type) := Class {
-  eqbase : Equality.mixin_of U;
-  mixin : mixin_of (EqType U eqbase)}.
-
-Local Coercion eqbase: class_of >-> Equality.mixin_of.
-
-Structure type : Type := Pack {sort : Type; _ : class_of sort}.
-Local Coercion sort : type >-> Sortclass.
-
-Variables (T : Type) (cT : type).
-Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
-Definition clone c of phant_id class c := @Pack T c.
-
-(* produce an eqpcm out of the mixin *)
-(* equalize m0 and m by means of a phantom *)
-Definition pack (eb0 : Equality.mixin_of T) (m0 : mixin_of (EqType T eb0)) :=
-  fun m & phant_id m0 m => Pack (@Class T eb0 m).
-
-Definition pcm := PCM.Pack (base (mixin class)).
-Definition eqtype := Eval hnf in EqType cT class.
-
-End ClassDef.
-
-Module Exports.
-Coercion eqbase : class_of >-> Equality.mixin_of.
-Coercion sort : type >-> Sortclass.
-Coercion pcm : type >-> PCM.type.
-Coercion eqtype : type >-> eqType.
-Canonical Structure pcm.
-Canonical Structure eqtype.
-Notation eqpcm := type.
-Notation EQPCM T m := (@pack T _ _ (Mixin m) id).
-
-Notation "[ 'eqpcm' 'of' T 'for' cT ]" := (@clone T cT _ idfun)
-  (at level 0, format "[ 'eqpcm'  'of'  T  'for' cT ]") : pcm_scope.
-Notation "[ 'eqpcm' 'of' T ]" := (@clone T _ _ id)
-  (at level 0, format "[ 'eqpcm'  'of'  T ]") : pcm_scope.
-
-End Exports.
-
-End EQPCM.
-
-Export EQPCM.Exports.
-
+#[short(type="eqpcm")]
+HB.structure Definition EQPCM := { U of PCM U & Equality U }.
 
 (***************************************)
 (* Support for big operators over PCMs *)
 (***************************************)
 
-Canonical pcm_monoid (U : pcm) := Monoid.Law (@joinA U) (@unitL U) (@unitR U).
-Canonical pcm_comoid (U : pcm) := Monoid.ComLaw (@joinC U).
+HB.instance Definition _ (U : pcm) := Monoid.isComLaw.Build U Unit join
+  (@joinA U) (@joinC U) (@unitL U).
 
 Section BigPartialMorph.
 Variables (R1 : Type) (R2 : pcm) (K : R1 -> R2 -> Type) (f : R2 -> R1).
@@ -473,8 +247,8 @@ Hypotheses (f_op : forall x y : R2, valid (x \+ y) -> f (x \+ y) = op1 (f x) (f 
            (f_id : f Unit = id1).
 
 Lemma big_pmorph I r (P : pred I) F :
-        valid (\big[PCM.join/Unit]_(i <- r | P i) F i) ->
-        f (\big[PCM.join/Unit]_(i <- r | P i) F i) =
+        valid (\big[join/Unit]_(i <- r | P i) F i) ->
+        f (\big[join/Unit]_(i <- r | P i) F i) =
           \big[op1/id1]_(i <- r | P i) f (F i).
 Proof.
 rewrite unlock; elim: r=>[|x r IH] //=; case: ifP=>// H V.
@@ -490,28 +264,27 @@ End BigPartialMorph.
 
 
 (* nats with addition are a pcm *)
-Definition natPCMMix :=
-  PCMMixin addnC addnA add0n (fun x y => @id true) (erefl _).
-Canonical natPCM := Eval hnf in PCM nat natPCMMix.
-Canonical natEQPCM := Eval hnf in EQPCM nat natPCMMix.
+HB.instance Definition _ := isPCM.Build nat
+  addnC addnA add0n (fun x y => @id true) (erefl _).
 
-(* also with multiplication, but we don't make that one canonical *)
-Definition multPCMMix :=
-  PCMMixin mulnC mulnA mul1n (fun x y => @id true) (erefl _).
-Definition multPCM := Eval hnf in PCM nat multPCMMix.
-Definition multEQPCM := Eval hnf in EQPCM nat multPCMMix.
+(* also with multiplication, but we make that one canonical
+   only under the alias multPCM *)
+Definition multPCM : Type := nat.
+HB.instance Definition _ := Equality.on multPCM.
+HB.instance Definition _ := isPCM.Build multPCM
+  mulnC mulnA mul1n (fun x y => @id true) (erefl _).
 
 (* with max too *)
-Definition maxPCMMix :=
-  PCMMixin maxnC maxnA max0n (fun x y => @id true) (erefl _).
-Definition maxPCM := Eval hnf in PCM nat maxPCMMix.
-Definition maxEQPCM := Eval hnf in EQPCM nat maxPCMMix.
+Definition maxPCM : Type := nat.
+HB.instance Definition _ := Equality.on maxPCM.
+HB.instance Definition _ := isPCM.Build maxPCM
+  maxnC maxnA max0n (fun x y => @id true) (erefl _).
 
 (* bools with disjunction are a pcm *)
-Definition bool_orPCMMix :=
-  PCMMixin orbC orbA orFb (fun x y => @id true) (erefl _).
-Definition bool_orPCM := Eval hnf in PCM bool bool_orPCMMix.
-Definition bool_orEQPCM := Eval hnf in EQPCM bool bool_orPCMMix.
+Definition bool_orPCM : Type := bool.
+HB.instance Definition _ := Equality.on bool_orPCM.
+HB.instance Definition _ := isPCM.Build bool_orPCM
+  orbC orbA orFb (fun x y => @id true) (erefl _).
 
 (* positive natural numbers under max are a pcm *)
 Section PosNatMax.
@@ -543,10 +316,8 @@ Qed.
 
 Lemma pos_validU : pos_valid pos_unit. Proof. by []. Qed.
 
-Definition posnatmaxPCMMix :=
-   PCMMixin pos_joinC pos_joinA pos_unitL
-           pos_validL pos_validU.
-Canonical posnatmaxPCM := Eval hnf in PCM posNat posnatmaxPCMMix.
+HB.instance Definition _ := isPCM.Build posNat
+  pos_joinC pos_joinA pos_unitL pos_validL pos_validU.
 
 End PosNatMax.
 
@@ -579,13 +350,11 @@ Proof. by rewrite /= !valid_unit. Qed.
 End ProdPCM.
 End ProdPCM.
 
-Definition prodPCMMixin U V :=
-  PCMMixin (@ProdPCM.joinC U V) (@ProdPCM.joinA U V)
-           (@ProdPCM.unitL U V) (@ProdPCM.validL U V)
-           (@ProdPCM.validU U V).
-Canonical prodPCM U V := Eval hnf in PCM (_ * _) (@prodPCMMixin U V).
-Canonical prodEQPCM (U V : eqpcm) :=
-  Eval hnf in EQPCM (_ * _) (prodPCMMixin U V).
+HB.instance Definition _ (U V : pcm) := isPCM.Build (U * V)%type
+  (@ProdPCM.joinC U V) (@ProdPCM.joinA U V)
+  (@ProdPCM.unitL U V) (@ProdPCM.validL U V)
+  (@ProdPCM.validU U V).
+HB.instance Definition _ (U V : eqpcm) := Equality.on (U * V)%type.
 
 (* product simplification *)
 
@@ -594,19 +363,19 @@ Variable U V : pcm.
 
 Lemma pcmPJ (x1 y1 : U) (x2 y2 : V) :
         (x1, x2) \+ (y1, y2) = (x1 \+ y1, x2 \+ y2).
-Proof. by rewrite pcmE. Qed.
-
-Lemma pcmFJ (x y : U * V) : (x \+ y).1 = x.1 \+ y.1.
-Proof. by rewrite pcmE. Qed.
-
-Lemma pcmSJ (x y : U * V) : (x \+ y).2 = x.2 \+ y.2.
-Proof. by rewrite pcmE. Qed.
-
-Lemma pcmPV (x : prodPCM U V) : valid x = valid x.1 && valid x.2.
 Proof. by []. Qed.
 
-Lemma pcmPU : Unit = (Unit, Unit) :> prodPCM U V.
-Proof. by rewrite pcmE. Qed.
+Lemma pcmFJ (x y : U * V) : (x \+ y).1 = x.1 \+ y.1.
+Proof. by []. Qed.
+
+Lemma pcmSJ (x y : U * V) : (x \+ y).2 = x.2 \+ y.2.
+Proof. by []. Qed.
+
+Lemma pcmPV (x : ((U * V) : pcm)) : valid x = valid x.1 && valid x.2.
+Proof. by []. Qed.
+
+Lemma pcmPU : Unit = (Unit, Unit) :> ((U * V) : pcm).
+Proof. by []. Qed.
 
 Definition pcmPE := (pcmPJ, pcmFJ, pcmSJ, pcmPV, pcmPU).
 
@@ -617,7 +386,7 @@ End Simplification.
 Section ProdTPCM.
 Variables (U V : tpcm).
 
-Lemma prod_unitb (x : prodPCM U V) :
+Lemma prod_unitb (x : ((U * V) : pcm)) :
         reflect (x = Unit) (unitb x.1 && unitb x.2).
 Proof.
 case: x=>x1 x2; case: andP=>/= H; constructor.
@@ -625,14 +394,17 @@ case: x=>x1 x2; case: andP=>/= H; constructor.
 by rewrite pcmPE; case=>X1 X2; elim: H; rewrite X1 X2 !tpcmE.
 Qed.
 
-Lemma prod_valid_undef : ~~ valid (@undef U, @undef V).
-Proof. by rewrite /= !valid_undef. Qed.
+Lemma prod_valid_undef : ~~ @valid (U * V)%type (@undef U, @undef V).
+Proof. by rewrite /valid/= !valid_undef. Qed.
 
-Lemma prod_undef_join x : (@undef U, @undef V) \+ x = (@undef U, @undef V).
+Lemma prod_undef_join x : @join (U * V)%type (@undef U, @undef V) x = (@undef U, @undef V).
 Proof. by rewrite [x]prod_eta /= pcmPJ !undef_join. Qed.
 
-Definition prodTPCMMix := TPCMMixin prod_unitb prod_valid_undef prod_undef_join.
-Canonical prodTPCM := Eval hnf in TPCM (U * V) prodTPCMMix.
+Definition prodTPCM : Type := U * V.
+
+HB.instance Definition _ := PCM.on prodTPCM.
+HB.instance Definition _ := hasTop.Build prodTPCM
+  prod_unitb prod_valid_undef prod_undef_join.
 
 End ProdTPCM.
 
@@ -664,18 +436,12 @@ Proof. by []. Qed.
 End UnitPCM.
 End UnitPCM.
 
-Definition unitPCMMixin :=
-  PCMMixin UnitPCM.ujoinC UnitPCM.ujoinA
-           UnitPCM.uunitL UnitPCM.uvalidL UnitPCM.uvalidU.
-Canonical unitPCM := Eval hnf in PCM unit unitPCMMixin.
-Canonical unitEQPCM := Eval hnf in EQPCM unit unitPCMMixin.
-
+HB.instance Definition _ := isPCM.Build unit
+  UnitPCM.ujoinC UnitPCM.ujoinA UnitPCM.uunitL UnitPCM.uvalidL UnitPCM.uvalidU.
 
 (* bools with conjunction are a pcm *)
-Definition boolPCMMixin := PCMMixin andbC andbA andTb
-                           (fun x y => @id true) (erefl _).
-Canonical boolConjPCM := Eval hnf in PCM bool boolPCMMixin.
-Canonical boolConjEQPCM := Eval hnf in EQPCM bool boolPCMMixin.
+HB.instance Definition _ := isPCM.Build bool
+  andbC andbA andTb (fun x y => @id true) (erefl _).
 
 Module OptionPCM.
 Section OptionPCM.
@@ -711,25 +477,25 @@ Proof. by rewrite /= valid_unit. Qed.
 End OptionPCM.
 End OptionPCM.
 
-Definition optPCMMixin U :=
-  PCMMixin (@OptionPCM.joinC U) (@OptionPCM.joinA U)
-           (@OptionPCM.unitL U) (@OptionPCM.validL U)
-           (@OptionPCM.validU U).
-Canonical optPCM U := Eval hnf in PCM (option _) (@optPCMMixin U).
-Canonical optEQPCM (U : eqpcm) :=
-  Eval hnf in EQPCM (option _) (optPCMMixin U).
+#[hnf]
+HB.instance Definition _ (U : pcm) := isPCM.Build (option U)
+  (@OptionPCM.joinC U) (@OptionPCM.joinA U)
+  (@OptionPCM.unitL U) (@OptionPCM.validL U)
+  (@OptionPCM.validU U).
+#[hnf]
+HB.instance Definition _ (U : eqpcm) := Equality.on (option U).
 
 (* option of a decidable PCM is a free TPCM *)
 
 Section OptTPCM.
 Variables (U : eqpcm).
 
-Definition opt_undef : optPCM U := None.
+Definition opt_undef : (option U : eqpcm) := None.
 
 Definition opt_unitb (x : option U) : bool :=
   if x is Some a then a == Unit else false.
 
-Lemma opt_unitbP (x : optPCM U) :
+Lemma opt_unitbP (x : option U) :
         reflect (x = Unit) (opt_unitb x).
 Proof.
 case: x=>/= [a|].
@@ -738,14 +504,14 @@ case: x=>/= [a|].
 by constructor.
 Qed.
 
-Lemma opt_valid_undef : ~~ @valid (optPCM U) opt_undef.
+Lemma opt_valid_undef : ~~ @valid (option U) opt_undef.
 Proof. by []. Qed.
 
-Lemma opt_undef_join (x : optPCM U) : opt_undef \+ x = opt_undef.
+Lemma opt_undef_join (x : option U) : opt_undef \+ x = opt_undef.
 Proof. by []. Qed.
 
-Definition optTPCMMix := TPCMMixin opt_unitbP opt_valid_undef opt_undef_join.
-Canonical optTPCM := Eval hnf in TPCM (option _) optTPCMMix.
+HB.instance Definition _ := hasTop.Build (option U)
+  opt_unitbP opt_valid_undef opt_undef_join.
 
 End OptTPCM.
 
@@ -916,8 +682,8 @@ Proof. by case: x=>*; rewrite /uunit /ujoin /= !unitL. Qed.
 Lemma uvalidU : uvalid uunit.
 Proof. by rewrite /uvalid !valid_unit. Qed.
 
-Definition prod3PCMMixin := PCMMixin ujoinC ujoinA uunitL uvalidL uvalidU.
-Canonical prod3_PCM := Eval hnf in PCM (Prod3 U1 U2 U3) prod3PCMMixin.
+HB.instance Definition _ := isPCM.Build (Prod3 U1 U2 U3)
+  ujoinC ujoinA uunitL uvalidL uvalidU.
 End UPCM3.
 
 Section UTPCM3.
@@ -929,19 +695,19 @@ Let uundef : tp := mk3 undef undef undef.
 
 Lemma uunitbP x : reflect (x = Unit) (uunitb x).
 Proof.
-rewrite /uunitb !pcmE; case: x=>x1 x2 x3 /=.
+rewrite /uunitb; case: x=>x1 x2 x3 /=.
 do 3![case: unitbP=>[->|H]; last by constructor; case].
 by constructor.
 Qed.
 
 Lemma uvalid_undef : ~~ valid uundef.
-Proof. by rewrite pcmE /valid /= !valid_undef. Qed.
+Proof. by rewrite /valid/= !valid_undef. Qed.
 
 Lemma uundef_join x : uundef \+ x = uundef.
-Proof. by rewrite pcmE /= !undef_join. Qed.
+Proof. by rewrite /join/= !undef_join. Qed.
 
-Definition prod3TPCMMix := TPCMMixin uunitbP uvalid_undef uundef_join.
-Canonical prod3_TPCM := Eval hnf in TPCM (Prod3 U1 U2 U3) prod3TPCMMix.
+HB.instance Definition _ := hasTop.Build (Prod3 U1 U2 U3)
+  uunitbP uvalid_undef uundef_join.
 End UTPCM3.
 
 (* And for 4 *)
@@ -975,8 +741,8 @@ Proof. by case: x=>*; rewrite /uunit /ujoin /= !unitL. Qed.
 Lemma uvalidU4 : uvalid uunit.
 Proof. by rewrite /uvalid !valid_unit. Qed.
 
-Definition prod4PCMMixin := PCMMixin ujoinC4 ujoinA4 uunitL4 uvalidL4 uvalidU4.
-Canonical prod4_PCM := Eval hnf in PCM (Prod4 U1 U2 U3 U4) prod4PCMMixin.
+HB.instance Definition _ := isPCM.Build (Prod4 U1 U2 U3 U4)
+  ujoinC4 ujoinA4 uunitL4 uvalidL4 uvalidU4.
 End UPCM4.
 
 Section UTPCM4.
@@ -989,19 +755,19 @@ Let uundef : tp := mk4 undef undef undef undef.
 
 Lemma uunitbP4 x : reflect (x = Unit) (uunitb x).
 Proof.
-rewrite /uunitb !pcmE; case: x=>x1 x2 x3 x4 /=.
+rewrite /uunitb; case: x=>x1 x2 x3 x4 /=.
 do 4![case: unitbP=>[->|H] /=; last by constructor; case].
 by constructor.
 Qed.
 
 Lemma uvalid_undef4 : ~~ valid uundef.
-Proof. by rewrite pcmE /valid /= !valid_undef. Qed.
+Proof. by rewrite /valid/= !valid_undef. Qed.
 
 Lemma uundef_join4 x : uundef \+ x = uundef.
-Proof. by rewrite pcmE /= !undef_join. Qed.
+Proof. by rewrite /join/= !undef_join. Qed.
 
-Definition prod4TPCMMix := TPCMMixin uunitbP4 uvalid_undef4 uundef_join4.
-Canonical prod4_TPCM := Eval hnf in TPCM (Prod4 U1 U2 U3 U4) prod4TPCMMix.
+HB.instance Definition _ := hasTop.Build (Prod4 U1 U2 U3 U4)
+  uunitbP4 uvalid_undef4 uundef_join4.
 End UTPCM4.
 
 (* And for 5 *)
@@ -1037,8 +803,8 @@ Proof. by case: x=>*; rewrite /uunit /ujoin /= !unitL. Qed.
 Lemma uvalidU5 : uvalid uunit.
 Proof. by rewrite /uvalid !valid_unit. Qed.
 
-Definition prod5PCMMixin := PCMMixin ujoinC5 ujoinA5 uunitL5 uvalidL5 uvalidU5.
-Canonical prod5_PCM := Eval hnf in PCM (Prod5 U1 U2 U3 U4 U5) prod5PCMMixin.
+HB.instance Definition _ := isPCM.Build (Prod5 U1 U2 U3 U4 U5)
+  ujoinC5 ujoinA5 uunitL5 uvalidL5 uvalidU5.
 End UPCM5.
 
 Section UTPCM5.
@@ -1051,19 +817,19 @@ Let uundef : tp := mk5 undef undef undef undef undef.
 
 Lemma uunitbP5 x : reflect (x = Unit) (uunitb x).
 Proof.
-rewrite /uunitb !pcmE; case: x=>x1 x2 x3 x4 x5 /=.
+rewrite /uunitb; case: x=>x1 x2 x3 x4 x5 /=.
 do ![case: unitbP=>[->|H] /=; last by constructor; case].
 by constructor.
 Qed.
 
 Lemma uvalid_undef5 : ~~ valid uundef.
-Proof. by rewrite pcmE /valid /= !valid_undef. Qed.
+Proof. by rewrite /valid/= !valid_undef. Qed.
 
 Lemma uundef_join5 x : uundef \+ x = uundef.
-Proof. by rewrite pcmE /= !undef_join. Qed.
+Proof. by rewrite /join/= !undef_join. Qed.
 
-Definition prod5TPCMMix := TPCMMixin uunitbP5 uvalid_undef5 uundef_join5.
-Canonical prod5_TPCM := Eval hnf in TPCM (Prod5 U1 U2 U3 U4 U5) prod5TPCMMix.
+HB.instance Definition _ := hasTop.Build (Prod5 U1 U2 U3 U4 U5)
+  uunitbP5 uvalid_undef5 uundef_join5.
 End UTPCM5.
 
 (* And for 6 *)
@@ -1100,8 +866,8 @@ Proof. by case: x=>*; rewrite /uunit /ujoin /= !unitL. Qed.
 Lemma uvalidU6 : uvalid uunit.
 Proof. by rewrite /uvalid !valid_unit. Qed.
 
-Definition prod6PCMMixin := PCMMixin ujoinC6 ujoinA6 uunitL6 uvalidL6 uvalidU6.
-Canonical prod6_PCM := Eval hnf in PCM (Prod6 U1 U2 U3 U4 U5 U6) prod6PCMMixin.
+HB.instance Definition _ := isPCM.Build (Prod6 U1 U2 U3 U4 U5 U6)
+  ujoinC6 ujoinA6 uunitL6 uvalidL6 uvalidU6.
 End UPCM6.
 
 Section UTPCM6.
@@ -1114,19 +880,19 @@ Let uundef : tp := mk6 undef undef undef undef undef undef.
 
 Lemma uunitbP6 x : reflect (x = Unit) (uunitb x).
 Proof.
-rewrite /uunitb !pcmE; case: x=>x1 x2 x3 x4 x5 x6 /=.
+rewrite /uunitb; case: x=>x1 x2 x3 x4 x5 x6 /=.
 do ![case: unitbP=>[->|H] /=; last by constructor; case].
 by constructor.
 Qed.
 
 Lemma uvalid_undef6 : ~~ valid uundef.
-Proof. by rewrite pcmE /valid /= !valid_undef. Qed.
+Proof. by rewrite /valid/= !valid_undef. Qed.
 
 Lemma uundef_join6 x : uundef \+ x = uundef.
-Proof. by rewrite pcmE /= !undef_join. Qed.
+Proof. by rewrite /join/= !undef_join. Qed.
 
-Definition prod6TPCMMix := TPCMMixin uunitbP6 uvalid_undef6 uundef_join6.
-Canonical prod6_TPCM := Eval hnf in TPCM (Prod6 U1 U2 U3 U4 U5 U6) prod6TPCMMix.
+HB.instance Definition _ := hasTop.Build (Prod6 U1 U2 U3 U4 U5 U6)
+  uunitbP6 uvalid_undef6 uundef_join6.
 End UTPCM6.
 
 (* And for 7 *)
@@ -1166,8 +932,8 @@ Proof. by case: x=>*; rewrite /uunit /ujoin /= !unitL. Qed.
 Lemma uvalidU7 : uvalid uunit.
 Proof. by rewrite /uvalid !valid_unit. Qed.
 
-Definition prod7PCMMixin := PCMMixin ujoinC7 ujoinA7 uunitL7 uvalidL7 uvalidU7.
-Canonical prod7_PCM := Eval hnf in PCM (Prod7 U1 U2 U3 U4 U5 U6 U7) prod7PCMMixin.
+HB.instance Definition _ := isPCM.Build (Prod7 U1 U2 U3 U4 U5 U6 U7)
+  ujoinC7 ujoinA7 uunitL7 uvalidL7 uvalidU7.
 End UPCM7.
 
 Section UTPCM7.
@@ -1181,19 +947,19 @@ Let uundef : tp := mk7 undef undef undef undef undef undef undef.
 
 Lemma uunitbP7 x : reflect (x = Unit) (uunitb x).
 Proof.
-rewrite /uunitb !pcmE; case: x=>x1 x2 x3 x4 x5 x6 x7 /=.
+rewrite /uunitb; case: x=>x1 x2 x3 x4 x5 x6 x7 /=.
 do ![case: unitbP=>[->|H] /=; last by constructor; case].
 by constructor.
 Qed.
 
 Lemma uvalid_undef7 : ~~ valid uundef.
-Proof. by rewrite pcmE /valid /= !valid_undef. Qed.
+Proof. by rewrite /valid/= !valid_undef. Qed.
 
 Lemma uundef_join7 x : uundef \+ x = uundef.
-Proof. by rewrite pcmE /= !undef_join. Qed.
+Proof. by rewrite /join/= !undef_join. Qed.
 
-Definition prod7TPCMMix := TPCMMixin uunitbP7 uvalid_undef7 uundef_join7.
-Canonical prod7_TPCM := Eval hnf in TPCM (Prod7 U1 U2 U3 U4 U5 U6 U7) prod7TPCMMix.
+HB.instance Definition _ := hasTop.Build (Prod7 U1 U2 U3 U4 U5 U6 U7)
+  uunitbP7 uvalid_undef7 uundef_join7.
 End UTPCM7.
 
 (***************************************)
@@ -1227,13 +993,14 @@ Proof. by apply: fin_ext=>t; rewrite !sel_fin unitL. Qed.
 Lemma uvalidU_fin : uvalid uunit.
 Proof. by apply/forallP=>t; rewrite sel_fin valid_unit. Qed.
 
-Definition fin_prodPCMMixin :=
-  PCMMixin ujoinC_fin ujoinA_fin uunitL_fin uvalidL_fin uvalidU_fin.
-Canonical fin_prod_PCM := Eval hnf in PCM (FinProd Us) fin_prodPCMMixin.
+HB.instance Definition _ := isPCM.Build (FinProd Us)
+  ujoinC_fin ujoinA_fin uunitL_fin uvalidL_fin uvalidU_fin.
 End UPCM_fin.
 
 (* for TPCM, we require that T has at least one element *)
 (* otherwise, undef won't be invalid *)
+
+Definition fin_prod_TPCM (T : finType) (Us : T -> tpcm) (i : T) := FinProd Us.
 
 Section UTPCM_fin.
 Variables (T : finType) (Us : T -> tpcm) (i : T).
@@ -1257,9 +1024,9 @@ Proof. by apply/negP=>/forallP/(_ i); rewrite sel_fin valid_undef. Qed.
 Lemma uundef_join_fin x : uundef \+ x = uundef.
 Proof. by apply: fin_ext=>a; rewrite !sel_fin undef_join. Qed.
 
-Definition fin_prodTPCMMix :=
-  TPCMMixin uunitbP_fin uvalid_undef_fin uundef_join_fin.
-Canonical fin_prod_TPCM := Eval hnf in TPCM (FinProd Us) fin_prodTPCMMix.
+HB.instance Definition _ := PCM.on (fin_prod_TPCM Us i).
+HB.instance Definition _ := hasTop.Build (fin_prod_TPCM Us i)
+  uunitbP_fin uvalid_undef_fin uundef_join_fin.
 End UTPCM_fin.
 
 Notation fin_undef := (finprod (fun x => undef)).
@@ -1362,7 +1129,7 @@ Variables (U : pcm).
 Variables (I : Type) (f : I -> U).
 
 Lemma big_validV (xs : seq I) i :
-        valid (\big[PCM.join/Unit]_(i <- xs) f i) ->
+        valid (\big[join/Unit]_(i <- xs) f i) ->
         i \In xs -> valid (f i).
 Proof.
 elim: xs=>[|x xs IH] in i * => //.
@@ -1371,7 +1138,7 @@ by apply: IH; rewrite (validR V).
 Qed.
 
 Lemma big_validVL (xs : seq I) z i :
-        valid (f z \+ \big[PCM.join/Unit]_(i <- xs) f i) ->
+        valid (f z \+ \big[join/Unit]_(i <- xs) f i) ->
         i \In xs -> i <> z -> valid (f z \+ f i).
 Proof.
 elim: xs=>[|x xs IH] in i * => //.
@@ -1381,7 +1148,7 @@ by apply: IH; move: V; rewrite joinCA; apply: validR.
 Qed.
 
 Lemma big_validV2 (xs : seq I) :
-        valid (\big[PCM.join/Unit]_(i <- xs) f i) ->
+        valid (\big[join/Unit]_(i <- xs) f i) ->
         forall i j, i \In xs -> j \In xs -> i <> j -> valid (f i \+ f j).
 Proof.
 elim: xs=>[|x xs IH] //=; rewrite big_cons.
@@ -1420,7 +1187,7 @@ Section IterStar.
 Variables (U : pcm) (A : Type).
 
 Definition seqjoin (s : seq U) : U :=
-  \big[PCM.join/Unit]_(i <- s) i.
+  \big[join/Unit]_(i <- s) i.
 
 Definition sepit (s : seq A) (f : A -> Pred U) : Pred U :=
   [Pred h | exists hs : seq U,

@@ -16,6 +16,7 @@ limitations under the License.
 (* an ordered type and values from an arbitrary type.                         *)
 (******************************************************************************)
 
+From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun.
 From Coq Require Setoid.
 From mathcomp Require Import ssrnat eqtype seq path.
@@ -944,8 +945,7 @@ case: eqP; first by move/fmapE=>->; apply: ReflectT.
 by move=>H; apply: ReflectF; move/fmapE; move/H.
 Qed.
 
-Definition fmap_eqMixin := EqMixin feqP.
-Canonical Structure fmap_eqType := Eval hnf in EqType (finMap K V) fmap_eqMixin.
+HB.instance Definition _ := hasDecEq.Build (finMap K V) feqP.
 End EqType.
 
 (* mapping a function over a contents of a finite map *)
@@ -1258,7 +1258,7 @@ Qed.
 
 Lemma zip_fnd f1 f2 f x (v : V) :
         zip f1 f2 = Some f -> fnd x f = Some v ->
-        exists v1, exists v2,
+        exists v1 v2,
           [/\ zip_f v1 v2 = Some v, fnd x f1 = Some v1 & fnd x f2 = Some v2].
 Proof.
 case: f1 f2 f=>s1 H1 [s2 H2] [s3 H3] /=; move: (zip_sorted' _).
@@ -1268,7 +1268,7 @@ elim: s1 s2 s E1=>[|[k1 v1] s1 IH]; case=>[|[k2 v2] s2] //= s.
 - by case=><-.
 case: eqP=>// <-{k2}; case E1: (zip_f v1 v2)=>[w|//].
 case E2: (zip' s1 s2)=>[t|//][<-{s}] /=.
-case: eqP=>[_ [<-]|_]; first by exists v1, v2.
+case: eqP=>[_ [<-]|_]; first by exists v1; exists v2.
 by case: (filter (predk V x) t) (IH _ _ E2).
 Qed.
 

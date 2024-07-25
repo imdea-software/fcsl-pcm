@@ -32,7 +32,7 @@ Import order.Order.NatOrder.
 (************************)
 (************************)
 
-Notation nat_pred := (fun x : nat_ordType => x != 0).
+Notation nat_pred := (fun x : (nat : ordType) => x != 0).
 
 Module Type NMSig.
 

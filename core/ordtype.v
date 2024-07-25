@@ -18,69 +18,23 @@ limitations under the License.
 (* This file also defines some important instances of ordType                 *)
 (******************************************************************************)
 
+From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path fintype.
 From pcm Require Import options.
 
-Module Ordered.
+(* FIXME: is this redundant with a structures now present in mathcomp? *)
+HB.mixin Record isOrdered T of Equality T := {
+  ordering : rel T;
+  irr_subproof : irreflexive ordering;
+  trans_subproof : transitive ordering;
+  semiconnex_subproof : forall x y, x != y -> ordering x y || ordering y x
+}.
 
-Section RawMixin.
+#[short(type="ordType")]
+HB.structure Definition Ordered := { T of Equality T & isOrdered T }.
 
-Structure mixin_of (T : eqType) :=
-  Mixin {ordering : rel T;
-         _ : irreflexive ordering;
-         _ : transitive ordering;
-         _ : forall x y, x != y -> ordering x y || ordering y x}.
-
-End RawMixin.
-
-(* the class takes a naked type T and returns all the *)
-(* related mixins; the inherited ones and the added ones *)
-Section ClassDef.
-
-Record class_of (T : Type) := Class {
-   base : Equality.class_of T;
-   mixin : mixin_of (EqType T base)}.
-
-Local Coercion base : class_of >-> Equality.class_of.
-
-(* The polymorphism annotations here and below are needed for storing *)
-(* ordType instances in finMaps which have an ordType constraint of *)
-(* their own. An example of this is KVMap from HTT. *)
-Polymorphic Cumulative Structure type : Type := Pack {sort : Type; _ : class_of sort}.
-Local Coercion sort : type >-> Sortclass.
-
-Polymorphic Universe ou.
-Polymorphic Variables (T : Type@{ou}) (cT : type@{ou}).
-Polymorphic Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
-Polymorphic Definition clone c of phant_id class c := @Pack T c.
-
-(* produce an ordered type out of the inherited mixins *)
-(* equalize m0 and m by means of a phantom; will be exploited *)
-(* further down in the definition of OrdType *)
-Polymorphic Definition pack b (m0 : mixin_of (EqType T b)) :=
-  fun m & phant_id m0 m => Pack (@Class T b m).
-
-Polymorphic Definition eqType := Eval hnf in EqType cT class.
-
-End ClassDef.
-
-Module Exports.
-Coercion base : class_of >-> Equality.class_of.
-Coercion sort : type >-> Sortclass.
-Coercion eqType : type >-> Equality.type.
-Canonical Structure eqType.
-Notation ordType := Ordered.type.
-Notation OrdMixin := Mixin.
-Notation OrdType T m := (@pack T _ m _ id).
-Definition ord T : rel (sort T) := (ordering (mixin (class T))).
-Notation "[ 'ordType' 'of' T 'for' cT ]" := (@clone T cT _ idfun)
-  (at level 0, format "[ 'ordType'  'of'  T  'for'  cT ]") : form_scope.
-Notation "[ 'ordType' 'of' T ]" := (@clone T _ _ id)
-  (at level 0, format "[ 'ordType'  'of'  T ]") : form_scope.
-End Exports.
-End Ordered.
-Export Ordered.Exports.
+Definition ord (T : ordType) : rel (Ordered.sort T) := @ordering T.
 
 Definition oleq (T : ordType) (t1 t2 : T) := ord t1 t2 || (t1 == t2).
 
@@ -91,13 +45,13 @@ Variable T : ordType.
 Implicit Types x y : T.
 
 Lemma irr : irreflexive (@ord T).
-Proof. by case: T=>s [b [m]]. Qed.
+Proof. exact: irr_subproof. Qed.
 
 Lemma trans : transitive (@ord T).
-Proof. by case: T=>s [b [m]]. Qed.
+Proof. exact: trans_subproof. Qed.
 
 Lemma semiconnex x y : x != y -> ord x y || ord y x.
-Proof. by case: T x y=>s [b [m]]. Qed.
+Proof. exact: semiconnex_subproof. Qed.
 
 Lemma ord_total x y : [|| ord x y, x == y | ord y x].
 Proof.
@@ -231,19 +185,16 @@ Proof. by []. Qed.
 Lemma semiconn_tt x y : x != y -> ordtt x y || ordtt y x.
 Proof. by []. Qed.
 
-Let unit_ordMixin := OrdMixin irr_tt trans_tt semiconn_tt.
-Canonical Structure unit_ordType := Eval hnf in OrdType unit unit_ordMixin.
+HB.instance Definition _ := isOrdered.Build unit irr_tt trans_tt semiconn_tt.
 End unitOrd.
 
-Section NatOrd.
 Lemma irr_ltn_nat : irreflexive ltn. Proof. by move=>x; rewrite /= ltnn. Qed.
 Lemma trans_ltn_nat : transitive ltn. Proof. by apply: ltn_trans. Qed.
 Lemma semiconn_ltn_nat x y : x != y -> (x < y) || (y < x).
 Proof. by case: ltngtP. Qed.
 
-Definition nat_ordMixin := OrdMixin irr_ltn_nat trans_ltn_nat semiconn_ltn_nat.
-Canonical Structure nat_ordType := Eval hnf in OrdType nat nat_ordMixin.
-End NatOrd.
+HB.instance Definition _ := isOrdered.Build nat
+  irr_ltn_nat trans_ltn_nat semiconn_ltn_nat.
 
 Section ProdOrd.
 Variables K T : ordType.
@@ -270,12 +221,14 @@ move=>[x1 x2][y1 y2]; rewrite /lex /=.
 by case: ifP=>H1 H2; rewrite eq_sym H1 semiconnex //; move: H2; rewrite -pair_eqE /= H1 //.
 Qed.
 
-Definition prod_ordMixin := OrdMixin irr_lex trans_lex semiconn_lex.
-Canonical Structure prod_ordType := Eval hnf in OrdType (K * T) prod_ordMixin.
+HB.instance Definition _ := isOrdered.Build (K * T)%type
+  irr_lex trans_lex semiconn_lex.
 End ProdOrd.
 
 Section FinTypeOrd.
 Variable T : finType.
+
+Definition fin_ordered : Type := T.
 
 Definition ordf : rel T :=
   fun x y => index x (enum T) < index y (enum T).
@@ -293,15 +246,12 @@ have [H1 H2]: x \in enum T /\ y \in enum T by rewrite !mem_enum.
 by rewrite -(nth_index x H1) -(nth_index x H2) H eq_refl.
 Qed.
 
-Definition fin_ordMixin := OrdMixin irr_ordf trans_ordf semiconn_ordf.
+HB.instance Definition _ := Equality.on fin_ordered.
+HB.instance Definition _ := isOrdered.Build fin_ordered
+  irr_ordf trans_ordf semiconn_ordf.
 End FinTypeOrd.
 
-(* notation to let us write I_n instead of (ordinal_finType n) *)
-Notation "[ 'fin_ordMixin' 'of' T ]" :=
-  (fin_ordMixin _ : Ordered.mixin_of [eqType of T]) (at level 0).
-
-Definition ordinal_ordMixin n := [fin_ordMixin of 'I_n].
-Canonical Structure ordinal_ordType n := Eval hnf in OrdType 'I_n (ordinal_ordMixin n).
+HB.instance Definition _ n := Ordered.copy 'I_n (fin_ordered 'I_n).
 
 Section SeqOrd.
 Variable (T : ordType).
@@ -335,8 +285,8 @@ case:ifP => H1 H2; rewrite eq_sym H1.
 by rewrite semiconnex // H1.
 Qed.
 
-Definition seq_ordMixin := OrdMixin irr_ords trans_ords semiconn_ords.
-Canonical Structure seq_ordType := Eval hnf in OrdType (seq T) seq_ordMixin.
+HB.instance Definition _ := isOrdered.Build (seq T)
+  irr_ords trans_ords semiconn_ords.
 End SeqOrd.
 
 #[deprecated(since="fcsl-pcm 1.4.0", note="Use ord_sorted_eq instead.")]

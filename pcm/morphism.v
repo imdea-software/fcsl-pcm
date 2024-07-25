@@ -11,6 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 *)
 
+From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype fintype.
 From pcm Require Import options axioms prelude.
@@ -113,57 +114,26 @@ Proof. by move/sepEQ=>H; rewrite !orth_sep; apply: orthXEQ. Qed.
 (* Similarly, when R is the sep relatio of a morphism f *)
 (* we will write x \orth_f y iff valid (x \+ y) and sep f x y *)
 
-Module SepRel.
-Section SepRelDef.
-Variable U : pcm.
+HB.mixin Record isSepRel (U : pcm) (sep : rel U) := {
+  sepax : seprel_axiom sep
+}.
 
-Structure mixin_of (sep : rel U) := Mixin {
-  _ : seprel_axiom sep}.
+#[short(type="sep_rel")]
+HB.structure Definition SepRel U := { sep of isSepRel U sep }.
 
-Section ClassDef.
-
-Notation class_of := mixin_of (only parsing).
-
-Structure type : Type := Pack {sort; _ : class_of sort}.
-Local Coercion sort : type >-> rel.
-
-Variable (p : rel U) (cp : type).
-Definition class := let: Pack _ c as cT' := cp return class_of cT' in c.
-Definition clone c of phant_id class c := @Pack p c.
-Definition pack c := @Pack p c.
-
-End ClassDef.
-End SepRelDef.
-
-Module Exports.
-Coercion sort : type >-> rel.
-Notation sep_rel := type.
-
-Notation "[ 'seprelMixin' 'of' R ]" := (class _ : mixin_of R)
-  (at level 0, format "[ 'seprelMixin'  'of'  R ]") : pcm_scope.
-Notation "[ 'seprel' 'of' R 'for' S ]" := (@clone _ R S _ idfun)
-  (at level 0, format "[ 'seprel'  'of'  R  'for'  S ]") : pcm_scope.
-Notation "[ 'seprel' 'of' R ]" := (@clone _ R _ _ id)
-  (at level 0, format "[ 'seprel'  'of'  R ]") : pcm_scope.
-
-Definition seprel (U : pcm) (sep : rel U) :=
-  fun pf : seprel_axiom sep => @pack U sep (Mixin pf).
-Arguments seprel {U}.
+Arguments sepax {_}.
 
 Section Laws.
 Variables (U : pcm) (sep : sep_rel U).
 
-Lemma sepax : seprel_axiom sep.
-Proof. by case: sep=>s []. Qed.
-
 Lemma sep00 : sep Unit Unit.
-Proof. by case: sep=>r [[H ???]]; apply: H. Qed.
+Proof. by case: sep=>r [] [[H ???]]; apply: H. Qed.
 
 Lemma sepC x y : valid (x \+ y) -> sep x y = sep y x.
-Proof. by case: sep=>r [[? H ??]]; apply: H. Qed.
+Proof. by case: sep=>r [] [[? H ??]]; apply: H. Qed.
 
 Lemma sepx0 x y : valid (x \+ y) -> sep x y -> sep x Unit.
-Proof. by case: sep=>r [[?? H ?]]; apply: H. Qed.
+Proof. by case: sep=>r [] [[?? H ?]]; apply: H. Qed.
 
 (* The order of the rewrite rules in the conclusion is important for
    backwards reasoning: [sep x (y \+ z)] is more specific than [sep y z] and
@@ -174,7 +144,7 @@ Lemma sepAx x y z :
         valid (x \+ y \+ z) ->
         sep x y -> sep (x \+ y) z -> sep x (y \+ z) * sep y z.
 Proof.
-by case: sep=>r [[??? H]] V R1 R2 /=; rewrite !(andX (H _ _ _ V R1 R2)).
+by case: sep=>r [] [[??? H]] V R1 R2 /=; rewrite !(andX (H _ _ _ V R1 R2)).
 Qed.
 
 (* derived lemmas *)
@@ -277,11 +247,8 @@ Definition sepT U (x y : U) := true.
 Lemma sepT_seprel_ax (U : pcm) : seprel_axiom (@sepT U).
 Proof. by []. Qed.
 
-Canonical sepT_seprel (U : pcm) :=
-  Eval hnf in seprel (@sepT U) (@sepT_seprel_ax U).
-
-#[export]
-Hint Resolve sepT_seprel : core.
+HB.instance Definition _ (U : pcm) := isSepRel.Build U (@sepT U)
+  (@sepT_seprel_ax U).
 
 (* always-unit relation *)
 (* always-false relation is not seprel, because we need sep0 Unit Unit *)
@@ -300,7 +267,8 @@ move=>V /andP [/unitbP -> /unitbP ->] /andP [_ /unitbP ->].
 by rewrite unitL !tpcmE.
 Qed.
 
-Canonical sepU_seprel U := Eval hnf in seprel (@sep0 U) (@sep0_seprel_ax U).
+HB.instance Definition _ (U : tpcm) := isSepRel.Build U sep0
+  (@sep0_seprel_ax U).
 
 (* conjunction of seprels is seprel *)
 
@@ -327,8 +295,8 @@ Qed.
 
 End SepISeprel.
 
-Canonical sepI_seprel U (R1 R2 : sep_rel U) :=
-  Eval hnf in seprel (sepI R1 R2) (sepI_sepax (sepax R1) (sepax R2)).
+HB.instance Definition _ U (R1 R2 : sep_rel U) := isSepRel.Build U (sepI R1 R2)
+  (sepI_sepax (sepax R1) (sepax R2)).
 
 (* three-way conjunction is also useful *)
 Definition sep3I U (R1 R2 R3 : rel U) (x y : U) :=
@@ -353,8 +321,9 @@ Qed.
 
 End Sep3ISeprel.
 
-Canonical sep3I_seprel U (R1 R2 R3 : sep_rel U) :=
-  Eval hnf in seprel (sep3I R1 R2 R3) (sep3I_sepax (sepax R1) (sepax R2) (sepax R3)).
+HB.instance Definition _ U (R1 R2 R3 : sep_rel U) :=
+  isSepRel.Build U (sep3I R1 R2 R3)
+    (sep3I_sepax (sepax R1) (sepax R2) (sepax R3)).
 
 (* and 4-way conjunction *)
 
@@ -382,11 +351,9 @@ Qed.
 
 End Sep4ISeprel.
 
-Canonical sep4I_seprel U (R1 R2 R3 R4 : sep_rel U) :=
-  Eval hnf in seprel (sep4I R1 R2 R3 R4)
-                     (sep4I_sepax (sepax R1) (sepax R2)
-                                  (sepax R3) (sepax R4)).
-
+HB.instance Definition _ U (R1 R2 R3 R4 : sep_rel U) :=
+  isSepRel.Build U (sep4I R1 R2 R3 R4)
+    (sep4I_sepax (sepax R1) (sepax R2) (sepax R3) (sepax R4)).
 
 (* pairwise product of seprels is seprel *)
 
@@ -404,14 +371,8 @@ case/andP=>V1 V2 /andP [D1 D2] /andP [/= Z1 Z2].
 by rewrite !(sepAxx V1 D1 Z1) !(sepAxx V2 D2 Z2).
 Qed.
 
-Canonical sep_prod_seprel U1 U2 (R1 : sep_rel U1) (R2 : sep_rel U2) :=
-  Eval hnf in seprel (sep_prod R1 R2) (sep_prod_seprel_ax R1 R2).
-
-End Exports.
-End SepRel.
-
-Export SepRel.Exports.
-
+HB.instance Definition _ (U1 U2 : pcm) (R1 : sep_rel U1) (R2 : sep_rel U2) :=
+  isSepRel.Build (U1 * U2)%type (sep_prod R1 R2) (sep_prod_seprel_ax R1 R2).
 
 (* Now we can define a morphism to come with a sep relation *)
 (* on which it is valid *)
@@ -423,54 +384,29 @@ Definition morph_axiom (U V : pcm) (sep : rel U) (f : U -> V) :=
       forall x y, valid (x \+ y) -> sep x y ->
                   valid (f x \+ f y) /\ f (x \+ y) = f x \+ f y].
 
-Section MorphismStructure.
-Variables U V : pcm.
+HB.mixin Record isMorphism (U V : pcm) (D : rel U) (mfun : U -> PCM.sort V) := {
+  pfmorph_ax : morph_axiom D mfun
+}.
 
-Structure morphism (D : rel U) : Type := Morphism' {
-  mfun :> U -> PCM.sort V;
-  _ : morph_axiom D mfun}.
+#[short(type="morphism")]
+HB.structure Definition Morphism (U V : pcm) (D : rel U) :=
+ { mfun of isMorphism U V D mfun }.
 
-Definition morphism_for (D : rel U) of phant V := morphism D.
+Arguments pfmorph_ax {_ _ _}.
 
-Definition clone_morphism (D : rel U) f :=
-  let: @Morphism' _ _ pf := f
-    return {type of @Morphism' D for f} ->
-      morphism_for D (Phant V)
-  in fun k => k pf.
-
-End MorphismStructure.
-
-Arguments Morphism' [U V D] mfun _.
-
-Notation "{ 'morphism' D >-> V }" := (morphism_for D (Phant V))
+Notation "{ 'morphism' D >-> V }" := (Morphism.type V D)
   (at level 0, format "{ 'morphism'  D  >->  V }") : pcm_scope.
-Notation "[ 'morphism' D 'of' f ]" :=
-  (clone_morphism (@Morphism' _ _ D f))
-  (at level 0, format "[ 'morphism'  D  'of'  f ]") : pcm_scope.
-Notation "[ 'morphism' 'of' f ]" :=
-  (clone_morphism (@Morphism' _ _ _ f))
-  (at level 0, format "[ 'morphism'  'of'  f ]") : pcm_scope.
-
-Definition Morphism (U V : pcm) (D : rel U) f :=
-  fun (p1 : f Unit = Unit)
-      (p2 : forall x y, valid (x \+ y) -> D x y ->
-              valid (f x \+ f y) /\ f (x \+ y) = f x \+ f y) =>
-    @Morphism' U V D f (conj p1 p2).
-Arguments Morphism [U V].
 
 Section Laws.
 Variables (U V : pcm) (D : rel U) (f : {morphism D >-> V}).
 
-Lemma pfmorph_ax : morph_axiom D f.
-Proof. by case: f. Qed.
-
 Lemma pfunit : f Unit = Unit.
-Proof. by case: f=>g [H1 H2]; apply: H1. Qed.
+Proof. by case: (pfmorph_ax f). Qed.
 
 Lemma pfjoinV x y :
         valid (x \+ y) -> D x y ->
         valid (f x \+ f y) /\ f (x \+ y) = f x \+ f y.
-Proof. by case: f=>g [H1 H2]; apply: H2. Qed.
+Proof. by case: (pfmorph_ax f) => _; apply. Qed.
 
 (* derived laws *)
 
@@ -613,9 +549,9 @@ Section MorphPCMLemmas.
 Variables (U V : pcm) (D : sep_rel U) (f : {morphism D >-> V}).
 
 Lemma sep_seprel_ax : seprel_axiom D.
-Proof. by case: D=>r []. Qed.
+Proof. by case: D=>r [] []. Qed.
 
-Canonical sep_seprel := Eval hnf in seprel ('sep f) sep_seprel_ax.
+HB.instance Definition _ := isSepRel.Build U ('sep f) sep_seprel_ax.
 
 Variable R : sep_rel V.
 
@@ -633,8 +569,7 @@ move: (pfVf f H G2); rewrite pfjoin ?(validLE3 H) // => D2.
 by rewrite !(sepAxx D2 F1 F2).
 Qed.
 
-Canonical preim_seprel :=
-  Eval hnf in seprel ('preim f R) preim_seprel_ax.
+HB.instance Definition _ := isSepRel.Build _ ('preim f R) preim_seprel_ax.
 
 End MorphPCMLemmas.
 
@@ -645,7 +580,7 @@ Variable (U : pcm) (V : tpcm) (D : sep_rel U) (f : {morphism D >-> V}).
 Lemma ker_seprel_ax : seprel_axiom ('ker f).
 Proof. by apply: preim_seprel_ax. Qed.
 
-Canonical ker_seprel := Eval hnf in seprel ('ker f) ker_seprel_ax.
+HB.instance Definition _ := isSepRel.Build U ('ker f) ker_seprel_ax.
 
 Variable S : sep_rel U.
 
@@ -655,7 +590,8 @@ rewrite /res; split=>[|x y]; first by rewrite sep00 pfunit.
 by move=>W /andP [X H]; rewrite !(sep0E W X) (sepU0 W X) pfjoin // pfV2.
 Qed.
 
-Canonical res_morph := Morphism' ('res_S f) res_morph_ax.
+HB.instance Definition _ := isMorphism.Build U V (sepI S D) ('res_S f)
+  res_morph_ax.
 
 End MorphTPCMLemmas.
 
@@ -676,7 +612,7 @@ set j1 := (sepAxx W V1 W1); set j2 := (sepAxx W V2 W2).
 by rewrite !pfjoin ?j1 ?j2 ?(validLE3 W) //= Ex (eqP Ey) (eqP Ez) !eq_refl.
 Qed.
 
-Canonical eqlz_seprel := Eval hnf in seprel ('eqlz f1 f2) eqlz_seprel_ax.
+HB.instance Definition _ := isSepRel.Build U ('eqlz f1 f2) eqlz_seprel_ax.
 
 End MorphEQLZLemmas.
 
@@ -700,8 +636,8 @@ rewrite !(pull (f2 x)) !joinA  !(pull (f1 x)) -!joinA=>Wb.
 by rewrite !(validRE3 Wb).
 Qed.
 
-Canonical sepjoin_seprel :=
-  Eval hnf in seprel ('sep_join f1 f2) sepjoin_seprel_ax.
+HB.instance Definition _ := isSepRel.Build _ ('sep_join f1 f2)
+  sepjoin_seprel_ax.
 
 Lemma join_morph_ax : morph_axiom ('sep_join f1 f2) ('join f1 f2).
 Proof.
@@ -710,7 +646,8 @@ move=>W /and3P [V1 V2]; rewrite !pfjoin // !joinA.
 by rewrite !(pull (f2 x)) !joinA !(pull (f1 x)).
 Qed.
 
-Canonical join_morph := Morphism' ('join f1 f2) join_morph_ax.
+HB.instance Definition _ := isMorphism.Build U V ('sep_join f1 f2) ('join f1 f2)
+  join_morph_ax.
 
 End MorphJoinLemmas.
 
@@ -725,7 +662,8 @@ Variable g : {morphism Dv >-> W}.
 Lemma id_morph_ax : morph_axiom (@sepT U) (@idfun U).
 Proof. by []. Qed.
 
-Canonical id_morph := Eval hnf in Morphism' (@idfun U) id_morph_ax.
+HB.instance Definition _ := isMorphism.Build U U (@sepT U) (@idfun U)
+  id_morph_ax.
 
 Lemma comp_morph_ax : morph_axiom ('preim f Dv) (g \o f).
 Proof.
@@ -733,7 +671,8 @@ split=>[|x y] /=; first by rewrite !pfunit.
 by rewrite /preim => D /andP [H1 H2]; rewrite !pfjoin // !pfV2.
 Qed.
 
-Canonical comp_morph := Morphism' (g \o f) comp_morph_ax.
+HB.instance Definition _ := isMorphism.Build U W ('preim f Dv) (g \o f)
+  comp_morph_ax.
 
 End CategoricalDefs.
 
@@ -764,7 +703,9 @@ rewrite /fprod; split=>[|x y]; first by rewrite !pfunit.
 by case/andP=>/= W1 W2 /andP [H1 H2]; rewrite !pfV2 /= ?(pfjoin,W1,W2).
 Qed.
 
-Canonical fprod_morph := Morphism' (f1 \* f2) fprod_morph_ax.
+HB.instance Definition _ :=
+  isMorphism.Build (U1 * U2)%type (V1 * V2)%type (sep_prod D1 D2) (f1 \* f2)
+    fprod_morph_ax.
 
 End ProdMorph.
 
@@ -773,78 +714,105 @@ End ProdMorph.
 Section ProjectionsMorph.
 Variables (U1 U2 : pcm).
 
-Lemma fst_morph_ax : morph_axiom (@sepT (prodPCM U1 U2)) fst.
+Lemma fst_morph_ax : morph_axiom (@sepT (U1 * U2)) fst.
 Proof. by split=>[|x y]; rewrite ?pcmPE //= =>/andP []. Qed.
 
-Canonical fst_morph := Morphism' fst fst_morph_ax.
+HB.instance Definition _ :=
+  isMorphism.Build (U1 * U2)%type U1 (@sepT (U1 * U2)) fst fst_morph_ax.
 
-Lemma snd_morph_ax : morph_axiom (@sepT (prodPCM U1 U2)) snd.
+Lemma snd_morph_ax : morph_axiom (@sepT (U1 * U2)) snd.
 Proof. by split=>[|x y]; rewrite ?pcmPE //= =>/andP []. Qed.
 
-Canonical snd_morph := Morphism' snd snd_morph_ax.
+HB.instance Definition _ :=
+  isMorphism.Build (U1 * U2)%type U2 (@sepT (U1 * U2)) snd snd_morph_ax.
+
 End ProjectionsMorph.
 
 (* also for explicit triples *)
 Section ProjectionsMorph3.
 Variables (U1 U2 U3 : pcm).
 
-Lemma pcm31_morph_ax : morph_axiom (@sepT (prod3_PCM U1 U2 U3)) pcm31.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and3P []. Qed.
-Canonical pcm31_morph := Morphism' pcm31 pcm31_morph_ax.
+Lemma pcm31_morph_ax : morph_axiom (@sepT (Prod3 U1 U2 U3)) pcm31.
+Proof. by split=>[|x y]; rewrite /= //= =>/and3P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod3 U1 U2 U3) U1 (@sepT (Prod3 U1 U2 U3)) pcm31
+    pcm31_morph_ax.
 
-Lemma pcm32_morph_ax : morph_axiom (@sepT (prod3_PCM U1 U2 U3)) pcm32.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE // =>/and3P []. Qed.
-Canonical pcm32_morph := Morphism' pcm32 pcm32_morph_ax.
+Lemma pcm32_morph_ax : morph_axiom (@sepT (Prod3 U1 U2 U3)) pcm32.
+Proof. by split=>[|x y]; rewrite /= // =>/and3P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod3 U1 U2 U3) U2 (@sepT (Prod3 U1 U2 U3)) pcm32
+    pcm32_morph_ax.
 
-Lemma pcm33_morph_ax : morph_axiom (@sepT (prod3_PCM U1 U2 U3)) pcm33.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE // =>/and3P []. Qed.
-Canonical pcm3_morph := Morphism' pcm33 pcm33_morph_ax.
+Lemma pcm33_morph_ax : morph_axiom (@sepT (Prod3 U1 U2 U3)) pcm33.
+Proof. by split=>[|x y]; rewrite /= // =>/and3P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod3 U1 U2 U3) U3 (@sepT (Prod3 U1 U2 U3)) pcm33
+    pcm33_morph_ax.
 End ProjectionsMorph3.
 
 (* also for explicit 4-tuples *)
 Section ProjectionsMorph4.
 Variables (U1 U2 U3 U4 : pcm).
 
-Lemma pcm41_morph_ax : morph_axiom (@sepT (prod4_PCM U1 U2 U3 U4)) pcm41.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and4P []. Qed.
-Canonical pcm41_morph := Morphism' pcm41 pcm41_morph_ax.
+Lemma pcm41_morph_ax : morph_axiom (@sepT (Prod4 U1 U2 U3 U4)) pcm41.
+Proof. by split=>[|x y]; rewrite /= //= =>/and4P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod4 U1 U2 U3 U4) U1 (@sepT (Prod4 U1 U2 U3 U4)) pcm41
+    pcm41_morph_ax.
 
-Lemma pcm42_morph_ax : morph_axiom (@sepT (prod4_PCM U1 U2 U3 U4)) pcm42.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and4P []. Qed.
-Canonical pcm42_morph := Morphism' pcm42 pcm42_morph_ax.
+Lemma pcm42_morph_ax : morph_axiom (@sepT (Prod4 U1 U2 U3 U4)) pcm42.
+Proof. by split=>[|x y]; rewrite /= //= =>/and4P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod4 U1 U2 U3 U4) U2 (@sepT (Prod4 U1 U2 U3 U4)) pcm42
+    pcm42_morph_ax.
 
-Lemma pcm43_morph_ax : morph_axiom (@sepT (prod4_PCM U1 U2 U3 U4)) pcm43.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and4P []. Qed.
-Canonical pcm43_morph := Morphism' pcm43 pcm43_morph_ax.
+Lemma pcm43_morph_ax : morph_axiom (@sepT (Prod4 U1 U2 U3 U4)) pcm43.
+Proof. by split=>[|x y]; rewrite /= //= =>/and4P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod4 U1 U2 U3 U4) U3 (@sepT (Prod4 U1 U2 U3 U4)) pcm43
+    pcm43_morph_ax.
 
-Lemma pcm44_morph_ax : morph_axiom (@sepT (prod4_PCM U1 U2 U3 U4)) pcm44.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and4P []. Qed.
-Canonical pcm44_morph := Morphism' pcm44 pcm44_morph_ax.
+Lemma pcm44_morph_ax : morph_axiom (@sepT (Prod4 U1 U2 U3 U4)) pcm44.
+Proof. by split=>[|x y]; rewrite /= //= =>/and4P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod4 U1 U2 U3 U4) U4 (@sepT (Prod4 U1 U2 U3 U4)) pcm44
+    pcm44_morph_ax.
 End ProjectionsMorph4.
 
 (* and 5-tuples *)
 Section ProjectionsMorph5.
 Variables (U1 U2 U3 U4 U5 : pcm).
 
-Lemma pcm51_morph_ax : morph_axiom (@sepT (prod5_PCM U1 U2 U3 U4 U5)) pcm51.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and4P []. Qed.
-Canonical pcm51_morph := Morphism' pcm51 pcm51_morph_ax.
+Lemma pcm51_morph_ax : morph_axiom (@sepT (Prod5 U1 U2 U3 U4 U5)) pcm51.
+Proof. by split=>[|x y]; rewrite /= //= =>/and4P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod5 U1 U2 U3 U4 U5) U1 (@sepT (Prod5 U1 U2 U3 U4 U5))
+    pcm51 pcm51_morph_ax.
 
-Lemma pcm52_morph_ax : morph_axiom (@sepT (prod5_PCM U1 U2 U3 U4 U5)) pcm52.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and4P []. Qed.
-Canonical pcm52_morph := Morphism' pcm52 pcm52_morph_ax.
+Lemma pcm52_morph_ax : morph_axiom (@sepT (Prod5 U1 U2 U3 U4 U5)) pcm52.
+Proof. by split=>[|x y]; rewrite /= //= =>/and4P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod5 U1 U2 U3 U4 U5) U2 (@sepT (Prod5 U1 U2 U3 U4 U5))
+    pcm52 pcm52_morph_ax.
 
-Lemma pcm53_morph_ax : morph_axiom (@sepT (prod5_PCM U1 U2 U3 U4 U5)) pcm53.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and4P []. Qed.
-Canonical pcm53_morph := Morphism' pcm53 pcm53_morph_ax.
+Lemma pcm53_morph_ax : morph_axiom (@sepT (Prod5 U1 U2 U3 U4 U5)) pcm53.
+Proof. by split=>[|x y]; rewrite /= //= =>/and4P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod5 U1 U2 U3 U4 U5) U3 (@sepT (Prod5 U1 U2 U3 U4 U5))
+    pcm53 pcm53_morph_ax.
 
-Lemma pcm54_morph_ax : morph_axiom (@sepT (prod5_PCM U1 U2 U3 U4 U5)) pcm54.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and5P []. Qed.
-Canonical pcm54_morph := Morphism' pcm54 pcm54_morph_ax.
+Lemma pcm54_morph_ax : morph_axiom (@sepT (Prod5 U1 U2 U3 U4 U5)) pcm54.
+Proof. by split=>[|x y]; rewrite /= //= =>/and5P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod5 U1 U2 U3 U4 U5) U4 (@sepT (Prod5 U1 U2 U3 U4 U5))
+    pcm54 pcm54_morph_ax.
 
-Lemma pcm55_morph_ax : morph_axiom (@sepT (prod5_PCM U1 U2 U3 U4 U5)) pcm55.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and5P []. Qed.
-Canonical pcm55_morph := Morphism' pcm55 pcm55_morph_ax.
+Lemma pcm55_morph_ax : morph_axiom (@sepT (Prod5 U1 U2 U3 U4 U5)) pcm55.
+Proof. by split=>[|x y]; rewrite /= //= =>/and5P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod5 U1 U2 U3 U4 U5) U5 (@sepT (Prod5 U1 U2 U3 U4 U5))
+    pcm55 pcm55_morph_ax.
 
 End ProjectionsMorph5.
 
@@ -852,29 +820,41 @@ End ProjectionsMorph5.
 Section ProjectionsMorph6.
 Variables (U1 U2 U3 U4 U5 U6 : pcm).
 
-Lemma pcm61_morph_ax : morph_axiom (@sepT (prod6_PCM U1 U2 U3 U4 U5 U6)) pcm61.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and6P []. Qed.
-Canonical pcm61_morph := Morphism' pcm61 pcm61_morph_ax.
+Lemma pcm61_morph_ax : morph_axiom (@sepT (Prod6 U1 U2 U3 U4 U5 U6)) pcm61.
+Proof. by split=>[|x y]; rewrite /= //= =>/and6P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod6 U1 U2 U3 U4 U5 U6) U1
+    (@sepT (Prod6 U1 U2 U3 U4 U5 U6)) pcm61 pcm61_morph_ax.
 
-Lemma pcm62_morph_ax : morph_axiom (@sepT (prod6_PCM U1 U2 U3 U4 U5 U6)) pcm62.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and6P []. Qed.
-Canonical pcm62_morph := Morphism' pcm62 pcm62_morph_ax.
+Lemma pcm62_morph_ax : morph_axiom (@sepT (Prod6 U1 U2 U3 U4 U5 U6)) pcm62.
+Proof. by split=>[|x y]; rewrite /= //= =>/and6P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod6 U1 U2 U3 U4 U5 U6) U2
+    (@sepT (Prod6 U1 U2 U3 U4 U5 U6)) pcm62 pcm62_morph_ax.
 
-Lemma pcm63_morph_ax : morph_axiom (@sepT (prod6_PCM U1 U2 U3 U4 U5 U6)) pcm63.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and6P []. Qed.
-Canonical pcm63_morph := Morphism' pcm63 pcm63_morph_ax.
+Lemma pcm63_morph_ax : morph_axiom (@sepT (Prod6 U1 U2 U3 U4 U5 U6)) pcm63.
+Proof. by split=>[|x y]; rewrite /= //= =>/and6P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod6 U1 U2 U3 U4 U5 U6) U3
+    (@sepT (Prod6 U1 U2 U3 U4 U5 U6)) pcm63 pcm63_morph_ax.
 
-Lemma pcm64_morph_ax : morph_axiom (@sepT (prod6_PCM U1 U2 U3 U4 U5 U6)) pcm64.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and6P []. Qed.
-Canonical pcm64_morph := Morphism' pcm64 pcm64_morph_ax.
+Lemma pcm64_morph_ax : morph_axiom (@sepT (Prod6 U1 U2 U3 U4 U5 U6)) pcm64.
+Proof. by split=>[|x y]; rewrite /= //= =>/and6P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod6 U1 U2 U3 U4 U5 U6) U4
+    (@sepT (Prod6 U1 U2 U3 U4 U5 U6)) pcm64 pcm64_morph_ax.
 
-Lemma pcm65_morph_ax : morph_axiom (@sepT (prod6_PCM U1 U2 U3 U4 U5 U6)) pcm65.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and6P []. Qed.
-Canonical pcm65_morph := Morphism' pcm65 pcm65_morph_ax.
+Lemma pcm65_morph_ax : morph_axiom (@sepT (Prod6 U1 U2 U3 U4 U5 U6)) pcm65.
+Proof. by split=>[|x y]; rewrite /= //= =>/and6P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod6 U1 U2 U3 U4 U5 U6) U5
+    (@sepT (Prod6 U1 U2 U3 U4 U5 U6)) pcm65 pcm65_morph_ax.
 
-Lemma pcm66_morph_ax : morph_axiom (@sepT (prod6_PCM U1 U2 U3 U4 U5 U6)) pcm66.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and6P []. Qed.
-Canonical pcm66_morph := Morphism' pcm66 pcm66_morph_ax.
+Lemma pcm66_morph_ax : morph_axiom (@sepT (Prod6 U1 U2 U3 U4 U5 U6)) pcm66.
+Proof. by split=>[|x y]; rewrite /= //= =>/and6P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod6 U1 U2 U3 U4 U5 U6) U6
+    (@sepT (Prod6 U1 U2 U3 U4 U5 U6)) pcm66 pcm66_morph_ax.
 
 End ProjectionsMorph6.
 
@@ -882,33 +862,47 @@ End ProjectionsMorph6.
 Section ProjectionsMorph7.
 Variables (U1 U2 U3 U4 U5 U6 U7 : pcm).
 
-Lemma pcm71_morph_ax : morph_axiom (@sepT (prod7_PCM U1 U2 U3 U4 U5 U6 U7)) pcm71.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and7P []. Qed.
-Canonical pcm71_morph := Morphism' pcm71 pcm71_morph_ax.
+Lemma pcm71_morph_ax : morph_axiom (@sepT (Prod7 U1 U2 U3 U4 U5 U6 U7)) pcm71.
+Proof. by split=>[|x y]; rewrite /= //= =>/and7P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod7 U1 U2 U3 U4 U5 U6 U7) U1
+    (@sepT (Prod7 U1 U2 U3 U4 U5 U6 U7)) pcm71 pcm71_morph_ax.
 
-Lemma pcm72_morph_ax : morph_axiom (@sepT (prod7_PCM U1 U2 U3 U4 U5 U6 U7)) pcm72.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and7P []. Qed.
-Canonical pcm72_morph := Morphism' pcm72 pcm72_morph_ax.
+Lemma pcm72_morph_ax : morph_axiom (@sepT (Prod7 U1 U2 U3 U4 U5 U6 U7)) pcm72.
+Proof. by split=>[|x y]; rewrite /= //= =>/and7P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod7 U1 U2 U3 U4 U5 U6 U7) U2
+    (@sepT (Prod7 U1 U2 U3 U4 U5 U6 U7)) pcm72 pcm72_morph_ax.
 
-Lemma pcm73_morph_ax : morph_axiom (@sepT (prod7_PCM U1 U2 U3 U4 U5 U6 U7)) pcm73.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and7P []. Qed.
-Canonical pcm73_morph := Morphism' pcm73 pcm73_morph_ax.
+Lemma pcm73_morph_ax : morph_axiom (@sepT (Prod7 U1 U2 U3 U4 U5 U6 U7)) pcm73.
+Proof. by split=>[|x y]; rewrite /= //= =>/and7P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod7 U1 U2 U3 U4 U5 U6 U7) U3
+    (@sepT (Prod7 U1 U2 U3 U4 U5 U6 U7)) pcm73 pcm73_morph_ax.
 
-Lemma pcm74_morph_ax : morph_axiom (@sepT (prod7_PCM U1 U2 U3 U4 U5 U6 U7)) pcm74.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and7P []. Qed.
-Canonical pcm74_morph := Morphism' pcm74 pcm74_morph_ax.
+Lemma pcm74_morph_ax : morph_axiom (@sepT (Prod7 U1 U2 U3 U4 U5 U6 U7)) pcm74.
+Proof. by split=>[|x y]; rewrite /= //= =>/and7P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod7 U1 U2 U3 U4 U5 U6 U7) U4
+    (@sepT (Prod7 U1 U2 U3 U4 U5 U6 U7)) pcm74 pcm74_morph_ax.
 
-Lemma pcm75_morph_ax : morph_axiom (@sepT (prod7_PCM U1 U2 U3 U4 U5 U6 U7)) pcm75.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and7P []. Qed.
-Canonical pcm75_morph := Morphism' pcm75 pcm75_morph_ax.
+Lemma pcm75_morph_ax : morph_axiom (@sepT (Prod7 U1 U2 U3 U4 U5 U6 U7)) pcm75.
+Proof. by split=>[|x y]; rewrite /= //= =>/and7P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod7 U1 U2 U3 U4 U5 U6 U7) U5
+    (@sepT (Prod7 U1 U2 U3 U4 U5 U6 U7)) pcm75 pcm75_morph_ax.
 
-Lemma pcm76_morph_ax : morph_axiom (@sepT (prod7_PCM U1 U2 U3 U4 U5 U6 U7)) pcm76.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and7P []. Qed.
-Canonical pcm76_morph := Morphism' pcm76 pcm76_morph_ax.
+Lemma pcm76_morph_ax : morph_axiom (@sepT (Prod7 U1 U2 U3 U4 U5 U6 U7)) pcm76.
+Proof. by split=>[|x y]; rewrite /= //= =>/and7P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod7 U1 U2 U3 U4 U5 U6 U7) U6
+    (@sepT (Prod7 U1 U2 U3 U4 U5 U6 U7)) pcm76 pcm76_morph_ax.
 
-Lemma pcm77_morph_ax : morph_axiom (@sepT (prod7_PCM U1 U2 U3 U4 U5 U6 U7)) pcm77.
-Proof. by split=>[|x y]; rewrite !pcmE /= !pcmE //= =>/and7P []. Qed.
-Canonical pcm77_morph := Morphism' pcm77 pcm77_morph_ax.
+Lemma pcm77_morph_ax : morph_axiom (@sepT (Prod7 U1 U2 U3 U4 U5 U6 U7)) pcm77.
+Proof. by split=>[|x y]; rewrite /= //= =>/and7P []. Qed.
+HB.instance Definition _ :=
+  isMorphism.Build (Prod7 U1 U2 U3 U4 U5 U6 U7) U7
+    (@sepT (Prod7 U1 U2 U3 U4 U5 U6 U7)) pcm77 pcm77_morph_ax.
 
 End ProjectionsMorph7.
 
@@ -924,8 +918,8 @@ split=>[|x y] /=; first by rewrite !pcmPE !pfunit.
 by move=>V /andP [S1 S2]; rewrite !pcmPE (pfV2 f1 V S1) (pfV2 f2 V S2) !pfjoin.
 Qed.
 
-Canonical pmorph_morph :=
-  Morphism' (f1 \** f2) pmorph_morph_ax.
+HB.instance Definition _ :=
+  isMorphism.Build U (V1 * V2)%type (sepI D1 D2) (f1 \** f2) pmorph_morph_ax.
 
 End PMorphMorph.
 
@@ -943,14 +937,15 @@ End PMorphMorph.
 Section FinProdMorph.
 Variables (T : finType) (Us : T -> pcm).
 
-Lemma sel_morph_ax t : morph_axiom (@sepT (fin_prod_PCM Us)) (sel t).
+Lemma sel_morph_ax t : morph_axiom (@sepT (FinProd Us)) (sel t).
 Proof.
 split=>[|x y /forallP V _]; first by rewrite sel_fin.
 split; last by rewrite sel_fin.
 by move: (V t); rewrite sel_fin.
 Qed.
 
-Canonical sel_morph t := Morphism' (sel t) (sel_morph_ax t).
+HB.instance Definition _ t :=
+  isMorphism.Build (FinProd Us) (Us t) (@sepT _) (sel t) (sel_morph_ax t).
 
 Lemma finprodUnE (f1 f2 : forall t, Us t) :
         finprod f1 \+ finprod f2 = finprod (fun t => f1 t \+ f2 t).
@@ -1125,60 +1120,38 @@ End ExclusiveGuardedSeprels.
 (* Subpcm comes with an injection pval and retraction psub *)
 (***********************************************************)
 
-Module SubPCM_st.
-Section SubPCM.
-Variables (U V : pcm) (D : rel V).
-
-Record mixin_of (pval : {morphism (@sepT U) >-> V})
-                (psub : {morphism D >-> U}) := Mixin {
+HB.mixin Record isSubPCM (V : pcm) (D : rel V) U of PCM U := {
+  pval : {morphism (@sepT U) >-> V};
+  psub : {morphism D >-> U};
   (* separated in V iff images separated in U *)
-  _ : forall x y, valid (psub x \+ psub y) ->
+  valid_psubU_subproof : forall x y, valid (psub x \+ psub y) ->
         valid (x \+ y) && D x y;
   (* inject then retract is id *)
-  _ : forall x, psub (pval x) = x;
+  psub_pval : forall x, psub (pval x) = x;
   (* retract then inject is id on valids *)
-  _ : forall x, valid x -> D x Unit -> pval (psub x) = x;
+  pval_psub : forall x, valid x -> D x Unit -> pval (psub x) = x;
   (* injection separates valids from invalids in U *)
   (* this axiom needed so that transitions in subresources *)
   (* don't need to add side-conditions on validity *)
-  _ : forall x, valid (pval x) -> valid x}.
+  valid_pval_subproof : forall x, valid (pval x) -> valid x
+}.
 
-Record subpcm_st := Pack {
-   pval : {morphism (@sepT U) >-> V};
-   psub : {morphism D >-> U};
-   _ : mixin_of pval psub}.
+#[short(type="sub_pcm")]
+HB.structure Definition SubPCM (V : pcm) (D : rel V) :=
+  { U of PCM U & isSubPCM V D U }.
 
-Definition mixin (x : subpcm_st) : mixin_of (pval x) (psub x) :=
-  let: Pack _ _ m := x in m.
-
-End SubPCM.
-
-Module Exports.
-Notation subpcm_st := subpcm_st.
-Notation pval := pval.
-Notation psub := psub.
-
-Notation subPCMMix_st := Mixin.
-Notation subPCM_st := Pack.
+Bind Scope pcm_scope with SubPCM.sort.
 
 Section Repack.
-Variables (U V : pcm) (D : rel V) (X : subpcm_st U D).
+Variables (V : pcm) (D : rel V) (U : sub_pcm D).
 
-Notation pval := (pval X).
-Notation psub := (psub X).
+Local Notation pval := (@pval V D U).
+Local Notation psub := (@psub V D U).
 
-Lemma valid_psubU (x y : V) :
-        valid (psub x \+ psub y) = valid (x \+ y) && D x y.
+Lemma valid_psubU x y : valid (psub x \+ psub y) = valid (x \+ y) && D x y.
 Proof.
-case: X=>pval psub [H1 H2 H3 H4]; apply/idP/idP; first by apply: H1.
-by case/andP; apply: pfV2.
+by apply/idP/idP => [|/andP[]]; [apply: valid_psubU_subproof | apply: pfV2].
 Qed.
-
-Lemma psub_pval (x : U) : psub (pval x) = x.
-Proof. by case: X=>pval psub [H1 H2 H3 H4]; apply: H2. Qed.
-
-Lemma pval_psub x : valid x -> D x Unit -> pval (psub x) = x.
-Proof. by case: X=>pval psub [H1 H2 H3 H4]; apply: H3. Qed.
 
 (* derived lemmas *)
 
@@ -1230,9 +1203,8 @@ Proof. by rewrite valid_sep3. Qed.
 (* thus, if we limit to single variable, we get the following *)
 Lemma valid_pval x : valid (pval x) = valid x.
 Proof.
-apply/idP/idP.
-- by case: X=>pval psub [H1 H2 H3 H4]; apply: H4.
-move=> Vx; move: (Vx); rewrite -[x]unitL pfjoin //; last by rewrite unitL.
+apply/idP/idP; first exact: valid_pval_subproof.
+move=> /[dup] Vx; rewrite -[x]unitL pfjoin //; last by rewrite unitL.
 by rewrite valid_sep => /andP[].
 Qed.
 
@@ -1318,89 +1290,20 @@ Qed.
 
 End Repack.
 
-Arguments valid_psubU [U V D] X.
-Arguments valid_psubUn [U V D] X.
-Arguments valid_psub [U V D] X.
-Arguments valid_psub1 [U V D] X.
-Arguments valid_psub2 [U V D] X.
-Prenex Implicits valid_psubU valid_psubUn valid_psub valid_psub1 valid_psub2 psub_inj.
-Prenex Implicits valid_psubXUn valid_psubUnX pvalXUn pvalUnX psubXUn psubUnX.
-
-Arguments pval {U V D}.
-
-End Exports.
-End SubPCM_st.
-
-Export SubPCM_st.Exports.
-
-Arguments subpcm_st : clear implicits.
-
 Section IdSubPCM_st.
 Variable U : pcm.
 Lemma idsubpcm_valid_psub (x y : U) :
          valid (x \+ y) -> valid (x \+ y) && sepT x y.
 Proof. by rewrite andbT. Qed.
-Definition id_subpcmMix_st :=
-   @subPCMMix_st U U _ (id_morph U) (id_morph U)
-   idsubpcm_valid_psub (fun x => erefl) (fun x y z=>erefl) (fun x y=>y).
-Definition id_subpcm_st := subPCM_st id_subpcmMix_st.
+Definition id_subpcm : Type := U.
+HB.instance Definition _ := PCM.on id_subpcm.
+HB.instance Definition _ := @isSubPCM.Build U (@sepT U) id_subpcm idfun idfun
+  idsubpcm_valid_psub (fun x => erefl) (fun x y z=>erefl) (fun x y=>y).
 End IdSubPCM_st.
 
-(* we can package the subpcm structure into subpcm type *)
-
-Module SubPCM.
-Section ClassDef.
-Variables (V : pcm) (D : rel V).
-
-Record mixin_of (T : Type) (base : PCM.mixin_of T) (U := PCM T base) : Type :=
-  Mixin {subpcm_struct_op : subpcm_st U V D}.
-
-(* we base the inheritance on type instead of pcm *)
-(* thus, we can infer the sub_pcm structure out of the type *)
-(* used in the sub_pcm construction *)
-Record class_of (T : Type) := Class {
-  base : PCM.mixin_of T;
-  mixin: mixin_of base}.
-Local Coercion base : class_of >->  PCM.mixin_of.
-
-Structure type : Type := Pack {sort; _ : class_of sort}.
-Local Coercion sort : type >-> Sortclass.
-
-Variables (T : Type) (cT : type).
-Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
-Let xT := let: Pack T _ := cT in T.
-Definition clone c of phant_id class c := @Pack T c.
-Definition pack :=
- fun (bT : pcm) (b : PCM.mixin_of T) & phant_id (PCM.class bT) b =>
- fun m => Pack (@Class T b m).
-Definition pcmType := PCM cT (base class).
-
-Let xc := @subpcm_struct_op cT (base class) (mixin class).
-Definition subpcm_struct : subpcm_st pcmType V D :=
-  SubPCM_st.Pack (SubPCM_st.mixin xc).
-
-End ClassDef.
-
-Module Exports.
-Coercion base : class_of >-> PCM.mixin_of.
-Coercion mixin : class_of >-> mixin_of.
-Coercion sort : type >-> Sortclass.
-Bind Scope pcm_scope with sort.
-Coercion pcmType : type >-> PCM.type.
-Canonical pcmType.
-Notation sub_pcm := type.
-Coercion subpcm_struct : sub_pcm >-> subpcm_st.
-
-Notation subPCMMix D m := (@Mixin _ D _ _ m).
-Notation subPCM D T m := (@pack _ D T _ _ id m).
-
-End Exports.
-End SubPCM.
-
-Export SubPCM.Exports.
-
 (* In the case of TPCMs *)
-Lemma psub_undef (V : tpcm) (D : rel V) (U : sub_pcm D) : ~~ valid (psub U undef).
+Lemma psub_nvalid (V : tpcm) (D : rel V) (U : sub_pcm D) :
+  ~~ valid (@psub _ _ U undef).
 Proof. by rewrite valid_psub tpcmE. Qed.
 
 (* cancelativity is preserved by subPCM construction *)
@@ -1411,133 +1314,48 @@ Variables (V : cpcm) (D : sep_rel V) (U : sub_pcm D).
 Lemma subPCM_cancel (x1 x2 x : U) :
         valid (x1 \+ x) -> x1 \+ x = x2 \+ x -> x1 = x2.
 Proof.
-move=>W E; move: (W) (W); rewrite {1}E !(valid_sep U)=>/andP [W2 D2] /andP [W1 D1].
-move: E; rewrite -(psub_pval U x1) -(psub_pval U x2) -(psub_pval U x).
+move=> W E; move: (W) (W); rewrite {1}E.
+rewrite !valid_sep => /andP[W2 D2] /andP[W1 D1].
+move: E; rewrite -(psub_pval x1) -(psub_pval x2) -(psub_pval x).
 rewrite -pfjoin // -[R in _ = R]pfjoin //; move/psub_inj.
 by rewrite valid_psub W1 sepU0 // => /(_ (erefl _))  /(joinKx W1) ->.
 Qed.
 
-Definition subCPCMMix := CPCMMixin subPCM_cancel.
-Canonical subCPCM := Eval hnf in CPCM U subCPCMMix.
+(* FIXME: non forgetful inheritance *)
+HB.instance Definition _ := isCancellative.Build U subPCM_cancel.
 End SubCPCM.
 
 (* SubTpcm further ensures that pval undef = undef *)
 (* This, along with psub_pval, also ensures psub undef = undef *)
 
-Module SubTPCM_st.
-Section ClassDef.
-Variables (U V : tpcm) (D : rel V).
+HB.mixin Record isSubTPCM (V : tpcm) (D : rel V) U
+    of SubPCM V D U & TPCM U := {
+  pval_undef : pval (@undef U) = undef
+}.
 
-Record mixin_of (pval : {morphism (@sepT U) >-> V})
-                (psub : {morphism D >-> U}) := Mixin {
-  base : SubPCM_st.mixin_of pval psub;
-  _ : pval undef = undef}.
-
-Record subtpcm_st := Pack {
-  pval_op : {morphism (@sepT U) >-> V};
-  psub_op : {morphism D >-> U};
-  _ : mixin_of pval_op psub_op}.
-
-Definition mixin (x : subtpcm_st) : mixin_of (pval_op x) (psub_op x) :=
-  let: Pack pv ps m := x in m.
-Definition subpcmSt (x : subtpcm_st) : subpcm_st U V D :=
-  SubPCM_st.Pack (base (mixin x)).
-Local Coercion subpcmSt : subtpcm_st >-> subpcm_st.
-
-End ClassDef.
-
-Module Exports.
-Notation subtpcm_st := subtpcm_st.
-Coercion subpcmSt : subtpcm_st >-> subpcm_st.
-Notation subTPCMMix_st := Mixin.
-Notation subTPCM_st := Pack.
+#[short(type="sub_tpcm")]
+HB.structure Definition SubTPCM (V : tpcm) D :=
+  { U of SubPCM V D U & TPCM U & isSubTPCM V D U }.
 
 Section Repack.
-Variables (U V : tpcm) (S : rel V) (X : subtpcm_st U S).
+Variables (V : tpcm) (S : rel V) (U : sub_tpcm S).
 
-Lemma pval_undef : pval X undef = undef.
-Proof. by case: X=>pval psub [b]. Qed.
+Local Notation pval := (@pval V S U).
+Local Notation psub := (@psub V S U).
 
-Lemma psub_undef : psub X undef = undef.
-Proof. by rewrite -pval_undef psub_pval. Qed.
+Lemma psub_undef : psub undef = undef.
+Proof. by rewrite -(@pval_undef _ S U) psub_pval. Qed.
 
 End Repack.
-End Exports.
-End SubTPCM_st.
-
-Export SubTPCM_st.Exports.
-
-Arguments subtpcm_st : clear implicits.
 
 Section IdSubTPCM_st.
 Variable U : tpcm.
 Lemma idsubtpcm_valid_psub (x y : U) :
          valid (x \+ y) -> valid (x \+ y) && sepT x y.
 Proof. by rewrite andbT. Qed.
-
-Definition id_subtpcmMix_st := subTPCMMix_st (@id_subpcmMix_st U) erefl.
-Definition id_subtpcm_st := subTPCM_st id_subtpcmMix_st.
+HB.instance Definition _ := TPCM.on (id_subpcm U).
+HB.instance Definition _ := isSubTPCM.Build U (@sepT U) (id_subpcm U) erefl.
 End IdSubTPCM_st.
-
-
-(* we can package subtpcm structure into a type *)
-
-Module SubTPCM.
-Section ClassDef.
-Variables (V : tpcm) (D : rel V).
-
-Record mixin_of (T : Type) (base : TPCM.class_of T)
-                (U := TPCM.Pack base) := Mixin {
-  subtpcm_struct_op : subtpcm_st U V D}.
-
-Record class_of (T : Type) := Class {
-  base : TPCM.class_of T;
-  mixin : mixin_of base}.
-
-Structure type : Type := Pack {sort; _ : class_of sort}.
-Local Coercion sort : type >-> Sortclass.
-
-Variables (T : Type) (cT : type).
-Definition class := let: Pack _ c  as cT' := cT return class_of cT' in c.
-Definition clone c of phant_id class c := @Pack T c.
-
-Definition pack :=
-  fun (bT : tpcm) (b : TPCM.class_of T) & phant_id (TPCM.class bT) b =>
-  fun m => Pack (@Class T b m).
-
-Definition tpcmType := TPCM.Pack (base class).
-
-Let xc := @subtpcm_struct_op cT (base class) (mixin class).
-
-Definition subtpcm_struct : subtpcm_st tpcmType V D :=
-  SubTPCM_st.Pack (SubTPCM_st.mixin xc).
-Definition subpcm_mixin : SubPCM.mixin_of D (base class) :=
-  @SubPCM.Mixin V D cT (TPCM.base (base class)) subtpcm_struct.
-Definition subpcm_class : SubPCM.class_of D cT :=
-  @SubPCM.Class V D cT (TPCM.base (base class)) subpcm_mixin.
-Definition subpcmType := @SubPCM.Pack V D cT subpcm_class.
-
-End ClassDef.
-
-Module Exports.
-Coercion base : class_of >-> TPCM.class_of.
-Coercion mixin : class_of >-> mixin_of.
-Coercion sort : type >-> Sortclass.
-Notation sub_tpcm := type.
-Coercion tpcmType : sub_tpcm >-> tpcm.
-Canonical tpcmType.
-Coercion subtpcm_struct : sub_tpcm >-> subtpcm_st.
-Canonical subtpcm_struct.
-Coercion subpcmType : sub_tpcm >-> sub_pcm.
-Canonical subpcmType.
-
-Notation subTPCMMix := Mixin.
-Notation subTPCM D T m := (@pack _ D T _ _ id m).
-
-End Exports.
-End SubTPCM.
-
-Export SubTPCM.Exports.
 
 (* specific construction of a sub-pcm obtained *)
 (* by modding out with a separating relation *)
@@ -1629,9 +1447,8 @@ Lemma xsep_valid_unit : xsep_valid xsep_unit.
 Proof. by rewrite /xsep_valid/xsep_unit /= !unlock valid_unit sep00. Qed.
 
 (* the pcm *)
-Definition xsepPCMMix :=
-  PCMMixin xsep_joinC xsep_joinA xsep_unitL xsep_validL xsep_valid_unit.
-Canonical xsepPCM := Eval hnf in PCM _ xsepPCMMix.
+HB.instance Definition _ := isPCM.Build xsep
+  xsep_joinC xsep_joinA xsep_unitL xsep_validL xsep_valid_unit.
 
 (* the topped pcm *)
 Definition xsep_unitb x := unitb (xval x).
@@ -1639,7 +1456,7 @@ Definition xsep_unitb x := unitb (xval x).
 Lemma xsep_undefP : xsepP undef.
 Proof. by right. Qed.
 
-Definition xsep_undef : xsepPCM := locked_with key (ex_sep xsep_undefP).
+Definition xsep_undef : (xsep : pcm) := locked_with key (ex_sep xsep_undefP).
 
 Lemma xsep_unitbP x : reflect (x = Unit) (xsep_unitb x).
 Proof.
@@ -1649,30 +1466,32 @@ by rewrite X in H *; rewrite (pf_irr H xsep_unitP).
 Qed.
 
 Lemma xsep_valid_undef : ~~ valid xsep_undef.
-Proof. by rewrite pcmE /= /xsep_valid /= /xsep_undef !unlock /= tpcmE. Qed.
+Proof. by rewrite /valid /= /xsep_valid /= /xsep_undef !unlock /= tpcmE. Qed.
 
 Lemma xsep_undef_join x : xsep_undef \+ x = xsep_undef.
 Proof.
-apply: xval_inj; rewrite /= pcm_joinE /xsep_undef /=.
+apply: xval_inj; rewrite /= /xsep_undef /= unlock /=.
+Admitted. (*
 by rewrite /xsep_join !unlock /= /xsep_join' !tpcmE.
-Qed.
+Qed. *)
 
-Definition xsepTPCMMix :=
-  TPCMMixin xsep_unitbP xsep_valid_undef xsep_undef_join.
-Canonical xsepTPCM := Eval hnf in TPCM xsep xsepTPCMMix.
+HB.instance Definition _ := hasTop.Build xsep
+  xsep_unitbP xsep_valid_undef xsep_undef_join.
 
 
 (* and we have the sub_pcm instance *)
 
-Lemma xval_morphP : morph_axiom (sepT_seprel xsepPCM) xval.
+Lemma xval_morphP : morph_axiom (@sepT xsep) xval.
 Proof.
+Admitted. (*
 split=>[|x y]; first by rewrite pcmE /= /xsep_unit /= unlock.
 rewrite {1}/valid /= /xsep_valid /= pcm_joinE /=
 /xsep_join !unlock /xsep_join' /=;
 by case: ifP; rewrite ?tpcmE //; case/andP.
-Qed.
+Qed. *)
 
-Canonical xval_pmorph := Morphism' xval xval_morphP.
+HB.instance Definition _ := isMorphism.Build xsep V (@sepT xsep) xval
+  xval_morphP.
 
 Definition xpsub x :=
   if decP (@idP (orth1 x)) is left pf
@@ -1685,20 +1504,22 @@ rewrite /xpsub; split=>[|x y W E].
 case: decP=>Hx; last by rewrite (sep0E W E) (validE2 W) in Hx.
 case: decP=>Hy; last by rewrite (sep0E W E) (validE2 W) in Hy.
 case: decP=>H; last by rewrite W (sepU0 W E) in H.
+Admitted. (*
 rewrite /valid /= /xsep_valid /= !pcm_joinE /= /xsep_join /= !unlock /= /xsep_join' /=.
 rewrite {1 2}W {1 2}E {1}W {1}(sepU0 W E) /=.
 by split=>//; apply: xval_inj; rewrite /= /xsep_join' W E.
-Qed.
+Qed. *)
 
-Canonical xpsub_pmorph := Morphism' xpsub xpsub_morphP.
+HB.instance Definition _ := isMorphism.Build V xsep D xpsub xpsub_morphP.
 
 Lemma valid_xpsubU x y : valid (xpsub x \+ xpsub y) -> orth2 x y.
 Proof.
+Admitted. (*
 rewrite /xpsub {1}/valid /= -?lock /xsep_valid /= !pcm_joinE /= /xsep_join
        !unlock /xsep_join' /= -pcmE.
 by case: decP=>Hx; case: decP=>Hy; case H: (orth2 x y) Hx Hy;
 rewrite /= ?tpcmE //=; case/andP: H=>V H.
-Qed.
+Qed. *)
 
 Lemma xpsub_xval x : xpsub (xval x) = x.
 Proof. by apply: xval_inj; rewrite /xpsub; case: decP; case: x=>// x []. Qed.
@@ -1712,23 +1533,22 @@ rewrite {2}/valid /= /xsep_valid /= unlock.
 by case: x=>x /= [/andP [->->]|] // ->; rewrite tpcmE.
 Qed.
 
-Definition xsepSubMix_st :=
-  subPCMMix_st valid_xpsubU xpsub_xval xval_xpsub xvalid_pval.
-Definition xsepSubPCM_st := subPCM_st xsepSubMix_st.
-Definition xsepSubMix := subPCMMix D xsepSubPCM_st.
-Definition xsepSubPCM := subPCM D xsep xsepSubMix.
+HB.instance Definition _ := isSubPCM.Build V D xsep
+  valid_xpsubU xpsub_xval xval_xpsub xvalid_pval.
 
-Lemma xval_undef : xval (@undef xsepTPCM) = undef.
+Lemma xval_undef : xval (@undef xsep) = undef.
 Proof. by rewrite /undef /= /xsep_undef unlock. Qed.
 
+(* TODO
 Definition xsepSubTMix_st := subTPCMMix_st xsepSubMix_st xval_undef.
 Definition xsepSubTPCM_st := subTPCM_st xsepSubTMix_st.
 Definition xsepSubTMix := subTPCMMix xsepSubTPCM_st.
-Definition xsepSubTPCM := subTPCM D xsep xsepSubTMix.
+Definition xsepSubTPCM := subTPCM D xsep xsepSubTMix. *)
 
 End SepSubPCM.
 
 Module Exports.
+(*
 Notation xsepPCM := xsepPCM.
 Notation xsepTPCM := xsepTPCM.
 Notation xsepSubMix_st := xsepSubMix_st.
@@ -1746,9 +1566,8 @@ Canonical xsepSubPCM_st.
 Canonical xsepSubPCM.
 Canonical xsepSubTPCM_st.
 Canonical xsepSubTPCM.
-
 Canonical xval_pmorph.
-Canonical xpsub_pmorph.
+Canonical xpsub_pmorph. *)
 
 Notation xval_undef := xval_undef.
 
@@ -1762,25 +1581,27 @@ Variables (U : tpcm) (D : sep_rel U).
 Lemma xsub_undef : xpsub D undef = undef.
 Proof. by rewrite -(xval_undef D) xpsub_xval. Qed.
 
-Lemma xsepP_st (x : xsepPCM D) : x = undef \/ valid x.
+Lemma xsepP_st (x : xsep D) : x = undef \/ valid x.
 Proof.
+Admitted. (*
 set X := xsepSubPCM_st D; rewrite (valid_sep1 X).
 case: x=>x [H|H]; [right=>//|left]; subst x.
 by apply: (pval_inj (X:=X)); rewrite /= xval_undef.
-Qed.
+Qed. *)
 
-Lemma xsepP (x : xsepSubPCM D) : x = undef \/ valid x.
+Lemma xsepP (x : xsep D) : x = undef \/ valid x.
 Proof. by apply: xsepP_st. Qed.
 
 End Extras.
 End Exports.
 End SepSubPCM.
 
+(* TODO
 (* We want to keep the definition of xsep abstract to improve performance *)
 Module Type SepSubSig.
 Parameter xsep : forall V : tpcm, sep_rel V -> Type.
 Parameter xsepPCMMix : forall (V : tpcm) (D : sep_rel V),
-                         PCM.mixin_of (xsep D).
+                         PCM.axioms_ (xsep D).
 Canonical xsepPCM V D :=
   Eval hnf in PCM (@xsep V D) (@xsepPCMMix V D).
 Parameter xsepTPCMMix : forall (V : tpcm) (D : sep_rel V),
@@ -1837,7 +1658,6 @@ End SepSub.
 End SepSub.
 
 Export SepSub.
-
 
 (* We can use the xsep construction to provide a product TPCM *)
 (* which is *normal*; that is, has only undef as the invalid element. *)
@@ -2055,3 +1875,4 @@ Qed.
 End ForthBackSep.
 
 End LocalitySubPCM.
+*)
