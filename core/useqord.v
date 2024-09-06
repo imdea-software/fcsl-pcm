@@ -1,8 +1,20 @@
+(*
+Copyright 2022 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path interval order.
 From pcm Require Import options prelude ordtype seqext.
-
-Open Scope order_scope.
+Local Open Scope order_scope.
 Import Order.Theory.
 
 (* We assume the sequences are unique and use the first index, however most *)
@@ -25,17 +37,38 @@ Import Order.Theory.
 (* That said, the null timestamp is never in any history as *)
 (* the initialization step is implicit *)
 
-Definition seq_le {A : eqType} (ks : seq A) (t1 t2 : A) :=
-  (index t1 ks <= index t2 ks)%N.
-
-Definition seq_lt {A : eqType} (ks : seq A) (t1 t2 : A) :=
-  (index t1 ks < index t2 ks)%N.
-
+Module Type SeqOrdTp.
+Parameter seq_le : forall (A : eqType) (ks : seq A), A -> A -> bool.
+Parameter seq_lt : forall (A : eqType) (ks : seq A), A -> A -> bool.
 Notation "t1 '<=[' ks ] t2" := (seq_le ks t1 t2)
   (at level 10, format "t1  '<=[' ks ]  t2").
-
 Notation "t1 '<[' ks ] t2" := (seq_lt ks t1 t2)
   (at level 10, format "t1  '<[' ks ]  t2").
+Parameter seqle_unlock : forall (A : eqType) ks (t1 t2 : A),
+  t1 <=[ks] t2 = (index t1 ks <= index t2 ks)%N.
+Parameter seqlt_unlock : forall (A : eqType) ks (t1 t2 : A),
+  t1 <[ks] t2 = (index t1 ks < index t2 ks)%N.
+End SeqOrdTp.
+
+Module SeqOrd : SeqOrdTp.
+Section SeqOrd.
+Variables (A : eqType) (ks : seq A) (t1 t2 : A).
+Definition seq_le := (index t1 ks <= index t2 ks)%N.
+Definition seq_lt := (index t1 ks < index t2 ks)%N.
+Definition seqle_unlock := erefl seq_le.
+Definition seqlt_unlock := erefl seq_lt.
+End SeqOrd.
+End SeqOrd.
+Export SeqOrd.
+
+(* alternative rewrites *)
+Lemma seqle_unlockE (A : eqType) ks (t1 t2 : A) : 
+        t1 <=[ks] t2 = (index t1 ks <= index t2 ks).
+Proof. exact: seqle_unlock. Qed.
+
+Lemma seqlt_unlockE (A : eqType) ks (t1 t2 : A) : 
+        t1 <[ks] t2 = (index t1 ks < index t2 ks).
+Proof. exact: seqlt_unlock. Qed.
 
 Section SeqLeBase.
 Variable (A : eqType).
@@ -44,51 +77,57 @@ Implicit Type (ks : seq A).
 (****************** transitivity ****************)
 
 Lemma sle_trans ks : transitive (seq_le ks).
-Proof. by move=>y x z; apply: leq_trans. Qed.
+Proof. by move=>y x z; rewrite !seqle_unlock; apply: leq_trans. Qed.
 
 Lemma slt_trans ks : transitive (seq_lt ks).
-Proof. by move=>y x z; apply: ltn_trans. Qed.
+Proof. by move=>y x z; rewrite !seqlt_unlock; apply: ltn_trans. Qed.
 
 Lemma sle_slt_trans ks t1 t2 t3 :
         t1 <=[ks] t2 -> t2 <[ks] t3 -> t1 <[ks] t3.
-Proof. by apply: leq_ltn_trans. Qed.
+Proof. by rewrite !seqlt_unlock !seqle_unlock; apply: leq_ltn_trans. Qed.
 
 Lemma slt_sle_trans ks t1 t2 t3 :
         t1 <[ks] t2 -> t2 <=[ks] t3 -> t1 <[ks] t3.
-Proof. by apply: leq_trans. Qed.
+Proof. by rewrite !seqlt_unlock !seqle_unlock; apply: leq_trans. Qed.
 
 
 (****************** reflexivity ****************)
 
 Lemma sle_refl ks : reflexive (seq_le ks).
-Proof. by rewrite /seq_le. Qed.
+Proof. by move=>x; rewrite seqle_unlock. Qed.
 
 (****************** irreflexivity ***************)
 
 Lemma slt_irr x ks : x <[ks] x = false.
-Proof. by rewrite /seq_lt ltnn. Qed.
+Proof. by rewrite seqlt_unlock; apply: ltnn. Qed.
+
+(* non-equational variant *)
+Lemma sltnn x ks : ~ x <[ks] x.
+Proof. by rewrite slt_irr. Qed.
 
 (****************** antisymmetry ****************)
 
 Lemma sle_antisym ks : {in ks, antisymmetric (seq_le ks)}.
 Proof.
-rewrite /seq_le=>x Hx y.
+move=>x Hx y; rewrite !seqle_unlock.
 by rewrite -eqn_leq =>/eqP /index_inj; apply.
 Qed.
 
 (****************** asymmetry ***************)
 
 Lemma slt_asym x y ks : x <[ks] y -> ~~ y <[ks] x.
-Proof. by rewrite /seq_lt; case: ltngtP. Qed.
+Proof. by rewrite !seqlt_unlock; case: ltngtP. Qed.
 
 (***************** totality ********************)
 
 Lemma sle_total ks x y : x <=[ks] y || y <=[ks] x.
-Proof. by rewrite /seq_le; case: ltngtP. Qed.
+Proof. by rewrite !seqle_unlock; case: ltngtP. Qed.
 
-Lemma slt_total ks x y : x \in ks -> [|| x == y, x <[ks] y | y <[ks] x].
+Lemma slt_total ks x y : 
+        x \in ks -> 
+        [|| x == y, x <[ks] y | y <[ks] x].
 Proof.
-rewrite /seq_lt=>H; case: ltngtP; rewrite ?orbT ?orbF //.
+rewrite !seqlt_unlock=>H; case: ltngtP; rewrite ?orbT ?orbF //.
 by move/index_inj=>->.
 Qed.
 
@@ -100,7 +139,7 @@ Lemma sle_eqVlt ks t1 t2 :
         (t1 \in ks) || (t2 \in ks) ->
         t1 <=[ks] t2 = (t1 == t2) || (t1 <[ks] t2).
 Proof.
-move=>H; rewrite /seq_lt /seq_le leq_eqVlt /=.
+move=>H; rewrite seqlt_unlock seqle_unlock leq_eqVlt /=.
 case: (t1 =P t2)=>[->|N] /=; first by rewrite eq_refl.
 case: eqP=>//=; case/orP: H=>H; first by move/(index_inj H)/N.
 by move/esym/(index_inj H)/esym/N.
@@ -113,7 +152,7 @@ Lemma slt_neqAle ks t1 t2 :
         t1 <[ks] t2 = (t1 != t2) && (t1 <=[ks] t2).
 Proof.
 move=>H.
-rewrite /seq_lt /seq_le ltn_neqAle.
+rewrite seqlt_unlock seqle_unlock ltn_neqAle.
 case: (t1 =P t2)=>[->|N] /=; first by rewrite eq_refl.
 case: eqP=>//=; case/orP: H=>H; first by move/(index_inj H)/N.
 by move/esym/(index_inj H)/esym/N.
@@ -122,7 +161,7 @@ Qed.
 (****************** sltNge ***************)
 
 Lemma sltNge ks t1 t2 : t1 <[ks] t2 = ~~ t2 <=[ks] t1.
-Proof. by rewrite /seq_lt /seq_le ltnNge. Qed.
+Proof. by rewrite seqlt_unlock seqle_unlock ltnNge. Qed.
 
 (****************** sleNgt ***************)
 
@@ -138,41 +177,45 @@ Proof. by apply/contraL=>/eqP->; rewrite slt_irr. Qed.
 
 End SeqLeBase.
 
-#[export]
-Hint Resolve sle_refl : core.
+#[export] Hint Resolve sle_refl : core.
 
 Section SeqLeProp.
 Variable (A : eqType).
 Implicit Type (ks : seq A).
 
 Lemma sltW ks t1 t2 : t1 <[ks] t2 -> t1 <=[ks] t2.
-Proof. by apply: ltnW. Qed.
+Proof. by rewrite seqlt_unlock seqle_unlock; apply: ltnW. Qed.
 
 
 (* membership properties of the sequence orderings *)
 
 Lemma slt_memI x y ks : x \in ks -> y \notin ks -> x <[ks] y.
-Proof. by move=>X /index_memN E; rewrite /seq_lt E index_mem. Qed.
+Proof. by move=>X /index_memN E; rewrite seqlt_unlock E index_mem. Qed.
 
 Lemma sle_memI x y ks : y \notin ks -> x <=[ks] y.
-Proof. by move/index_memN=>E; rewrite /seq_le E index_size. Qed.
+Proof. by move/index_memN=>E; rewrite seqle_unlock E index_size. Qed.
 
 Lemma slt_memE x y ks : x <[ks] y -> x \in ks.
-Proof. by rewrite -index_mem=>/leq_trans; apply; rewrite index_size. Qed.
+Proof. 
+rewrite seqlt_unlock -index_mem=>/leq_trans.
+by apply; rewrite index_size. 
+Qed.
 
 Lemma sle_memE x y ks : x <=[ks] y -> y \in ks -> x \in ks.
-Proof. by move=>H; rewrite -!index_mem; apply: leq_ltn_trans H. Qed.
+Proof. by rewrite seqle_unlock -!index_mem; apply: leq_ltn_trans. Qed.
 
 (* sequence orderings and constructors *)
 
-Lemma slt_nil x y : x <[Nil A] y = false. Proof. by []. Qed.
-Lemma sle_nil x y : x <=[Nil A] y. Proof. by []. Qed.
+Lemma slt_nil x y : x <[Nil A] y = false. 
+Proof. by rewrite seqlt_unlock. Qed.
+Lemma sle_nil x y : x <=[Nil A] y. 
+Proof. by rewrite seqle_unlock. Qed.
 
 (* cons *)
 
 Lemma slt_cons x y k ks :
         x <[k :: ks] y = (y != k) && ((x == k) || (x <[ks] y)).
-Proof. by rewrite /seq_lt /= !(eq_sym k); case: eqP; case: eqP. Qed.
+Proof. by rewrite !seqlt_unlock /= !(eq_sym k); case: eqP; case: eqP. Qed.
 
 Lemma sle_cons x y k ks :
         x <=[k :: ks] y = (x == k) || (y != k) && x <=[ks] y.
@@ -193,8 +236,10 @@ Proof. by rewrite sleNgt sltL negbK. Qed.
 (* sequence ordering and head *)
 
 Lemma sle_head x ks y : (head x ks) <=[ks] y.
-Proof. by case: ks=>[|k ks] //=; rewrite sleL. Qed.
-
+Proof. 
+case: ks=>[|k ks] /=; first by rewrite sle_nil.
+by rewrite sleL. 
+Qed.
 
 (* sequence orderings and rcons *)
 
@@ -202,7 +247,7 @@ Lemma slt_rcons x y k ks :
         x <[rcons ks k] y = if y \in ks then x <[ks] y
                             else (x \in ks) || (k != y) && (k == x).
 Proof.
-rewrite /seq_lt !index_rcons.
+rewrite !seqlt_unlock !index_rcons.
 case X: (x \in ks); case Y: (y \in ks)=>//=.
 - by case: eqP; [rewrite index_mem | rewrite ltnS index_size].
 - move/negbT/index_memN: X=>X; rewrite [LHS]ltnNge [RHS]ltnNge.
@@ -272,7 +317,7 @@ Lemma sle_cat ks1 ks2 x y :
         x <=[ks1++ks2] y = if x \in ks1 then x <=[ks1] y
                            else (y \notin ks1) && x <=[ks2] y.
 Proof.
-rewrite /seq_le !index_cat.
+rewrite !seqle_unlock !index_cat.
 case X: (x \in ks1); case Y: (y \in ks1)=>//=.
 - move/negbT/index_memN: Y=>Y.
   by rewrite Y index_size ltnW // ltn_addr // index_mem.
@@ -318,6 +363,7 @@ Proof.
 case H : (x <[ks] y); constructor; last first.
 - apply/contraFnot: H; case=>ks1 [ks2][-> N _].
   by apply: slt_splitR; rewrite eq_sym.
+rewrite seqlt_unlock in H.
 have : x \in ks by rewrite -index_mem (leq_trans H _) // index_size.
 case/in_split=>ks1 [ks2][E X]; exists ks1, ks2.
 rewrite /seq_lt {ks}E !index_cat /= eq_refl in H *.
@@ -337,7 +383,7 @@ move=>X; case H : (x <=[ks] y); constructor; last first.
 - apply/contraFnot: H; case=>ks1 [ks2][-> _ N].
   by apply: sle_splitR.
 case/in_split: X=>ks1 [ks2][E X]; exists ks1, ks2; split=>//.
-rewrite /seq_le {ks}E !index_cat /= eq_refl (negbTE X) addn0 in H.
+rewrite seqle_unlock {ks}E !index_cat /= eq_refl (negbTE X) addn0 in H.
 by case: ifP H=>//; rewrite -index_mem; case: ltngtP.
 Qed.
 
@@ -346,22 +392,22 @@ Qed.
 Lemma slt_filterL (p : pred A) ks x y :
          (x \notin ks) || p x ->
          x <[ks] y -> x <[filter p ks] y.
-Proof. by apply: index_filter_ltL. Qed.
+Proof. by rewrite !seqlt_unlock; apply: index_filter_ltL. Qed.
 
 Lemma sle_filterL (p : pred A) ks x y :
         (x \notin ks) || p x ->
         x <=[ks] y -> x <=[filter p ks] y.
-Proof. by apply: index_filter_leL. Qed.
+Proof. by rewrite !seqle_unlock; apply: index_filter_leL. Qed.
 
 Lemma slt_filterR (p : pred A) ks x y :
         (y \notin ks) || p y ->
         x <[filter p ks] y -> x <[ks] y.
-Proof. by apply: index_filter_ltR. Qed.
+Proof. by rewrite !seqlt_unlock; apply: index_filter_ltR. Qed.
 
 Lemma sle_filterR (p : pred A) ks x y :
         (y \notin ks) || p y ->
         x <=[filter p ks] y -> x <=[ks] y.
-Proof. by apply: index_filter_leR. Qed.
+Proof. by rewrite !seqle_unlock; apply: index_filter_leR. Qed.
 
 Lemma slt_filter (p : pred A) ks x y :
         (x \notin ks) || p x -> (y \notin ks) || p y ->
@@ -384,7 +430,7 @@ Lemma slt_sorted_lt ltT ks x y :
         transitive ltT ->
         sorted ltT ks ->
         y \in ks -> x <[ks] y -> ltT x y.
-Proof. by apply: sorted_index_ord. Qed.
+Proof. by rewrite seqlt_unlock; apply: sorted_index_ord. Qed.
 
 Lemma sle_sorted_lt ltT ks x y :
         transitive ltT ->
@@ -393,18 +439,6 @@ Lemma sle_sorted_lt ltT ks x y :
 Proof.
 move=>T S Y; rewrite sle_eqVlt; last by rewrite Y orbT.
 by case/orP=>[->//|/(slt_sorted_lt T S Y) ->]; rewrite orbT.
-Qed.
-
-Lemma slt_sorted_ltE ltT ks x y :
-        irreflexive ltT ->
-        transitive ltT ->
-        sorted ltT ks ->
-        x \in ks -> y \in ks ->
-        x <[ks] y = ltT x y.
-Proof.
-move=>Is T S X Y; apply/idP/idP.
-- by apply: slt_sorted_lt.
-by apply: sorted_ord_index.
 Qed.
 
 (* we can get the other direction as well *)
@@ -419,7 +453,7 @@ Lemma slt_sorted_leE leT ks x y :
 Proof.
 move=>As T S X Y; apply/idP/idP.
 - by case: eqP=>[->|/eqP N] /=; [apply: contraLR; rewrite slt_irr | apply: slt_sorted_lt].
-by case/andP=>H K; apply: sorted_ord_index_leq K H.
+by rewrite seqlt_unlock; case/andP=>H K; apply: sorted_ord_index_leq K H.
 Qed.
 
 (* if we add antisymmetry and t1 \in ks *)
@@ -436,6 +470,9 @@ Qed.
 
 End SeqLeProp.
 
+#[export] Hint Resolve slt_nil sle_nil : core.
+
+
 Section SeqLeUniq.
 Variable (A : eqType).
 Implicit Type (ks : seq A).
@@ -443,7 +480,10 @@ Implicit Type (ks : seq A).
 Lemma slt_subseq ks1 ks2 k t :
         subseq ks1 ks2 -> uniq ks2 -> k \in ks1 -> t \in ks1 ->
         k <[ks1] t = k <[ks2] t.
-Proof. by move=>S U T K; apply/idP/idP=>/(index_subseq S U T K). Qed.
+Proof. 
+rewrite !seqlt_unlock=>S U T K.
+by apply/idP/idP=>/(index_subseq S U T K). 
+Qed.
 
 Lemma sle_subseq ks1 ks2 k t :
         subseq ks1 ks2 -> uniq ks2 -> k \in ks1 -> t \in ks1 ->
@@ -454,7 +494,7 @@ Proof. by move=>S U T K; rewrite !sleNgt (slt_subseq S U K T). Qed.
 
 Lemma sle_last x k ks :
         uniq ks -> x \in ks -> x <=[ks] (last k ks).
-Proof. by apply: index_last_mono. Qed.
+Proof. by rewrite seqle_unlock; apply: index_last_mono. Qed.
 
 Lemma sle_last_cons x k ks :
         uniq (k :: ks) -> x \in k::ks -> x <=[k::ks] (last k ks).
@@ -501,7 +541,7 @@ Qed.
 Lemma sorted_sle ks : uniq ks -> sorted (seq_le ks) ks.
 Proof.
 move=>U; apply: sub_sorted (sorted_slt U).
-by move=>x y; rewrite /seq_lt/seq_le; case: ltngtP.
+by move=>x y /sltW.
 Qed.
 
 End SeqLeUniq.
@@ -526,7 +566,7 @@ Lemma slt_sortedE ks x y :
         x <[ks] y = ord x y.
 Proof.
 move=>S X Y; apply/idP/idP; first by apply: slt_sorted S Y.
-by apply: (sorted_ord_index (@irr _) (@trans _)) S X.
+by rewrite seqlt_unlock; apply: (sorted_ord_index (@irr _) (@trans _)) S X.
 Qed.
 
 Lemma sle_sortedE ks x y :

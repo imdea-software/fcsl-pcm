@@ -22,7 +22,7 @@ Section TransitiveClosure.
 Variables (h : seq nat) (R : rel nat).
 Hypothesis Rclosed : forall x y, R x y -> (x \in h) = (y \in h).
 
-Local Definition tp := [finType of seq_sub h].
+Local Definition tp := Finite.clone (seq_sub h) _.
 
 Definition Rtp (x y : tp) : bool := R (eqtype.val x) (eqtype.val y).
 
@@ -241,7 +241,7 @@ move=>Rcond Rsub.
 have X : forall x y, R2 x y -> (x \in h) = (y \in h).
 - by move=>?? /Rcond /andP [->->].
 case/rtcP=>[?? /Rsub/X //|Dx H]; apply/rtcP=>//.
-by split=>//; apply: iter_sub Rsub H.
+by split=>//; apply: iter_sub H; apply: Rsub.
 Qed.
 
 Lemma tcT (h : seq nat) (R : rel nat) :

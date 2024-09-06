@@ -1,12 +1,23 @@
+(*
+Copyright 2022 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path interval order.
 From pcm Require Import options prelude ordtype seqext slice useqord.
-
 (* We assume the sequences are unique and use the first index,  *)
 (* however most lemmas don't require this condition explicitly. *)
 (* The ones that do are grouped in separate sections.           *)
-
-Open Scope order_scope.
+Local Open Scope order_scope.
 Import Order.Theory.
 
 (* slicing by element index *)
@@ -115,33 +126,36 @@ Proof. by rewrite -[LHS](eqsl_uu s); apply: eqslice_split. Qed.
 Corollary eqsl_uoxx (ks : seq A) t1 t2 :
             t1 <=[ks] t2 ->
             &=ks `]-oo, t2] = &=ks `]-oo, t1[ ++ &=ks `[t1, t2].
-Proof. by move=>H; apply: eqslice_split. Qed.
+Proof. by rewrite seqle_unlock=>H; apply: eqslice_split. Qed.
 
 Corollary eqsl_uxoo (ks : seq A) t1 t2 :
             t1 <[ks] t2 ->
             &=ks `]-oo, t2[ = &=ks `]-oo, t1] ++ &=ks `]t1, t2[.
-Proof. by move=>H; apply: eqslice_split. Qed.
+Proof. by rewrite seqlt_unlock=>H; apply: eqslice_split. Qed.
 
 Corollary eqsl_uoxo (ks : seq A) t1 t2 :
             t1 <=[ks] t2 ->
             &=ks `]-oo, t2[ = &=ks `]-oo,t1[ ++ &=ks `[t1, t2[.
-Proof. by move=>H; apply: eqslice_split. Qed.
+Proof. by rewrite seqle_unlock=>H; apply: eqslice_split. Qed.
 
 Corollary eqsl_uxox (ks : seq A) t1 t2 :
             t1 <=[ks] t2 ->
             &=ks `]-oo, t2] = &=ks `]-oo, t1] ++ &=ks `]t1, t2].
-Proof. by move=>H; apply: eqslice_split. Qed.
+Proof. by rewrite seqle_unlock=>H; apply: eqslice_split. Qed.
 
 Corollary eqsl_xxou (ks : seq A) t1 t2 :
             t1 <=[ks] t2 ->
             &=ks `[t1, +oo[ = &=ks `[t1, t2] ++ &=ks `]t2, +oo[.
-Proof. by move=>H; apply: eqslice_split=>/=; rewrite andbT. Qed.
+Proof. 
+rewrite seqle_unlock=>H.
+by apply: eqslice_split=>/=; rewrite andbT. 
+Qed.
 
 Corollary eqsl_uxou (ks : seq A) t : ks = &=ks `]-oo, t] ++ &=ks `]t, +oo[.
-Proof. by exact: eqslice_split_full. Qed.
+Proof. exact: eqslice_split_full. Qed.
 
 Corollary eqsl_uoxu (ks : seq A) t : ks = &=ks `]-oo, t[ ++ &=ks `[t, +oo[.
-Proof. by exact: eqslice_split_full. Qed.
+Proof. exact: eqslice_split_full. Qed.
 
 (*
 Lemma eqsl_kk_out s l r k :
@@ -197,7 +211,7 @@ Lemma eqsl_xxL t1 t2 s :
                           then t1 :: &=s `]t1, t2]
                           else [::].
 Proof.
-rewrite /eq_slice /seq_le /=.
+rewrite /eq_slice seqle_unlock /=.
 case: leqP=>I /=; last by rewrite itv_swapped_bnd.
 rewrite (@slice_split _ _ _ false (index t1 s)) /=; last first.
 - by rewrite in_itv /= lexx.
@@ -212,7 +226,7 @@ Lemma eqsl_xxR t1 t2 s :
                              else &=s `[t1, +oo[
                            else [::].
 Proof.
-rewrite /eq_slice /seq_le /=.
+rewrite /eq_slice seqle_unlock /=.
 case: leqP=>I /=; last by rewrite itv_swapped_bnd //.
 rewrite (@slice_split _ _ _ true (index t2 s)) /=; last first.
 - by rewrite in_itv /= lexx andbT.
@@ -226,7 +240,7 @@ Lemma eqsl_xoL t1 t2 s :
                           then t1 :: &=s `]t1, t2[
                           else [::].
 Proof.
-rewrite /eq_slice /seq_lt /=.
+rewrite /eq_slice seqlt_unlock /=.
 case: ltnP=>I; last by rewrite itv_swapped_bnd.
 rewrite (@slice_split _ _ _ false (index t1 s)) /=; last first.
 - by rewrite in_itv /= lexx.
@@ -241,7 +255,7 @@ Lemma eqsl_oxR t1 t2 s :
                             else &=s `]t1, +oo[
                           else [::].
 Proof.
-rewrite /eq_slice /seq_lt /=.
+rewrite /eq_slice seqlt_unlock /=.
 case: ltnP=>I; last by rewrite itv_swapped_bnd.
 rewrite (@slice_split _ _ _ true (index t2 s)) /=; last first.
 - by rewrite in_itv /= lexx andbT.
@@ -671,45 +685,69 @@ Lemma mem_oo t1 t2 (ks : seq A) (k : A) :
         uniq ks ->
         reflect ([/\ k \in ks, t1 <[ks] k & k <[ks] t2])
                 (k \in &=ks `]t1, t2[).
-Proof. by move=>U; rewrite eqslice_mem_uniq // in_itv; apply: and3P. Qed.
+Proof. 
+rewrite !seqlt_unlock=>U.
+by rewrite eqslice_mem_uniq // in_itv; apply: and3P. 
+Qed.
 
 Lemma mem_xo t1 t2 (ks : seq A) k :
         uniq ks ->
         reflect ([/\ k \in ks, t1 <=[ks] k & k <[ks] t2])
                 (k \in &=ks `[t1, t2[).
-Proof. by move=>U; rewrite eqslice_mem_uniq // in_itv; apply: and3P. Qed.
+Proof. 
+rewrite seqlt_unlock seqle_unlock=>U.
+by rewrite eqslice_mem_uniq // in_itv; apply: and3P. 
+Qed.
 
 Lemma mem_ox t1 t2 (ks : seq A) k :
         uniq ks ->
         reflect ([/\ k \in ks, t1 <[ks] k & k <=[ks] t2])
                 (k \in &=ks `]t1, t2]).
-Proof. by move=>U; rewrite eqslice_mem_uniq // in_itv; apply: and3P. Qed.
+Proof. 
+rewrite seqlt_unlock seqle_unlock=>U.
+by rewrite eqslice_mem_uniq // in_itv; apply: and3P. 
+Qed.
 
 Lemma mem_xx t1 t2 (ks : seq A) k :
         uniq ks ->
         reflect ([/\ k \in ks, t1 <=[ks] k & k <=[ks] t2])
                 (k \in &=ks `[t1, t2]).
-Proof. by move=>U; rewrite eqslice_mem_uniq // in_itv; apply: and3P. Qed.
+Proof. 
+rewrite !seqle_unlock=>U.
+by rewrite eqslice_mem_uniq // in_itv; apply: and3P. 
+Qed.
 
 Lemma mem_uo t (ks : seq A) k :
         uniq ks ->
         reflect ([/\ k \in ks & k <[ks] t])(k \in &=ks `]-oo, t[).
-Proof. by move=>U; rewrite eqslice_mem_uniq // in_itv; apply: andP. Qed.
+Proof. 
+rewrite seqlt_unlock=>U.
+by rewrite eqslice_mem_uniq // in_itv; apply: andP. 
+Qed.
 
 Lemma mem_ux t (ks : seq A) k :
         uniq ks ->
         reflect ([/\ k \in ks & k <=[ks] t])(k \in &=ks `]-oo, t]).
-Proof. by move=>U; rewrite eqslice_mem_uniq // in_itv; apply: andP. Qed.
+Proof. 
+rewrite seqle_unlock=>U.
+by rewrite eqslice_mem_uniq // in_itv; apply: andP. 
+Qed.
 
 Lemma mem_ou t (ks : seq A) k :
         uniq ks ->
         reflect ([/\ k \in ks & t <[ks] k])(k \in &=ks `]t, +oo[).
-Proof. by move=>U; rewrite eqslice_mem_uniq // in_itv /= andbT; apply: andP. Qed.
+Proof. 
+rewrite seqlt_unlock=>U.
+by rewrite eqslice_mem_uniq // in_itv /= andbT; apply: andP. 
+Qed.
 
 Lemma mem_xu t (ks : seq A) k :
         uniq ks ->
         reflect ([/\ k \in ks & t <=[ks] k])(k \in &=ks `[t, +oo[).
-Proof. by move=>U; rewrite eqslice_mem_uniq // in_itv /= andbT; apply: andP. Qed.
+Proof. 
+rewrite seqle_unlock=>U.
+by rewrite eqslice_mem_uniq // in_itv /= andbT; apply: andP. 
+Qed.
 
 (* has predT lemmas *)
 
@@ -726,42 +764,66 @@ Qed.
 Lemma has_oo t1 t2 (ks : seq A) :
         uniq ks ->
         has predT (&=ks `]t1, t2[) = has (fun z => t1 <[ks] z && z <[ks] t2) ks.
-Proof. by move/has_predT_uslice=>->; apply: eq_has=>z; rewrite in_itv. Qed.
+Proof. 
+move/has_predT_uslice=>->; apply: eq_has=>z. 
+by rewrite !seqlt_unlock in_itv. 
+Qed.
 
 Lemma has_ox t1 t2 (ks : seq A) :
         uniq ks ->
         has predT (&=ks `]t1, t2]) = has (fun z => t1 <[ks] z && z <=[ks] t2) ks.
-Proof. by move/has_predT_uslice=>->; apply: eq_has=>z; rewrite in_itv. Qed.
+Proof. 
+move/has_predT_uslice=>->; apply: eq_has=>z.
+by rewrite seqlt_unlock seqle_unlock in_itv. 
+Qed.
 
 Lemma has_xo t1 t2 (ks : seq A) :
         uniq ks ->
         has predT (&=ks `[t1, t2[) = has (fun z => t1 <=[ks] z && z <[ks] t2) ks.
-Proof. by move/has_predT_uslice=>->; apply: eq_has=>z; rewrite in_itv. Qed.
+Proof. 
+move/has_predT_uslice=>->; apply: eq_has=>z.
+by rewrite seqle_unlock seqlt_unlock in_itv. 
+Qed.
 
 Lemma has_xx t1 t2 (ks : seq A) :
         uniq ks ->
         has predT (&=ks `[t1, t2]) = has (fun z => t1 <=[ks] z && z <=[ks] t2) ks.
-Proof. by move/has_predT_uslice=>->; apply: eq_has=>z; rewrite in_itv. Qed.
+Proof. 
+move/has_predT_uslice=>->; apply: eq_has=>z.
+by rewrite !seqle_unlock in_itv. 
+Qed.
 
 Lemma has_ou t (ks : seq A) :
         uniq ks ->
         has predT (&=ks `]t, +oo[) = has (fun z => t <[ks] z) ks.
-Proof. by move/has_predT_uslice=>->; apply: eq_has=>z; rewrite in_itv /= andbT. Qed.
+Proof. 
+move/has_predT_uslice=>->; apply: eq_has=>z.
+by rewrite seqlt_unlock in_itv /= andbT. 
+Qed.
 
 Lemma has_xu t (ks : seq A) :
         uniq ks ->
         has predT (&=ks `[t, +oo[) = has (fun z => t <=[ks] z) ks.
-Proof. by move/has_predT_uslice=>->; apply: eq_has=>z; rewrite in_itv /= andbT. Qed.
+Proof. 
+move/has_predT_uslice=>->; apply: eq_has=>z.
+by rewrite seqle_unlock in_itv /= andbT. 
+Qed.
 
 Lemma has_uo t (ks : seq A) :
         uniq ks ->
         has predT (&=ks `]-oo, t[) = has (fun z => z <[ks] t) ks.
-Proof. by move/has_predT_uslice=>->; apply: eq_has=>z; rewrite in_itv. Qed.
+Proof. 
+move/has_predT_uslice=>->; apply: eq_has=>z.
+by rewrite seqlt_unlock in_itv. 
+Qed.
 
 Lemma has_ux t (ks : seq A) :
         uniq ks ->
         has predT (&=ks `]-oo, t]) = has (fun z => z <=[ks] t) ks.
-Proof. by move/has_predT_uslice=>->; apply: eq_has=>z; rewrite in_itv. Qed.
+Proof. 
+move/has_predT_uslice=>->; apply: eq_has=>z.
+by rewrite seqle_unlock in_itv. 
+Qed.
 
 (* negation of has on the left side *)
 
@@ -772,7 +834,7 @@ Lemma hasNL_oo (ks : seq A) t1 t2 (p : pred A) :
 Proof.
 move=>U T /hasPn H z K P.
 move: (H z); rewrite eqslice_mem_uniq // in_itv K /= =>/contraL/(_ P).
-rewrite negb_and -!sleNgt; case/orP=>Hz.
+rewrite negb_and -!seqlt_unlockE -!sleNgt; case/orP=>Hz.
 - by rewrite Hz; apply: (sle_slt_trans Hz).
 rewrite sltNge Hz sleNgt; congr negb; apply/esym.
 by apply: (slt_sle_trans T).
@@ -785,7 +847,8 @@ Lemma hasNL_ox (ks : seq A) t1 t2 (p : pred A) :
 Proof.
 move=>U T /hasPn H z K P.
 move: (H z); rewrite eqslice_mem_uniq // in_itv K /= =>/contraL/(_ P).
-rewrite negb_and -sleNgt -sltNge; case/orP=>Hz.
+rewrite negb_and -seqlt_unlockE -seqle_unlockE -sleNgt -sltNge.
+case/orP=>Hz.
 - by rewrite Hz; apply: (sle_trans Hz).
 rewrite !sleNgt Hz; congr negb; apply/esym.
 by apply: (sle_slt_trans T).
@@ -798,7 +861,8 @@ Lemma hasNL_xo (ks : seq A) t1 t2 (p : pred A) :
 Proof.
 move=>U T /hasPn H z K P.
 move: (H z); rewrite eqslice_mem_uniq // in_itv K /= =>/contraL/(_ P).
-rewrite negb_and -sltNge -sleNgt; case/orP=>Hz.
+rewrite negb_and -seqle_unlockE -seqlt_unlockE -sltNge -sleNgt.
+case/orP=>Hz.
 - by rewrite Hz; apply: (slt_sle_trans Hz).
 rewrite !sltNge Hz; congr negb; apply/esym.
 by apply: (sle_trans T).
@@ -811,7 +875,7 @@ Lemma hasNL_xx (ks : seq A) t1 t2 (p : pred A) :
 Proof.
 move=>U T /hasPn H z K P.
 move: (H z); rewrite eqslice_mem_uniq // in_itv K /= =>/contraL/(_ P).
-rewrite negb_and -!sltNge; case/orP=>Hz.
+rewrite negb_and -!seqle_unlockE -!sltNge; case/orP=>Hz.
 - by rewrite Hz; apply/sltW/(slt_sle_trans Hz).
 rewrite sltNge sleNgt Hz; congr negb; apply/esym.
 by apply/sltW/(sle_slt_trans T).
@@ -823,7 +887,7 @@ Lemma hasNL_ou (ks : seq A) t (p : pred A) :
 Proof.
 move=>U /hasPn H z K P.
 move: (H z); rewrite eqslice_mem_uniq // in_itv K /= andbT =>/contraL/(_ P).
-by rewrite -sleNgt.
+by rewrite -seqlt_unlockE -sleNgt.
 Qed.
 
 Lemma hasNL_xu (ks : seq A) t (p : pred A) :
@@ -832,7 +896,7 @@ Lemma hasNL_xu (ks : seq A) t (p : pred A) :
 Proof.
 move=>U /hasPn H z K P.
 move: (H z); rewrite eqslice_mem_uniq // in_itv K /= andbT =>/contraL/(_ P).
-by rewrite -sltNge.
+by rewrite -seqle_unlockE -sltNge.
 Qed.
 
 Lemma hasNL_uo (ks : seq A) t (p : pred A) :
@@ -841,7 +905,7 @@ Lemma hasNL_uo (ks : seq A) t (p : pred A) :
 Proof.
 move=>U /hasPn H z K P.
 move: (H z); rewrite eqslice_mem_uniq // in_itv K /= =>/contraL/(_ P).
-by rewrite -sleNgt.
+by rewrite -seqlt_unlockE -sleNgt.
 Qed.
 
 Lemma hasNL_ux (ks : seq A) t (p : pred A) :
@@ -850,7 +914,7 @@ Lemma hasNL_ux (ks : seq A) t (p : pred A) :
 Proof.
 move=>U /hasPn H z K P.
 move: (H z); rewrite eqslice_mem_uniq // in_itv K /= =>/contraL/(_ P).
-by rewrite -sltNge.
+by rewrite -seqle_unlockE -sltNge.
 Qed.
 
 (* negation of has on the right side *)
@@ -861,8 +925,8 @@ Lemma hasNR_oo (ks : seq A) t1 t2 (p : pred A) :
         ~~ has p (&=ks `]t1, t2[).
 Proof.
 move=>U T; apply/hasPn=>z; rewrite eqslice_mem_uniq // in_itv /=.
-case/and3P=>H1 H2 H3; apply: contraL H2=>P; rewrite -sleNgt.
-by rewrite -(T _ H1 P).
+rewrite -!seqlt_unlockE; case/and3P=>H1 H2 H3; apply: contraL H2=>P. 
+by rewrite -sleNgt -(T _ H1 P).
 Qed.
 
 Lemma hasNR_ox (ks : seq A) t1 t2 (p : pred A) :
@@ -871,8 +935,9 @@ Lemma hasNR_ox (ks : seq A) t1 t2 (p : pred A) :
         ~~ has p (&=ks `]t1, t2]).
 Proof.
 move=>U T; apply/hasPn=>z; rewrite eqslice_mem_uniq // in_itv /=.
-case/and3P=>H1 H2 H3; apply: contraL H2=>P; rewrite -sleNgt.
-by rewrite -(T _ H1 P).
+rewrite -seqlt_unlockE -seqle_unlockE.
+case/and3P=>H1 H2 H3; apply: contraL H2=>P.
+by rewrite -sleNgt -(T _ H1 P).
 Qed.
 
 Lemma hasNR_xo (ks : seq A) t1 t2 (p : pred A) :
@@ -881,8 +946,9 @@ Lemma hasNR_xo (ks : seq A) t1 t2 (p : pred A) :
         ~~ has p (&=ks `[t1, t2[).
 Proof.
 move=>U T; apply/hasPn=>z; rewrite eqslice_mem_uniq // in_itv /=.
-case/and3P=>H1 H2 H3; apply: contraL H2=>P; rewrite -sltNge.
-by rewrite -(T _ H1 P).
+rewrite -seqlt_unlockE -seqle_unlockE.
+case/and3P=>H1 H2 H3; apply: contraL H2=>P.
+by rewrite -sltNge -(T _ H1 P).
 Qed.
 
 Lemma hasNR_xx (ks : seq A) t1 t2 (p : pred A) :
@@ -891,8 +957,9 @@ Lemma hasNR_xx (ks : seq A) t1 t2 (p : pred A) :
         ~~ has p (&=ks `[t1, t2]).
 Proof.
 move=>U T; apply/hasPn=>z; rewrite eqslice_mem_uniq // in_itv /=.
-case/and3P=>H1 H2 H3; apply: contraL H2=>P; rewrite -sltNge.
-by rewrite -(T _ H1 P).
+rewrite -!seqle_unlockE.
+case/and3P=>H1 H2 H3; apply: contraL H2=>P.
+by rewrite -sltNge -(T _ H1 P).
 Qed.
 
 Lemma hasNR_ou (ks : seq A) t (p : pred A) :
@@ -901,8 +968,8 @@ Lemma hasNR_ou (ks : seq A) t (p : pred A) :
         ~~ has p (&=ks `]t, +oo[).
 Proof.
 move=>U T; apply/hasPn=>z; rewrite eqslice_mem_uniq // in_itv /= andbT.
-case/andP=>H1 H2; apply: contraL H2=>P; rewrite -sleNgt.
-by apply: T.
+rewrite -seqlt_unlockE; case/andP=>H1 H2; apply: contraL H2=>P.
+by rewrite -sleNgt; apply: T.
 Qed.
 
 Lemma hasNR_xu (ks : seq A) t (p : pred A) :
@@ -911,8 +978,8 @@ Lemma hasNR_xu (ks : seq A) t (p : pred A) :
         ~~ has p (&=ks `[t, +oo[).
 Proof.
 move=>U T; apply/hasPn=>z; rewrite eqslice_mem_uniq // in_itv /= andbT.
-case/andP=>H1 H2; apply: contraL H2=>P; rewrite -sltNge.
-by apply: T.
+rewrite -seqle_unlockE; case/andP=>H1 H2; apply: contraL H2=>P.
+by rewrite -sltNge; apply: T.
 Qed.
 
 Lemma hasNR_uo (ks : seq A) t (p : pred A) :
@@ -921,8 +988,8 @@ Lemma hasNR_uo (ks : seq A) t (p : pred A) :
         ~~ has p (&=ks `]-oo, t[).
 Proof.
 move=>U T; apply/hasPn=>z; rewrite eqslice_mem_uniq // in_itv /=.
-case/andP=>H1 H2; apply: contraL H2=>P; rewrite -sleNgt.
-by apply: T.
+rewrite -seqlt_unlockE; case/andP=>H1 H2; apply: contraL H2=>P.
+by rewrite -sleNgt; apply: T.
 Qed.
 
 Lemma hasNR_ux (ks : seq A) t (p : pred A) :
@@ -931,8 +998,8 @@ Lemma hasNR_ux (ks : seq A) t (p : pred A) :
         ~~ has p (&=ks `]-oo, t]).
 Proof.
 move=>U T; apply/hasPn=>z; rewrite eqslice_mem_uniq // in_itv /=.
-case/andP=>H1 H2; apply: contraL H2=>P; rewrite -sltNge.
-by apply: T.
+rewrite -seqle_unlockE; case/andP=>H1 H2; apply: contraL H2=>P.
+by rewrite -sltNge; apply: T.
 Qed.
 
 End SliceSeqOrd.

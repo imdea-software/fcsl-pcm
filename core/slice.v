@@ -1,9 +1,43 @@
+(*
+Copyright 2022 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path interval order.
-From pcm Require Import options prelude ordtype seqext.
+From mathcomp Require Import fintype finfun tuple.
+From pcm Require Import options prelude seqext.
 
 Open Scope order_scope.
 Import Order.Theory.
+
+Section BSimp_Extension.
+Variables (disp : unit) (T : porderType disp).
+Implicit Types (x y : T) (b c : bool).
+
+Lemma binf_inf b c : (BInfty T b == BInfty T c) = (b == c).
+Proof. by rewrite eqE /= eqE /= andbT. Qed.
+
+Lemma bside_inf x b c : 
+        ((BSide b x == BInfty T c) = false) * 
+        ((BInfty T c == BSide b x) = false).
+Proof. by rewrite !eqE /= !eqE /= !andbF. Qed.
+
+Lemma bside_side x y b c :
+        (BSide b x == BSide c y) = (b == c) && (x == y).
+Proof. by rewrite !eqE. Qed.
+
+End BSimp_Extension.
+
+Definition bnd_simp := ((@bside_inf, @binf_inf, @bside_side), bnd_simp).
 
 (* sequence slicing by nat indices *)
 (* reuses mathcomp interval infrastructure *)
@@ -677,3 +711,13 @@ by apply/drop_sorted/take_sorted.
 Qed.
 
 End LemmasEq.
+
+(* slicing and rcons *)
+Lemma codom_ux_rcons A n (f : {ffun 'I_n -> A}) (i : 'I_n) :
+        &:(fgraph f) `]-oo, i : nat] = 
+        rcons (&:(fgraph f) `]-oo, i : nat[) (f i).
+Proof. by rewrite slice_xR // slice_uu onth_codom. Qed.
+
+
+
+

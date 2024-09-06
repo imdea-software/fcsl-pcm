@@ -34,6 +34,7 @@ From pcm Require Import pcm unionmap natmap.
 (**************************************************************************)
 (**************************************************************************)
 
+
 (* Context structure for reflection of unionmap expressions. We          *)
 (* reflect the keys and the variables of the map expression. (The        *)
 (* variables are all expressions that are not recognized as a key, or as *)
@@ -42,7 +43,7 @@ From pcm Require Import pcm unionmap natmap.
 (* The context of keys is thus seq K. The context of vars is seq U.      *)
 
 Section ReflectionContexts.
-Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map C T).
 
 Structure ctx := Context {keyx : seq K; varx : seq U}.
 
@@ -52,14 +53,14 @@ Definition empx := Context [::] [::].
 (* we need a notion of sub-context *)
 
 Definition sub_ctx (i j : ctx) :=
-  prefix (keyx i) (keyx j) /\ prefix (varx i) (varx j).
+  Prefix (keyx i) (keyx j) /\ Prefix (varx i) (varx j).
 
 Lemma sc_refl i : sub_ctx i i.
 Proof. by []. Qed.
 
 Lemma sc_trans i j k : sub_ctx i j -> sub_ctx j k -> sub_ctx i k.
 Proof.
-by case=>K1 V1 [K2 V2]; split; [move: K2 | move: V2]; apply: prefix_trans.
+by case=>K1 V1 [K2 V2]; split; [move: K2 | move: V2]; apply: Prefix_trans.
 Qed.
 
 End ReflectionContexts.
@@ -73,7 +74,7 @@ End ReflectionContexts.
 (* now for reflection *)
 
 Section Reflection.
-Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map C T).
 Implicit Type i : ctx U.
 
 Inductive term := Pts of nat & T | Var of nat.
@@ -152,7 +153,7 @@ Definition wf i t :=
 
 Lemma sc_wf i j ts : sub_ctx i j -> all (wf i) ts -> all (wf j) ts.
 Proof.
-case=>/prefix_size H1 /prefix_size H2; elim: ts=>[|t ts IH] //=.
+case=>/Prefix_size H1 /Prefix_size H2; elim: ts=>[|t ts IH] //=.
 case/andP=>H /IH ->; rewrite andbT.
 by case: t H=>[n v|v] H; apply: leq_trans H _.
 Qed.
@@ -161,7 +162,7 @@ Lemma sc_interp i j ts :
         sub_ctx i j -> all (wf i) ts -> interp i ts = interp j ts.
 Proof.
 case=>H1 H2; elim: ts=>[|t ts IH] //= /andP [H] /IH ->.
-by case: t H=>[n v|n] /= /prefix_onth <-.
+by case: t H=>[n v|n] /= /Prefix_onth <-.
 Qed.
 
 Lemma valid_wf i ts : valid (interp i ts) -> all (wf i) ts.
@@ -199,7 +200,7 @@ End Reflection.
 (* subterm is purely functional version of validX *)
 
 Section Subterm.
-Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map C T).
 Implicit Types (i : ctx U) (ts : seq (term T)).
 
 Fixpoint subterm ts1 ts2 :=
@@ -221,7 +222,7 @@ elim: ts1 ts2=>[|t ts1 IH] ts2 /= A1 A2.
 case/andP: A1; case: t=>[n v|n] /= /size_onth [k] X A1;
 rewrite X; case: ifP=>Y //.
 - case: (keyP Y X)=>w -> /(IH _ A1 (wf_kfree n A2)) [xs D].
-  by exists xs; rewrite -joinA; apply: domeqUn D.
+  by exists xs; rewrite -joinA; apply: domeqUn D; apply: domeqPt.
 move: (varP Y X)=>-> /(IH _ A1 (wf_vfree n A2)) [xs D].
 by exists xs; rewrite -joinA; apply: domeqUn D.
 Qed.
@@ -231,7 +232,7 @@ End Subterm.
 (* subtract is purely functional version of domeqX *)
 
 Section Subtract.
-Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map C T).
 Implicit Types (i : ctx U) (ts : seq (term T)).
 
 (* We need a subterm lemma that returns the uncancelled stuff from *)
@@ -260,7 +261,7 @@ elim: ts1 ts2 xs=>[|t ts1 IH] ts2 xs /= A1 A2.
 case/andP: A1; case: t=>[n v|n] /= /size_onth [x X] A1; rewrite X; case: ifP=>Y.
 - case: (keyP Y X)=>w -> /(IH _ _ A1 (wf_kfree n A2)) [u][H1 H2].
   exists (pts x v \+ u); rewrite -joinA !(pull (pts x _)).
-  by split=>//; apply: domeqUn.
+  by split=>//; apply: domeqUn=>//; apply: domeqPt.
 - by case/(IH _ _ A1 A2)=>u [/= H1 H2]; rewrite X joinCA joinA in H1; exists u.
 - move: (varP Y X)=>-> /(IH _ _ A1 (wf_vfree n A2)) [u][H1 H2].
   by exists (x \+ u); rewrite -joinA !(pull x); split=>//; apply: domeqUn.
@@ -272,7 +273,7 @@ End Subtract.
 (* invalid is a purely functional test of invalidX *)
 
 Section Invalid.
-Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map C T).
 Implicit Types (i : ctx U) (t : term T) (ts : seq (term T)).
 
 Definition undefx i t :=
@@ -314,7 +315,7 @@ End Invalid.
 
 Module Syntactify.
 Section Syntactify.
-Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map C T).
 Implicit Types (i : ctx U) (ts : seq (term T)).
 
 (* a tagging structure to control the flow of computation *)
@@ -403,7 +404,7 @@ Export Syntactify.Exports.
 
 Module ValidX.
 Section ValidX.
-Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map C T).
 Implicit Types (j : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
@@ -470,7 +471,7 @@ Canonical equate.
 Canonical start.
 
 Section Exports.
-Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map C T).
 Implicit Types (j : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
@@ -501,13 +502,14 @@ End ValidX.
 
 Export ValidX.Exports.
 
+
 (*********************)
 (* Automating domeqX *)
 (*********************)
 
 Module DomeqX.
 Section DomeqX.
-Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map C T).
 Implicit Types (j : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
@@ -533,8 +535,8 @@ Proof.
 case: f2=>f2 [<- S A2]; case E : (subtract _ _ _)=>[rs1 rs2] A1; split=>//.
 case/(subtract_sound (sc_wf S A1) A2): E=>ys [/= D1 D2 D].
 rewrite unitR in D1; apply: domeq_trans D1 _.
-rewrite domeq_sym; apply: domeq_trans D2 _.
-by rewrite domeq_sym; apply: domeqUn.
+rewrite domeq_symE; apply: domeq_trans D2 _.
+by rewrite domeq_symE; apply: domeqUn.
 Qed.
 
 Canonical start j k ts1 ts2 f2 := RForm (@start_pf j k ts1 ts2 f2).
@@ -546,7 +548,7 @@ Canonical equate.
 Canonical start.
 
 Section Exports.
-Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map C T).
 Implicit Types (j : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
@@ -575,14 +577,13 @@ End DomeqX.
 
 Export DomeqX.Exports.
 
-
 (***********************)
 (* Automating invalidX *)
 (***********************)
 
 Module InvalidX.
 Section InvalidX.
-Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map C T).
 Implicit Types (i : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
@@ -613,7 +614,7 @@ Canonical equate.
 Canonical start.
 
 Section Exports.
-Variables (K : ordType) (C : pred K) (T : Type) (U : union_map_class C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map C T).
 Implicit Types (i : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
@@ -647,76 +648,79 @@ Export InvalidX.Exports.
 Module OmfX.
 Section OmfX.
 
-Inductive syntx (A : Type) :=
+Inductive syntx A (U : natmap A) :=
   | UnitOmf
-  | PtOmf of stamp & A
-  | UnOmf of syntx A & syntx A
-  | OtherOmf of natmap A.
+  | PtOmf of nat & A
+  | UnOmf of syntx U & syntx U
+  | OtherOmf of U.
 
-Fixpoint omf_interp A B (f : omap_fun (nat_mapUMC A) (nat_mapUMC B)) e : natmap B :=
+Fixpoint omf_interp A B (U : natmap A) (V : natmap B) (f : omap_fun U V) e : V :=
   match e with
     UnitOmf => Unit
-  | PtOmf k v => if map_fun f (k, v) is Some w then pts k w else Unit
+  | PtOmf k v => if omf f (k, v) is Some w then pts k w else Unit
   | UnOmf h1 h2 => omf_interp f h1 \+ omf_interp f h2
   | OtherOmf h => f h
   end.
 
-Structure tagged_natmap A := Tag {untag : natmap A}.
+Structure tagged_natmap A (U : natmap A) := Tag {untag : U}.
 Definition unit_tag := Tag.
 Definition pt_tag := unit_tag.
 Definition union_tag := pt_tag.
 Definition recurse_unguard_tag := union_tag.
-Canonical recurse_guard_tag A f := @recurse_unguard_tag A f.
+Canonical recurse_guard_tag A (U : natmap A) f := @recurse_unguard_tag A U f.
 
-Definition guard_ax A B ts e (f : omap_fun (nat_mapUMC A) (nat_mapUMC B)) :=
-  untag e = f (omf_interp id_omap_fun ts).
+Definition guard_ax A B (U : natmap A) (V : natmap B) ts e (f : omap_fun U V) :=
+  untag e = f (omf_interp idfun ts).
 
-Structure guarded_form A B ts := GForm {
-  gpivot :> tagged_natmap B;
-  guard_of : omap_fun (nat_mapUMC A) (nat_mapUMC B);
+Structure guarded_form A B (U : natmap A) (V : natmap B) ts := GForm {
+  gpivot :> tagged_natmap V;
+  guard_of : omap_fun U V;
   _ : guard_ax ts gpivot guard_of}.
 
-Definition unguard_ax A (ts : syntx A) e :=
-  untag e = omf_interp id_omap_fun ts.
+Definition unguard_ax A (U : natmap A) (ts : syntx U) e :=
+  untag e = omf_interp idfun ts.
 
-Structure unguarded_form A (ts : syntx A) := UForm {
-  upivot :> tagged_natmap A;
+Structure unguarded_form A (U : natmap A) (ts : syntx U) := UForm {
+  upivot :> tagged_natmap U;
   _ : unguard_ax ts upivot}.
 
 (* we first try to see if there's more function guards *)
-Lemma recurse_guard_pf A B C ts (f : omap_fun (nat_mapUMC B) (nat_mapUMC C))
-                       (g : @guarded_form A B ts) :
+Lemma recurse_guard_pf A B C (U : natmap A) (V : natmap B) (W : natmap C)
+        ts (f : omap_fun V W)
+           (g : @guarded_form A B U V ts) :
         guard_ax ts (recurse_guard_tag (f (untag g)))
-                    (comp_omap_fun (guard_of g) f).
+                    (f \o guard_of g).
 Proof. by case: g=>e g pf /=; rewrite pf. Qed.
-Canonical recurse_guard A B C ts f g := GForm (@recurse_guard_pf A B C ts f g).
+Canonical recurse_guard A B C U V W ts f g := GForm (@recurse_guard_pf A B C U V W ts f g).
 
 (* if not, we descend to unguarded form to syntactify the underlying expression *)
-Lemma recurse_unguard_pf A ts (u : @unguarded_form A ts) :
-        guard_ax ts (recurse_unguard_tag (untag u)) id_omap_fun.
+Lemma recurse_unguard_pf A (U : natmap A) ts (u : @unguarded_form A U ts) :
+        guard_ax ts (recurse_unguard_tag (untag u)) idfun.
 Proof. by case: u. Qed.
-Canonical recurse_unguard A ts u := GForm (@recurse_unguard_pf A ts u).
+Canonical recurse_unguard A U ts u := GForm (@recurse_unguard_pf A U ts u).
 
 (* syntactifying union recursively descends to both sides *)
-Lemma unguard_union_pf A ts1 ts2 (u1 : @unguarded_form A ts1) (u2 : @unguarded_form A ts2) :
+Lemma unguard_union_pf A (U : natmap A) ts1 ts2 
+        (u1 : @unguarded_form A U ts1) (u2 : @unguarded_form A U ts2) :
         unguard_ax (UnOmf ts1 ts2) (union_tag (untag u1 \+ untag u2)).
 Proof. by case: u1 u2=>u1 pf1 [u2 pf2]; rewrite /= pf1 pf2. Qed.
-Canonical unguard_union A ts1 ts2 u1 u2 := UForm (@unguard_union_pf A ts1 ts2 u1 u2).
+Canonical unguard_union A U ts1 ts2 u1 u2 := UForm (@unguard_union_pf A U ts1 ts2 u1 u2).
 
 (* base case for syntactifying points-to *)
-Lemma unguard_pts_pf A k (v : A) : unguard_ax (PtOmf k v) (pt_tag (pts k v)).
+Lemma unguard_pts_pf A (U : natmap A) k (v : A) : 
+        unguard_ax (PtOmf U k v) (pt_tag (pts k v)).
 Proof. by []. Qed.
-Canonical unguard_pts A k v := UForm (@unguard_pts_pf A k v).
+Canonical unguard_pts A U k v := UForm (@unguard_pts_pf A U k v).
 
 (* base case for syntactifying empty map Unit *)
-Lemma unguard_unit_pf A : unguard_ax (UnitOmf A) (unit_tag Unit).
+Lemma unguard_unit_pf A (U : natmap A) : unguard_ax (UnitOmf U) (unit_tag Unit).
 Proof. by []. Qed.
-Canonical unguard_unit A := UForm (@unguard_unit_pf A).
+Canonical unguard_unit A U := UForm (@unguard_unit_pf A U).
 
 (* base case for syntactifying all other expressions *)
-Lemma unguard_other_pf A (e : natmap A) : unguard_ax (OtherOmf e) (Tag e).
+Lemma unguard_other_pf A (U : natmap A) (e : U) : unguard_ax (OtherOmf e) (Tag e).
 Proof. by []. Qed.
-Canonical unguard_other A e := UForm (@unguard_other_pf A e).
+Canonical unguard_other A U e := UForm (@unguard_other_pf A U e).
 
 End OmfX.
 
@@ -731,21 +735,23 @@ Canonical unguard_other.
 
 (* main lemma *)
 
-Lemma omfX A B C ts (f : omap_fun (nat_mapUMC B) (nat_mapUMC C))
-                    (g : @guarded_form A B ts) :
-        valid (omf_interp id_omap_fun ts) ->
+Lemma omfX A B C (U : natmap A) (V : natmap B) (W : natmap C) ts 
+          (f : omap_fun V W)
+          (g : @guarded_form A B U V ts) :
+        valid (omf_interp idfun ts) ->
         f (untag g) =
-        omf_interp (comp_omap_fun (guard_of g) f) ts.
+        omf_interp (f \o guard_of g) ts.
 Proof.
-case: g=>eq g /=; elim: ts eq=>[|s a|ts1 IH1 ts2 IH2|t] /= eq pf V.
-- by rewrite pf !omf_unit.
-- rewrite validPt in V; rewrite pf omfPt // /obind /oapp /=.
-  by case: (OmapFun.mfunc _ _)=>[x|] //; rewrite ?omfPt ?omf_unit.
-- rewrite pf /= !omfUn //; last by rewrite -omfUn ?valid_omf.
-  by rewrite IH1 ?(validL V) // IH2 ?(validR V).
+case: g=>eq g /=; elim: ts eq=>[|s a|ts1 IH1 ts2 IH2|t] /= eq pf X.
+- by rewrite pf !pfunit.
+- rewrite validPt in X; rewrite pf omfPt // omf_comp /=. 
+  by case: (omf g _)=>[x|]; rewrite ?omfPt ?pfunit.
+- rewrite pf /= !omfUn //; last by rewrite -omfUn ?pfVE.
+  by rewrite IH1 ?(validL X) // IH2 ?(validR X).
 by rewrite pf.
 Qed.
 End Exports.
 End OmfX.
 
 Export OmfX.Exports.
+

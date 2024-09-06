@@ -1,3 +1,3 @@
-Export Set Implicit Arguments.
-Export Unset Strict Implicit.
-Export Unset Printing Implicit Defensive.
+#[export] Set Implicit Arguments.
+#[export] Unset Strict Implicit.
+#[export] Unset Printing Implicit Defensive.

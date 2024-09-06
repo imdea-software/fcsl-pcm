@@ -15,12 +15,12 @@ limitations under the License.
 (* This file re-implements some of ssrbool's entities in Prop universe        *)
 (******************************************************************************)
 
-From Coq Require Import ssreflect ssrbool ssrfun Setoid.
+From Coq Require Import ssreflect ssrbool ssrfun Setoid Basics.
 From mathcomp Require Import ssrnat seq eqtype.
 From pcm Require Import options.
-Set Warnings "-projection-no-head-constant".
 
 (* First some basic propositional equalities *)
+
 
 Lemma andTp p : True /\ p <-> p.      Proof. by intuition. Qed.
 Lemma andpT p : p /\ True <-> p.      Proof. by intuition. Qed.
@@ -36,6 +36,7 @@ Lemma iffC p q : (p <-> q) <-> (q <-> p). Proof. by intuition. Qed.
 Declare Scope rel_scope.
 Delimit Scope rel_scope with rel.
 Open Scope rel_scope.
+Open Scope fun_scope.
 
 (**************************************************************************)
 (* We follow ssrbool, and provide four different types of predicates.     *)
@@ -54,10 +55,12 @@ Open Scope rel_scope.
 (**************************************************************************)
 
 Definition Pred T := T -> Prop.
-Identity Coercion fun_of_Pred : Pred >-> Funclass.
+Identity Coercion Fun_Of_Pred : Pred >-> Funclass.
+
+Definition SubPred T (p1 p2 : Pred T) := forall x : T, p1 x -> p2 x.
 
 Notation xPred0 := (fun _ => False).
-Notation xPred1 := (fun x y => x = y).
+Notation xPred1 := (fun x => eq^~ x).
 Notation xPredT := (fun _ => True).
 Notation xPredI := (fun (p1 p2 : Pred _) x => p1 x /\ p2 x).
 Notation xPredU := (fun (p1 p2 : Pred _) x => p1 x \/ p2 x).
@@ -65,331 +68,647 @@ Notation xPredC := (fun (p : Pred _) x => ~ p x).
 Notation xPredD := (fun (p1 p2 : Pred _) x => ~ p2 x /\ p1 x).
 Notation xPreim := (fun f (p : Pred _) x => p (f x)).
 
-Section Predicates.
-Variable T : Type.
+(* The packed class interface for pred-like types. *)
 
-(* simple predicates *)
+Structure PredType T :=
+   PropPredType {Pred_Sort :> Type; toPred : Pred_Sort -> Pred T}.
 
-Definition Simpl_Pred := simpl_fun T Prop.
-Definition SimplPred (p : Pred T) : Simpl_Pred := SimplFun p.
-Coercion Pred_of_Simpl (p : Simpl_Pred) : Pred T := p : T -> Prop.
+Definition Clone_Pred T U :=
+  fun pT & @Pred_Sort T pT -> U =>
+  fun toP (pT' := @PropPredType T U toP) & phant_id pT' pT => pT'.
+Notation "[ 'PredType' 'of' T ]" := (@Clone_Pred _ T _ id _ id) : form_scope.
 
-(* it's useful to declare the operations as simple predicates, so that *)
-(* complex expressions automatically reduce when used in applicative   *)
-(* positions *)
+Canonical PredPredType T := PropPredType (@id (Pred T)).
+Canonical PropFunPredType T := PropPredType (@id (T -> Prop)).
 
-Definition Pred0 := SimplPred xPred0.
-Definition Pred1 x := SimplPred (xPred1 x).
-Definition PredT := SimplPred xPredT.
-Definition PredI p1 p2 := SimplPred (xPredI p1 p2).
-Definition PredU p1 p2 := SimplPred (xPredU p1 p2).
-Definition PredC p := SimplPred (xPredC p).
-Definition PredD p1 p2 := SimplPred (xPredD p1 p2).
-Definition Preim rT f (d : Pred rT) := SimplPred (xPreim f d).
+Notation "{ 'Pred' T }" := (Pred_Sort (PredPredType T)) 
+  (format "{ 'Pred'  T }") : type_scope.
 
-(* membership predicates *)
+Definition Eq_Pred {T} (pT : PredType T) (mp1 mp2 : pT) := 
+  forall x : T, toPred mp1 x <-> toPred mp2 x.
+Definition Sub_Pred {T} (pT : PredType T) (mp1 mp2 : pT) := 
+  forall x : T, toPred mp1 x -> toPred mp2 x.
+Definition Eq_PredFun {T1 T2} (pT2 : PredType T2) p1 p2 := 
+  forall x : T1, @Eq_Pred T2 pT2 (p1 x) (p2 x).
+Definition Sub_PredFun T1 T2 (pT2 : PredType T2) p1 p2 :=
+  forall x : T1, @Sub_Pred T2 pT2 (p1 x) (p2 x).
 
-Variant Mem_Pred : Type := MemProp of Pred T.
-Definition isMem pT toPred mem := mem = (fun p : pT => MemProp [eta toPred p]).
+Notation "A <~> B" := (@Eq_Pred _ _ A B)
+  (at level 70, no associativity) : rel_scope.
+Notation "A ~> B" := (@Sub_Pred _ _ A B)
+  (at level 70, no associativity) : rel_scope.
+Notation "A <~1> B" := (@Eq_PredFun _ _ _ A B)
+  (at level 70, no associativity) : rel_scope.
+Notation "A ~1> B" := (@Sub_PredFun _ _ _ A B)
+  (at level 70, no associativity) : rel_scope.
 
-(* the general structure for predicates *)
+(* The type of self-simplifying collective predicates. *)
 
-Structure PredType : Type := PropPredType {
-  Pred_Sort :> Type;
-  toPred : Pred_Sort -> Pred T;
-  _ : {mem | isMem toPred mem}}.
+Definition Simpl_Pred T := simpl_fun T Prop.
+Definition PropSimplPred {T} (p : Pred T) : Simpl_Pred T := SimplFun p.
 
-Definition mkPredType pT toP := PropPredType (exist (@isMem pT toP) _ (erefl _)).
+(* Some Simple_Pred constructors *)
 
-(* Pred, SimplPred, Mem_Pred, pred and simpl_pred are PredType's *)
-Canonical Structure PredPredType := Eval hnf in @mkPredType (Pred T) id.
-Canonical Structure SimplPredPredType := Eval hnf in mkPredType Pred_of_Simpl.
-Canonical Structure PropfunPredType := Eval hnf in @mkPredType (T -> Prop) id.
-Coercion Pred_of_Mem mp : Pred_Sort PredPredType :=
-  let: MemProp p := mp in [eta p].
-Canonical Structure MemPredType := Eval hnf in mkPredType Pred_of_Mem.
-Canonical Structure predPredType := Eval hnf in @mkPredType (pred T) id.
-Canonical Structure simplpredPredType :=
-  Eval hnf in @mkPredType (simpl_pred T) (fun p x => p x).
+Definition Pred0 {T} := @PropSimplPred T xPred0.
+Definition PredT {T} := @PropSimplPred T xPredT.
+Definition Pred1 {T} (x : T) := PropSimplPred (xPred1 x).
+Definition PredI {T} (p1 p2 : Pred T) := PropSimplPred (xPredI p1 p2).
+Definition PredU {T} (p1 p2 : Pred T) := PropSimplPred (xPredU p1 p2).
+Definition PredC {T} (p : Pred T) := PropSimplPred (xPredC p).
+Definition PredD {T} (p1 p2 : Pred T) := PropSimplPred (xPredD p1 p2).
+Definition Preim {aT rT} (f : aT -> rT) (d : Pred rT) := 
+  PropSimplPred (xPreim f d).
 
-End Predicates.
+Notation "[ 'Pred' : T | E ]" := (PropSimplPred (fun _ : T => E))
+  (format "[ 'Pred' :  T  |  E ]") : fun_scope.
+Notation "[ 'Pred' x | E ]" := (PropSimplPred (fun x => E))
+  (x name, format "[ 'Pred'  x  |  E ]") : fun_scope.
+Notation "[ 'Pred' x : T | E ]" := (PropSimplPred (fun x : T => E))
+  (x name, only parsing) : fun_scope.
+Notation "[ 'Pred' x | E1 & E2 ]" := [Pred x | E1 /\ E2 ] 
+  (x name) : fun_scope.
+Notation "[ 'Pred' x : T | E1 & E2 ]" := [Pred x : T | E1 /\ E2 ] 
+  (x name, only parsing) : fun_scope.
 
-Arguments Pred0 {T}.
-Arguments PredT {T}.
-Prenex Implicits Pred0 PredT PredI PredU PredC PredD Preim.
+(* coercion for Simpl_Pred *)
 
-Notation "r1 +p r2" := (PredU r1 r2 : Pred _)
-  (at level 55, right associativity) : rel_scope.
-Notation "r1 *p r2" := (xPredI r1 r2 : Pred _)
-  (at level 45, right associativity) : rel_scope.
+Module PredOfSimpl.
+Definition Coerce T (sp : Simpl_Pred T) : Pred T := fun_of_simpl sp.
+End PredOfSimpl.
+Notation Pred_Of_Simpl := PredOfSimpl.Coerce.
+Coercion Pred_Of_Simpl : Simpl_Pred >-> Pred.
+Canonical SimplPredType T := PropPredType (@Pred_Of_Simpl T).
 
-Notation "[ 'Pred' : T | E ]" := (SimplPred (fun _ : T => E))
-  (at level 0, format "[ 'Pred' :  T  |  E ]") : fun_scope.
-Notation "[ 'Pred' x | E ]" := (SimplPred (fun x => E))
-  (at level 0, x name, format "[ 'Pred'  x  |  E ]") : fun_scope.
-Notation "[ 'Pred' x : T | E ]" := (SimplPred (fun x : T => E))
-  (at level 0, x name, only parsing) : fun_scope.
-Notation "[ 'Pred' x y | E ]" := (SimplPred (fun t => let: (x, y) := t in E))
-  (at level 0, x name, y name, format "[ 'Pred'  x  y  |  E ]") : fun_scope.
-Notation "[ 'Pred' x y : T | E ]" :=
-  (SimplPred (fun t : (T*T) => let: (x, y) := t in E))
-  (at level 0, x name, y name, only parsing) : fun_scope.
-
-Definition repack_Pred T pT :=
-  let: PropPredType _ a mP := pT return {type of @PropPredType T for pT} -> _ in
-   fun k => k a mP.
-
-Notation "[ 'PredType' 'of' T ]" := (repack_Pred (fun a => @PropPredType _ T a))
-  (at level 0, format "[ 'PredType'  'of'  T ]") : form_scope.
-
-Notation Pred_Class := (Pred_Sort (PredPredType _)).
-Coercion Sort_of_Simpl_Pred T (p : Simpl_Pred T) : Pred_Class := p : Pred T.
+Module Type PropPredSortOfSimplSignature.
+Parameter Coerce : forall T, Simpl_Pred T -> {Pred T}.
+End PropPredSortOfSimplSignature.
+Module PropDeclarePredSortOfSimpl 
+  (PropPredSortOfSimpl : PropPredSortOfSimplSignature).
+Coercion PropPredSortOfSimpl.Coerce : Simpl_Pred >-> Pred_Sort.
+End PropDeclarePredSortOfSimpl.
+Module Export PropPredSortOfSimplCoercion := 
+  PropDeclarePredSortOfSimpl PredOfSimpl.
 
 Definition PredArgType := Type.
-Coercion Pred_of_argType (T : PredArgType) : Simpl_Pred T := PredT.
+Bind Scope type_scope with PredArgType.
+Identity Coercion Sort_Of_PredArgType : PredArgType >-> Sortclass.
+Coercion Pred_Of_ArgType (T : PredArgType) : Simpl_Pred T := PredT.
+Notation "{ :: T }" := (T%type : PredArgType) : type_scope.
 
-Notation "{ :: T }" := (T%type : PredArgType)
-  (at level 0, format "{ ::  T }") : type_scope.
+(* prop relations *)
 
-(* These must be defined outside a Section because "cooking" kills the *)
-(* nosimpl tag. *)
+Definition Rel T := T -> Pred T.
+Identity Coercion Fun_Of_Rel : Rel >-> Funclass.
+
+Definition eqRel {T} (R1 R2 : Rel T) := forall x y, R1 x y <-> R2 x y.
+Definition subRel {T} (R1 R2 : Rel T) := forall x y : T, R1 x y -> R2 x y.
+
+Notation "A <~2> B" := (eqRel A B)
+  (at level 70, no associativity) : rel_scope.
+Notation "A ~2> B" := (subRel A B)
+  (at level 70, no associativity) : rel_scope.
+
+(* composing relation and function *)
+
+Definition Rel_app A B (D : Rel A) (f : B -> A) : Rel B := 
+  fun x y => D (f x) (f y).
+
+Arguments Rel_app {A B} D f _ _ /.
+Notation "D \\o f" := (@Rel_app _ _ D f) 
+  (at level 42, left associativity).
+
+Lemma rel_app1 T (g : T -> T -> Prop) : g \\o id <~2> g. 
+Proof. by []. Qed.
+
+(* simplifying relations *)
+
+Definition Simpl_Rel T := T -> Simpl_Pred T.
+
+Coercion Rel_Of_Simpl T (sr : Simpl_Rel T) : Rel T := fun x : T => sr x.
+Arguments Rel_Of_Simpl {T} sr x /.
+
+Notation xRelU := (fun (r1 r2 : Rel _) x y => r1 x y \/ r2 x y).
+Notation xRelPre := (fun f (r : Rel _) x y => r (f x) (f y)).
+
+Definition PropSimplRel {T} (r : Rel T) : Simpl_Rel T := 
+  fun x => PropSimplPred (r x).
+Definition RelU {T} (r1 r2 : Rel T) := PropSimplRel (xRelU r1 r2).
+Definition RelPre {aT rT} (f : aT -> rT) (r : Rel rT) := PropSimplRel (xRelPre f r).
+
+Notation "[ 'Rel' x y | E ]" := (PropSimplRel (fun x y => E))
+  (x name, y name, only parsing) : fun_scope.
+Notation "[ 'Rel' x y : T | E ]" := (PropSimplRel (fun x y : T => E)) 
+  (x name, y name, only parsing) : fun_scope.
+
+Lemma subRelUl T (r1 r2 : Rel T) : subRel r1 (RelU r1 r2).
+Proof. by left. Qed.
+
+Lemma subRelUr T (r1 r2 : Rel T) : subRel r2 (RelU r1 r2).
+Proof. by right. Qed.
+
+(* Variant of Simpl_Pred specialised to the membership operator. *)
+
+Variant Mem_Pred T := PropMem of Pred T.
+
+Coercion Pred_Of_Mem {T} mp : {Pred T} := let: PropMem p := mp in [eta p].
+Canonical MemPredType T := PropPredType (@Pred_Of_Mem T).
+
+Definition In_Mem {T} (x : T) mp := Pred_Of_Mem mp x.
+Definition Eq_Mem {T} mp1 mp2 := forall x : T, In_Mem x mp1 <-> In_Mem x mp2. 
+Definition Sub_Mem {T} mp1 mp2 := forall x : T, In_Mem x mp1 -> In_Mem x mp2.
+
+Arguments In_Mem {T} x mp : simpl never.
+Global Typeclasses Opaque Eq_Mem Sub_Mem.
+
+(*
+The Simpl_Of_Mem; Pred_Of_Simpl path provides a new Mem_Pred >-> Pred
+  coercion, but does not override the Pred_Of_Mem : Mem_Pred >-> Pred_sort
+  explicit coercion declaration above.
+*)
+ 
+Coercion Simpl_Of_Mem {T} mp := PropSimplPred (fun x : T => In_Mem x mp).
+
+Lemma Sub_Refl T (mp : Mem_Pred T) : Sub_Mem mp mp.
+Proof. by []. Qed.
+Arguments Sub_Refl {T mp} [x] mp_x.
+
 Definition Mem T (pT : PredType T) : pT -> Mem_Pred T :=
-  nosimpl (let: PropPredType _ _ (exist mem _) := pT return pT -> _ in mem).
-Definition InMem T x mp := nosimpl Pred_of_Mem T mp x.
+  let: PropPredType _ toP := pT in fun A => PropMem [eta toP A].
+Arguments Mem {T pT} A : rename, simpl never.
 
-Prenex Implicits Mem.
-
-(* Membership Predicates can be used as simple ones *)
-Coercion Pred_of_Mem_Pred T mp := [Pred x : T | InMem x mp].
-
-(* equality and subset *)
-
-Definition EqPredType T (pT : PredType T) (p1 p2 : pT) :=
-  forall x : T, toPred p1 x <-> toPred p2 x.
-
-Definition SubPredType T (pT : PredType T) (p1 p2 : pT) :=
-  forall x : T, toPred p1 x -> toPred p2 x.
-
-Definition EqSimplPred T (p1 p2 : Simpl_Pred T) := EqPredType p1 p2.
-Definition SubSimplPred T (p1 p2 : Simpl_Pred T) := SubPredType p1 p2.
-
-Definition EqPredFun T1 T2 (pT2 : PredType T2) p1 p2 :=
-  forall x : T1, @EqPredType T2 pT2 (p1 x) (p2 x).
-Definition SubPredFun T1 T2 (pT2 : PredType T2) p1 p2 :=
-  forall x : T1, @SubPredType T2 pT2 (p1 x) (p2 x).
-
-Definition EqMem T p1 p2 := forall x : T, InMem x p1 <-> InMem x p2.
-Definition SubMem T p1 p2 := forall x : T, InMem x p1 -> InMem x p2.
-
-Notation "A <~> B" := (@EqPredType _ _ A B)
-  (at level 70, no associativity) : rel_scope.
-Notation "A ~> B" := (@SubPredType _ _ A B)
-  (at level 70, no associativity) : rel_scope.
-Notation "A <~1> B" := (@EqPredFun _ _ _ A B)
-  (at level 70, no associativity) : rel_scope.
-Notation "A ~1> B" := (@SubPredFun _ _ _ A B)
-  (at level 70, no associativity) : rel_scope.
-
-Notation "x \In A" := (InMem x (Mem A))
+Notation "x \In A" := (In_Mem x (Mem A))
   (at level 70, no associativity) : rel_scope.
 Notation "x \Notin A" := (~ (x \In A))
   (at level 70, no associativity) : rel_scope.
-Notation "A =p B" := (EqMem (Mem A) (Mem B))
+Notation "A =p B" := (Eq_Mem (Mem A) (Mem B))
   (at level 70, no associativity) : type_scope.
-Notation "A <=p B" := (SubMem (Mem A) (Mem B))
+Notation "A <=p B" := (Sub_Mem (Mem A) (Mem B))
   (at level 70, no associativity) : type_scope.
 
-(* Some notation for turning PredTypes into Pred or Simple Pred *)
-Notation "[ 'Mem' A ]" := (Pred_of_Simpl (Pred_of_Mem_Pred (Mem A)))
-  (at level 0, only parsing) : fun_scope.
+(* conversions *)
+Lemma eq_conv T (A B : Pred T) : (A <~> B) = (A =p B).
+Proof. by []. Qed.
+Lemma sub_conv T (A B : Pred T) : (A ~> B) = (A <=p B).
+Proof. by []. Qed.
+
+Notation "[ 'Mem' A ]" :=
+  (Pred_Of_Simpl (Simpl_Of_Mem (Mem A))) (only parsing) : fun_scope.
+
 Notation "[ 'PredI' A & B ]" := (PredI [Mem A] [Mem B])
-  (at level 0, format "[ 'PredI'  A  &  B ]") : fun_scope.
+  (format "[ 'PredI'  A  &  B ]") : fun_scope.
 Notation "[ 'PredU' A & B ]" := (PredU [Mem A] [Mem B])
-  (at level 0, format "[ 'PredU'  A  &  B ]") : fun_scope.
+  (format "[ 'PredU'  A  &  B ]") : fun_scope.
 Notation "[ 'PredD' A & B ]" := (PredD [Mem A] [Mem B])
-  (at level 0, format "[ 'PredD'  A  &  B ]") : fun_scope.
+  (format "[ 'PredD'  A  &  B ]") : fun_scope.
 Notation "[ 'PredC' A ]" := (PredC [Mem A])
-  (at level 0, format "[ 'PredC'  A ]") : fun_scope.
+  (format "[ 'PredC'  A ]") : fun_scope.
 Notation "[ 'Preim' f 'of' A ]" := (Preim f [Mem A])
-  (at level 0, format "[ 'Preim'  f  'of'  A ]") : fun_scope.
+  (format "[ 'Preim'  f  'of'  A ]") : fun_scope.
 
-Notation "[ 'Pred' x \In A ]" := [Pred x | x \In A]
-  (at level 0, x name, format "[ 'Pred'  x  \In  A ]") : fun_scope.
-Notation "[ 'Pred' x \In A | E ]" := [Pred x | (x \In A) /\ E]
-  (at level 0, x name, format "[ 'Pred'  x  \In  A  |  E ]") : fun_scope.
-Notation "[ 'Pred' x y \In A & B | E ]" :=
-  [Pred x y | (x \In A) /\ (y \In B) /\ E]
+Notation "[ 'Pred' x 'In' A ]" := [Pred x | x \In A] 
+  (x name) : fun_scope.
+Notation "[ 'Pred' x 'In' A | E ]" := [Pred x | (x \In A) /\ E] 
+  (x name) : fun_scope.
+Notation "[ 'Pred' x 'In' A | E1 & E2 ]" := 
+  [Pred x | x \In A & E1 /\ E2 ] 
+  (x name) : fun_scope.
+
+(* infix notation for PredU and PredI *)
+(* is sometimes more readable *) 
+
+Notation "A \+p B" := (PredOfSimpl.Coerce (PredU A B))
+  (at level 55, right associativity) : rel_scope.
+Notation "A \*p B" := (PredOfSimpl.Coerce (PredI A B))
+  (at level 45, right associativity) : rel_scope.
+
+Notation "[ 'Rel' x y 'In' A & B | E ]" :=
+  [Rel x y | (x \In A) /\ (y \In B) /\ E]
   (at level 0, x name, y name,
-   format "[ 'Pred'  x  y  \In  A  &  B  |  E ]") : fun_scope.
-Notation "[ 'Pred' x y \In A & B ]" := [Pred x y | (x \In A) /\ (y \In B)]
+   format "[ 'Rel'  x  y  'In'  A  &  B  |  E ]") : fun_scope.
+Notation "[ 'Rel' x y 'In' A & B ]" := [Rel x y | (x \In A) /\ (y \In B)]
   (at level 0, x name, y name,
-   format "[ 'Pred'  x  y  \In  A  &  B ]") : fun_scope.
-Notation "[ 'Pred' x y \In A | E ]" := [Pred x y \In A & A | E]
+   format "[ 'Rel'  x  y  'In'  A  &  B ]") : fun_scope.
+Notation "[ 'Rel' x y 'In' A | E ]" := [Rel x y In A & A | E]
   (at level 0, x name, y name,
-   format "[ 'Pred'  x  y  \In  A  |  E ]") : fun_scope.
-Notation "[ 'Pred' x y \In A ]" := [Pred x y \In A & A]
+   format "[ 'Rel'  x  y  'In'  A  |  E ]") : fun_scope.
+Notation "[ 'Rel' x y 'In' A ]" := [Rel x y In A & A]
   (at level 0, x name, y name,
-   format "[ 'Pred'  x  y  \In  A ]") : fun_scope.
+   format "[ 'Rel'  x  y  'In' A ]") : fun_scope.
 
-Section Simplifications.
-Variables (T : Type) (pT : PredType T).
+Definition Applicative_Pred T := Pred T.
+Definition Collective_Pred T := Pred T.
+Coercion Applicative_Pred_Of_Simpl T (sp : Simpl_Pred T) : Applicative_Pred T :=
+  fun_of_simpl sp.
+Coercion Collective_Pred_Of_Simpl T (sp : Simpl_Pred T) : Collective_Pred T :=
+  let: SimplFun p := sp in p.
 
-Lemma Mem_toPred : forall (p : pT), Mem (toPred p) = Mem p.
-Proof. by rewrite /Mem; case: pT => T1 app1 [mem1  /= ->]. Qed.
+(* Explicit simplification rules for predicate application and membership.  *)
+Section PredicateSimplification.
+Variables T : Type.
+Implicit Types (p : Pred T) (pT : PredType T) (sp : Simpl_Pred T).
+Implicit Types (mp : Mem_Pred T).
 
-Lemma toPredE x (p : pT) : toPred p x = (x \In p).
-Proof. by rewrite -Mem_toPred. Qed.
+Structure Registered_Applicative_Pred p := PropRegisteredApplicativePred {
+  Applicative_Pred_Value :> Pred T;
+  _ : Applicative_Pred_Value = p
+}.
+Definition PropApplicativePred p := PropRegisteredApplicativePred (erefl p).
+Canonical Applicative_Pred_Applicative sp :=
+  PropApplicativePred (Applicative_Pred_Of_Simpl sp).
 
-Lemma In_Simpl x (p : Simpl_Pred T) : (x \In p) = p x.
+Structure Manifest_Simpl_Pred p := PropManifestSimplPred {
+  Simpl_Pred_Value :> Simpl_Pred T;
+  _ : Simpl_Pred_Value = PropSimplPred p
+}.
+Canonical Expose_Simpl_Pred p := PropManifestSimplPred (erefl (PropSimplPred p)).
+
+Structure Manifest_Mem_Pred p := PropManifestMemPred {
+  Mem_Pred_Value :> Mem_Pred T;
+  _ : Mem_Pred_Value = PropMem [eta p]
+}.
+Canonical Expose_Mem_Pred p := PropManifestMemPred (erefl (PropMem [eta p])).
+
+Structure Applicative_Mem_Pred p :=
+  PropApplicativeMemPred {Applicative_Mem_Pred_Value :> Manifest_Mem_Pred p}.
+Canonical Check_Applicative_Mem_Pred p (ap : Registered_Applicative_Pred p) :=
+  [eta @PropApplicativeMemPred ap].
+
+Lemma Mem_toPred pT (pp : pT) : Mem (toPred pp) = Mem pp.
+Proof. by case: pT pp. Qed.
+
+Lemma toPredE pT x (pp : pT) : toPred pp x = (x \In pp).
+Proof. by case: pT pp. Qed.
+
+Lemma App_PredE x p (ap : Registered_Applicative_Pred p) : ap x = (x \In p).
+Proof. by case: ap=>ap /= ->. Qed.
+
+Lemma In_Applicative x p (amp : Applicative_Mem_Pred p) : In_Mem x amp = p x.
+Proof. by case: amp; case=>amp /= ->. Qed.
+
+Lemma In_Collective x p (msp : Manifest_Simpl_Pred p) :
+        (x \In Collective_Pred_Of_Simpl msp) = p x.
+Proof. by case: msp=>msp pf; rewrite -toPredE /= pf. Qed.
+
+Lemma In_Simpl x p (msp : Manifest_Simpl_Pred p) :
+  In_Mem x (PropMem [eta Pred_Of_Simpl msp]) = p x.
+Proof. by case: msp=>msp /= ->. Qed.
+
+Lemma Unfold_In x p : (x \In ([eta p] : Pred T)) = p x.
 Proof. by []. Qed.
 
-Lemma Simpl_PredE (p : Pred T) : p <~> [Pred x | p x].
+Lemma Simpl_PredE p : PropSimplPred p =1 p.
 Proof. by []. Qed.
 
-Lemma Mem_Simpl (p : Simpl_Pred T) : Mem p = p :> Pred T.
+Lemma Mem_Simpl sp : Mem sp = sp :> Pred T.
 Proof. by []. Qed.
 
-Definition MemE := Mem_Simpl. (* could be extended *)
+Definition MemE := Mem_Simpl.
+Lemma Mem_Mem mp :
+  (Mem mp = mp) * (Mem (mp : Simpl_Pred T) = mp) * (Mem (mp : Pred T) = mp).
+Proof. by case: mp. Qed.
 
-Lemma Mem_Mem (p : pT) : (Mem (Mem p) = Mem p) * (Mem [Mem p] = Mem p).
-Proof. by rewrite -Mem_toPred. Qed.
+End PredicateSimplification.
 
-End Simplifications.
+(* Qualifiers and keyed predicates.  *)
+
+Variant Qualifier (q : nat) T := PropQualifier of {Pred T}.
+
+Coercion Has_Quality n T (q : Qualifier n T) : {Pred T} :=
+  fun x => let: PropQualifier p := q in p x.
+Arguments Has_Quality n {T}.
+
+Lemma QualifE n T p x : (x \In @PropQualifier n T p) = p x.
+Proof. by []. Qed.
+
+Notation "x \Is A" := (x \In Has_Quality 0 A) 
+  (at level 0, only parsing) : fun_scope.
+Notation "x \Is A" := (x \In Has_Quality 0 A) 
+  (at level 0, only printing) : fun_scope.
+Notation "x \Is 'a' A" := (x \In Has_Quality 1 A) 
+  (at level 0, only parsing) : fun_scope.
+Notation "x \Is 'a' A" := (x \In Has_Quality 1 A) 
+  (at level 0, only printing) : fun_scope.
+Notation "x \Is 'an' A" := (x \In Has_Quality 2 A) 
+  (at level 0, only parsing) : fun_scope.
+Notation "x \Is 'an' A" := (x \In Has_Quality 2 A) 
+  (at level 0, only printing) : fun_scope.
+Notation "x \Isn't A" := (x \Notin Has_Quality 0 A) 
+  (at level 0) : fun_scope.
+Notation "x \Isn't 'a' A" := (x \Notin Has_Quality 1 A) 
+  (at level 0) : fun_scope.
+Notation "x \Isn't 'an' A" := (x \Notin Has_Quality 2 A) 
+  (at level 0) : fun_scope.
+Notation "[ 'Qualify' x | P ]" := (PropQualifier 0 (fun x => P)) : form_scope.
+Notation "[ 'Qualify' x : T | P ]" :=
+  (PropQualifier 0 (fun x : T => P)) (only parsing) : form_scope.
+Notation "[ 'Qualify' 'a' x | P ]" := 
+  (PropQualifier 1 (fun x => P)) : form_scope.
+Notation "[ 'Qualify' 'a' x : T | P ]" :=
+  (PropQualifier 1 (fun x : T => P)) (only parsing) : form_scope.
+Notation "[ 'Qualify' 'an' x | P ]" :=
+  (PropQualifier 2 (fun x => P)) : form_scope.
+Notation "[ 'Qualify' 'an' x : T | P ]" :=
+  (PropQualifier 2 (fun x : T => P)) (only parsing) : form_scope.
+
+(* Keyed predicates: support for property-bearing predicate interfaces. *)
+
+Section KeyPred.
+Variable T : Type.
+Variant Pred_Key (p : {Pred T}) : Prop := PropDefaultPredKey.
+
+Variable p : {Pred T}.
+Structure Keyed_Pred (k : Pred_Key p) :=
+  PropPackKeyedPred {Unkey_Pred :> {Pred T}; _ : Unkey_Pred =p p}.
+
+Variable k : Pred_Key p.
+Definition PropKeyedPred := @PropPackKeyedPred k p (fun x => iff_refl _).
+
+Variable k_p : Keyed_Pred k.
+Lemma Keyed_PredE : k_p =p p.
+Proof. by case: k_p. Qed.
+
+Canonical Keyed_Mem :=
+  @PropPackKeyedPred k (Pred_Of_Mem (Mem k_p)) Keyed_PredE.
+Canonical Leyed_Mem_Simpl :=
+  @PropPackKeyedPred k (Pred_Of_Simpl (Mem k_p)) Keyed_PredE.
+
+End KeyPred.
+
+Local Notation In_Unkey x S := (x \In @Unkey_Pred _ S _ _) (only parsing).
+Notation "x \In S" := (In_Unkey x S) (only printing) : fun_scope.
+
+Section KeyedQualifier.
+Variables (T : Type) (n : nat) (q : Qualifier n T).
+
+Structure Keyed_Qualifier (k : Pred_Key q) :=
+  PropPackKeyedQualifier {Unkey_Qualifier; _ : Unkey_Qualifier = q}.
+Definition PropKeyedQualifier k := PropPackKeyedQualifier k (erefl q).
+Variables (k : Pred_Key q) (k_q : Keyed_Qualifier k).
+Fact Keyed_Qualifier_Subproof : Unkey_Qualifier k_q =p q.
+Proof. by case: k_q=>kq pf x /=; rewrite pf. Qed.
+Canonical Keyed_Qualifier_Keyed := PropPackKeyedPred k Keyed_Qualifier_Subproof.
+
+End KeyedQualifier.
+
+Notation "x \Is A" :=
+  (In_Unkey x (Has_Quality 0 A)) (only printing) : fun_scope.
+Notation "x \Is 'a' A" :=
+  (In_Unkey x (Has_Quality 1 A)) (only printing) : fun_scope.
+Notation "x \Is 'an' A" :=
+  (In_Unkey x (Has_Quality 2 A)) (only printing) : fun_scope.
+
+Module DefaultKeying.
+Canonical Default_Keyed_Pred T p := PropKeyedPred (@PropDefaultPredKey T p).
+Canonical Default_Keyed_Qualifier T n (q : Qualifier n T) :=
+  PropKeyedQualifier (PropDefaultPredKey q).
+End DefaultKeying.
+
 
 (**************************************)
 (* Definitions and lemmas for setoids *)
 (**************************************)
 
-Section RelProperties.
-Variables (T : Type) (pT : PredType T).
-
-Lemma EqPredType_refl (r : pT) : EqPredType r r. Proof. by []. Qed.
-Lemma SubPredType_refl (r : pT) : SubPredType r r. Proof. by []. Qed.
-
-Lemma EqPredType_sym (r1 r2 : pT) : EqPredType r1 r2 -> EqPredType r2 r1.
-Proof. by move=>H1 x; split; move/H1. Qed.
-
-Lemma EqPredType_trans' (r1 r2 r3 : pT) :
-  EqPredType r1 r2 -> EqPredType r2 r3 -> EqPredType r1 r3.
-Proof. by move=>H1 H2 x; split; [move/H1; move/H2 | move/H2; move/H1]. Qed.
-
-Lemma SubPredType_trans' (r1 r2 r3 : pT) :
-  SubPredType r1 r2 -> SubPredType r2 r3 -> SubPredType r1 r3.
-Proof. by move=>H1 H2 x; move/H1; move/H2. Qed.
-
-Definition EqPredType_trans r2 r1 r3 := @EqPredType_trans' r1 r2 r3.
-Definition SubPredType_trans r2 r1 r3 := @SubPredType_trans' r1 r2 r3.
-End RelProperties.
-
-#[export]
-Hint Resolve EqPredType_refl SubPredType_refl : core.
-
 (* Declaration of relations *)
 
-(* Unfortunately, Coq setoids don't seem to understand implicit coercions *)
-(* and canonical structures so we have to repeat relation declarations    *)
-(* for all instances. This is really annoying, but at least we don't have *)
-(* to reprove the lemmas on refl, sym and trans.                          *)
+Section EqPred.
+Context {T : Type} {pT : PredType T}.
+Lemma EqPred_refl (r : pT) : Eq_Pred r r. Proof. by []. Qed.
+Lemma EqPred_sym (r1 r2 : pT) : Eq_Pred r1 r2 -> Eq_Pred r2 r1.
+Proof. by move=>H1 x; split; move/H1. Qed.
+Lemma EqPred_trans' (r1 r2 r3 : pT) :
+        Eq_Pred r1 r2 -> Eq_Pred r2 r3 -> Eq_Pred r1 r3.
+Proof. by move=>H1 H2 x; split; [move/H1; move/H2 | move/H2; move/H1]. Qed.
+Definition EqPred_trans r2 r1 r3 := @EqPred_trans' r1 r2 r3.
+End EqPred.
 
-Add Parametric Relation T (pT : PredType T) : pT (@EqPredType _ pT)
-  reflexivity proved by (@EqPredType_refl _ _)
-  symmetry proved by (@EqPredType_sym _ _)
-  transitivity proved by (@EqPredType_trans' _ _) as EqPredType_rel.
+#[export] Hint Resolve EqPred_refl : core.
 
-Add Parametric Relation T : (Simpl_Pred T) (@EqSimplPred _)
-  reflexivity proved by (@EqPredType_refl _ _)
-  symmetry proved by (@EqPredType_sym _ _)
-  transitivity proved by (@EqPredType_trans' _ _) as EqSimplPred_rel.
+(* declare relations for all Eq_Pred and Eq_Mem *)
 
-Add Parametric Relation T : (Simpl_Pred T) (@SubSimplPred _)
-  reflexivity proved by (@SubPredType_refl _ _)
-  transitivity proved by (@SubPredType_trans' _ _) as SubSimplPred_rel.
+Add Parametric Relation T (pT : PredType T) : pT (@Eq_Pred _ pT)
+  reflexivity proved by (@EqPred_refl _ _)
+  symmetry proved by (@EqPred_sym _ _)
+  transitivity proved by (@EqPred_trans' _ _) as EqPred_rel.
 
-Add Parametric Relation T : (Mem_Pred T) (@EqMem T)
-  reflexivity proved by (@EqPredType_refl _ _)
-  symmetry proved by (@EqPredType_sym _ _)
-  transitivity proved by (@EqPredType_trans' _ _) as EqMem_rel.
+(* do we need to add relations for mem_pred as well? *)
+Add Parametric Relation T : (Mem_Pred T) (@Eq_Mem T)
+  reflexivity proved by (@EqPred_refl _ _)
+  symmetry proved by (@EqPred_sym _ _)
+  transitivity proved by (@EqPred_trans' _ _) as EqMem_rel.
 
-Add Parametric Relation T : (Mem_Pred T) (@SubMem _)
-  reflexivity proved by (@SubPredType_refl _ _)
-  transitivity proved by (@SubPredType_trans' _ _) as SubMem_rel.
+Section SubPred.
+Context {T : Type} {pT : PredType T}.
+Lemma SubPred_refl (r : pT) : Sub_Pred r r. Proof. by []. Qed.
+Lemma SubPred_trans' (r1 r2 r3 : pT) :
+        Sub_Pred r1 r2 -> Sub_Pred r2 r3 -> Sub_Pred r1 r3.
+Proof. by move=>H1 H2 x; move/H1; move/H2. Qed.
+Definition SubPred_trans r2 r1 r3 := @SubPred_trans' r1 r2 r3.
+End SubPred.
+
+#[export] Hint Resolve SubPred_refl : core.
+
+Add Parametric Relation T (pT : PredType T) : pT (@Sub_Pred _ pT)   
+  reflexivity proved by (@SubPred_refl _ _)                         
+  transitivity proved by (@SubPred_trans' _ _) as SubPred_rel.  
+
+Add Parametric Relation T : (Mem_Pred T) (@Sub_Mem _)
+  reflexivity proved by (@SubPred_refl _ _)
+  transitivity proved by (@SubPred_trans' _ _) as SubMem_rel.
+
+Section EqRel.
+Context {T : Type}.
+Lemma eqRel_refl (R : Rel T) : eqRel R R. Proof. by []. Qed.
+Lemma eqRel_sym {R1 R2 : Rel T} : eqRel R1 R2 -> eqRel R2 R1. 
+Proof. by move=>H x y; rewrite H. Qed.
+Lemma eqRel_trans {R1 R2 R3 : Rel T} : 
+        eqRel R1 R2 -> eqRel R2 R3 -> eqRel R1 R3.
+Proof. by move=>H1 H2 x y; rewrite H1 H2. Qed.
+End EqRel.
+
+#[export] Hint Resolve eqRel_refl : core.
+
+Add Parametric Relation (T : Type) : (Rel T) (@eqRel T)
+  reflexivity proved by (@eqRel_refl T)
+  symmetry proved by (@eqRel_sym T)
+  transitivity proved by (@eqRel_trans T) as eqRel_rel.
+
+Section SubRel.
+Context {T : Type}.
+Lemma subRel_refl (R : Rel T) : subRel R R. Proof. by []. Qed.
+Lemma subRel_trans (R1 R2 R3 : Rel T) : 
+        subRel R1 R2 -> subRel R2 R3 -> subRel R1 R3.
+Proof. by move=>H1 H2 x y /H1/H2. Qed.
+End SubRel.
+
+#[export] Hint Resolve subRel_refl : core.
+
+Add Parametric Relation (T : Type) : (Rel T) (@subRel T)
+  reflexivity proved by (@subRel_refl T)
+  transitivity proved by (@subRel_trans T) as subRel_rel.
 
 (* Declaring morphisms. *)
 
-Add Parametric Morphism T : (@Pred_of_Simpl T) with signature
-      @EqSimplPred _ ==> @EqPredType T (PredPredType T) as Pred_of_Simpl_morph.
-Proof. by []. Qed.
 
-Add Parametric Morphism T (pT : PredType T) : (@EqPredType T pT) with signature
-    @EqPredType _ _ ==> @EqPredType _ _ ==> iff as EqPredType_morph.
+(*
+Add Parametric Morphism T : (@Pred_of_Simpl T) with signature
+  @EqSimplPred _ ==> @EqPredType T (PredPredType T) as Pred_of_Simpl_morph.
+Proof. by []. Qed.
+*)
+
+
+Add Parametric Morphism T (pT : PredType T) : (@Eq_Pred T pT) 
+  with signature
+  @Eq_Pred _ _ ==> @Eq_Pred _ _ ==> iff as EqPred_morph.
 Proof. by move=>r1 s1 H1 r2 s2 H2; rewrite H1 H2. Qed.
 
-Add Parametric Morphism T (pT : PredType T) : (@SubPredType T pT) with signature
-    @EqPredType _ _ ==> @EqPredType _ _ ==> iff as SubPred_morph.
+Add Parametric Morphism T (pT : PredType T) : (@Sub_Pred T pT) 
+  with signature
+  @Eq_Pred _ _ ==> @Eq_Pred _ _ ==> iff as SubPred_morph.
 Proof. by move=>r1 s1 H1 r2 s2 H2; split=>H x; move/H1; move/H; move/H2. Qed.
 
-Add Parametric Morphism T : (@InMem T) with signature
-    @eq _ ==> @EqMem _ ==> iff as InMem_morph.
+Add Parametric Morphism T : (@Eq_Mem T) 
+  with signature @Eq_Mem _ ==> @Eq_Mem _ ==> iff as EqMem_morph.
+Proof. by move=>r1 s1 H1 r2 s2 H2; rewrite H1 H2. Qed.
+
+Add Parametric Morphism T : (@Sub_Mem T)
+  with signature @Eq_Mem _ ==> @Eq_Mem _ ==> iff as SubMem_morph.
+Proof. by move=>r1 s1 H1 r2 s2 H2; split=>H x; move/H1; move/H; move/H2. Qed.
+
+Add Parametric Morphism T : (@Eq_Pred T _) 
+  with signature @Eq_Mem _ ==> @Eq_Mem _ ==> iff as EqPred_Mem_morph.
+Proof. 
+move=>x y H x0 y0 H0; split=>X p /=; move: (H p) (H0 p)=>{}H {}H0;
+rewrite /In_Mem /= in H H0.
+- by rewrite -H -H0; apply/X.
+by rewrite H H0; apply/X.
+Qed.
+
+Add Parametric Morphism T : (@In_Mem T) with signature
+  @eq _ ==> @Eq_Mem _ ==> iff as InMem_morph.
 Proof. by move=>x r s H; split; move/H. Qed.
 
-Add Parametric Morphism T (pT : PredType T) : (@Mem T pT) with signature
-  @EqPredType _ _ ==> @EqMem _ as Mem_morhp.
-Proof. by move=>x y H p; rewrite /EqPredType -!toPredE in H *; rewrite H. Qed.
+(* to rewrite under [Mem], must enable rewriting under *)
+(* Mem, Simpl_Of_Mem and Pred_Of_Simpl *)
+
+(* rewriting by Eq_Pred under Mem *)
+Add Parametric Morphism T (pT : PredType T) : (@Mem T pT) 
+  with signature @Eq_Pred _ _ ==> @Eq_Pred _ _ as Mem_morph.
+Proof. by case: pT=>pT F /= x y; apply. Qed.
+
+(* and under Eq_Mem \o Mem *)
+Add Parametric Morphism T (pT : PredType T) : (@Mem T pT) 
+  with signature @Eq_Pred _ _ ==> @Eq_Mem _ as Mem_morph'.
+Proof. by move=>x y H p; rewrite /Eq_Pred -!toPredE in H *; apply: H. Qed.
+
+(* rewriting under Simpl_Of_Mem *)
+Add Parametric Morphism T : (@Simpl_Of_Mem T) 
+  with signature @Eq_Pred _ _ ==> @Eq_Pred _ _ as SimplOfMem_morph.
+Proof. by []. Qed.
+
+(* rewriting under Pred_Of_Simpl *)
+Add Parametric Morphism T : (@Pred_Of_Simpl T) 
+  with signature @Eq_Pred _ _ ==> @Eq_Pred _ _ as Pred_Of_Simpl_morph.
+Proof. by []. Qed.
+
+(* rewriting by Eq_Mem under Eq_Pred *)
+Add Parametric Morphism T : (@Mem T _)
+  with signature @Eq_Mem _ ==> @Eq_Pred _ _ as Mem_Morph.
+Proof. by []. Qed.
+
+Add Parametric Morphism T : (@Simpl_Of_Mem T) 
+  with signature @Eq_Mem _ ==> @Eq_Pred _ _ as SimplOfMem_morph'.
+Proof. by []. Qed.
+
+(* rewriting under Pred_Of_Simpl *)
+Add Parametric Morphism T : (@Pred_Of_Simpl T) 
+  with signature @Eq_Mem _ ==> @Eq_Pred _ _ as Pred_Of_Simpl_morph'.
+Proof. by []. Qed.
 
 Add Parametric Morphism T : (@PredU T) with signature
-    @EqPredType _ _ ==> @EqPredType _ _ ==> @EqSimplPred _ as predU_morph.
+  @Eq_Pred T _ ==> @Eq_Pred T _ ==> @Eq_Pred T _ as predU_morph.
 Proof.
 move=>r1 s1 H1 r2 h2 H2 x; split;
 by case; [move/H1 | move/H2]=>/=; auto.
 Qed.
 
 Add Parametric Morphism T : (@PredI T) with signature
-    @EqPredType _ _ ==> @EqPredType _ _ ==> @EqPredType _ _ as predI_morph.
+  @Eq_Pred _ _ ==> @Eq_Pred _ _ ==> @Eq_Pred _ _ as predI_morph.
 Proof.
 move=>r1 s1 H1 r2 s2 H2 x; split;
 by case; move/H1=>T1; move/H2=>T2.
 Qed.
 
 Add Parametric Morphism T : (@PredC T) with signature
-    @EqPredType _ _ ==> @EqPredType _ _ as predC_morph.
+  @Eq_Pred _ _ ==> @Eq_Pred _ _ as predC_morph.
 Proof. by move=>r s H x; split=>H1; apply/H. Qed.
 
+Add Parametric Morphism A : (@subRel A) with signature 
+  eqRel ==> eqRel ==> iff as subrel_eq.
+Proof. by move=>x y H x1 y1 H1; split=>X a b /H/X/H1. Qed.
+
+Add Parametric Morphism A B : (@Rel_app A B) with signature
+  eqRel ==> eq ==> eqRel as Relapp_eq.
+Proof. by move=>x y H f s s'; split=>/H. Qed.
+
+Add Parametric Morphism A B : (@Rel_app A B) with signature
+  subRel ==> eq ==> subRel as Relapp_sub.
+Proof. by move=>x y H f s s' /H. Qed.
+
+(* Can we declare relation application as morphism? *)
+(* We can, but it isn't picked up in practice. *)
+(* This is so because application is a special term *)
+(* that apprently can't be matched on. *)
+(* If we want to rewrite under application *)
+(* the choices are: *)
+(*   a) don't use setoids, but prove equalites *)
+(*   b) move to collective predicates where *)
+(*      function application is user-level term *)
+(*
+Add Parametric Morphism A : (fun (R : Rel A) (x y : A) => R x y) 
+  with signature eqrel ==> eq ==> eq ==> iff as app_eq.
+Proof. by move=>r1 r2 E x y; split=>/E. Qed.
+*)
+
 Section RelLaws.
-Variable (T : Type).
+Variable T : Type.
 Implicit Type r : Pred T.
 
-Lemma orrI r : r +p r <~> r.
+Lemma orrI r : r \+p r <~> r.
 Proof.  by move=>x; split; [case | left]. Qed.
 
-Lemma orrC r1 r2 : r1 +p r2 <~> r2 +p r1.
-Proof. move=>x; split=>/=; tauto. Qed.
+Lemma orrC r1 r2 : r1 \+p r2 <~> r2 \+p r1. 
+Proof. by split; (case=>/=; [right|left]). Qed.
 
-Lemma orr0 r : r +p Pred0 <~> r.
+Lemma orr0 r : r \+p Pred0 <~> r.
 Proof. by move=>x; split; [case | left]. Qed.
 
-Lemma or0r r : Pred0 +p r <~> r.
+Lemma or0r r : Pred0 \+p r <~> r.
 Proof. by rewrite orrC orr0. Qed.
 
-Lemma orrCA r1 r2 r3 : r1 +p r2 +p r3 <~> r2 +p r1 +p r3.
-Proof. by move=>x; split=>/=; intuition. Qed.
+Lemma orrCA r1 r2 r3 : 
+        r1 \+p r2 \+p r3 <~> r2 \+p r1 \+p r3.  simpl.
+Proof. by move=>x /=; intuition. Qed.
 
-Lemma orrAC r1 r2 r3 : (r1 +p r2) +p r3 <~> (r1 +p r3) +p r2.
-Proof. by move=>?; split=>/=; intuition. Qed.
+Lemma orrAC r1 r2 r3 : 
+        (r1 \+p r2) \+p r3 <~> (r1 \+p r3) \+p r2.
+Proof. by move=>x /=; intuition. Qed.
 
-Lemma orrA r1 r2 r3 : (r1 +p r2) +p r3 <~> r1 +p r2 +p r3.
-Proof. by rewrite (orrC r2) orrCA orrC. Qed.
+Lemma orrA r1 r2 r3 : 
+        (r1 \+p r2) \+p r3 <~> r1 \+p r2 \+p r3.
+Proof. by rewrite (orrC r2) orrCA (orrC r3). Qed.
 
 (* absorption *)
-Lemma orrAb r1 r2 : r1 <~> r1 +p r2 <-> r2 ~> r1.
+Lemma orrAb r1 r2 : 
+        r1 <~> r1 \+p r2 <-> 
+        r2 <=p r1.
 Proof.
-split; first by move=>-> x /=; auto.
+split; first by move=>-> x; rewrite -!toPredE /=; auto.
 move=>H x /=; split; first by auto.
 by case=>//; move/H.
 Qed.
 
-Lemma sub_orl r1 r2 : r1 ~> r1 +p r2. Proof. by left. Qed.
-Lemma sub_orr r1 r2 : r2 ~> r1 +p r2. Proof. by right. Qed.
-
+Lemma sub_orl r1 r2 : r1 <=p r1 \+p r2. Proof. by left. Qed.
+Lemma sub_orr r1 r2 : r2 <=p r1 \+p r2. Proof. by right. Qed.
 End RelLaws.
 
 Section SubMemLaws.
@@ -399,40 +718,45 @@ Implicit Type p q : Pred T.
 Lemma subp_refl p : p <=p p.
 Proof. by []. Qed.
 
-Lemma subp_asym p1 p2 : p1 <=p p2 -> p2 <=p p1 -> p1 =p p2.
+Lemma subp_asym p1 p2 : p1 <=p p2 -> p2 <=p p1 -> p1 <~> p2.
 Proof. by move=>H1 H2 x; split; [move/H1 | move/H2]. Qed.
 
 Lemma subp_trans p2 p1 p3 : p1 <=p p2 -> p2 <=p p3 -> p1 <=p p3.
 Proof. by move=>H1 H2 x; move/H1; move/H2. Qed.
 
-Lemma subp_or p1 p2 q : p1 <=p q /\ p2 <=p q <-> p1 +p p2 <=p q.
+Lemma subp_or p1 p2 q : 
+        p1 <=p q /\ p2 <=p q <-> p1 \+p p2 <=p q.
 Proof.
 split=>[[H1] H2 x|H1]; first by case; [move/H1 | move/H2].
 by split=>x H2; apply: H1; [left | right].
 Qed.
 
-Lemma subp_and p1 p2 q : q <=p p1 /\ q <=p p2 <-> q <=p p1 *p p2.
+Lemma subp_and p1 p2 q : 
+        q <=p p1 /\ q <=p p2 <-> q <=p p1 \*p p2.
 Proof.
 split=>[[H1] H2 x|] H; last by split=>x; case/H.
 by split; [apply: H1 | apply: H2].
 Qed.
 
-Lemma subp_orl p1 p2 q : p1 <=p p2 -> p1 +p q <=p p2 +p q.
+Lemma subp_orl p1 p2 q : 
+        p1 <=p p2 -> p1 \+p q <=p p2 \+p q.
 Proof. by move=>H x; case; [move/H; left|right]. Qed.
 
-Lemma subp_orr p1 p2 q : p1 <=p p2 -> q +p p1 <=p q +p p2.
+Lemma subp_orr p1 p2 q : 
+        p1 <=p p2 -> q \+p p1 <=p q \+p p2.
 Proof. by move=>H x; case; [left | move/H; right]. Qed.
 
-Lemma subp_andl p1 p2 q : p1 <=p p2 -> p1 *p q <=p p2 *p q.
+Lemma subp_andl p1 p2 q : 
+       p1 <=p p2 -> p1 \*p q <=p p2 \*p q.
 Proof. by by move=>H x [H1 H2]; split; [apply: H|]. Qed.
 
-Lemma subp_andr p1 p2 q : p1 <=p p2 -> q *p p1 <=p q *p p2.
+Lemma subp_andr p1 p2 q : 
+        p1 <=p p2 -> q \*p p1 <=p q \*p p2.
 Proof. by move=>H x [H1 H2]; split; [|apply: H]. Qed.
 
 End SubMemLaws.
 
-#[export]
-Hint Resolve subp_refl : core.
+#[export] Hint Resolve subp_refl : core.
 
 Section ListMembership.
 Variable T : Type.
@@ -442,12 +766,11 @@ Fixpoint Mem_Seq (s : seq T) :=
 
 Definition EqSeq_Class := seq T.
 Identity Coercion seq_of_EqSeq : EqSeq_Class >-> seq.
-
-Coercion Pred_of_Eq_Seq (s : EqSeq_Class) : Pred_Class := [eta Mem_Seq s].
-
-Canonical Structure seq_PredType := Eval hnf in @mkPredType T (seq T) Pred_of_Eq_Seq.
-(* The line below makes Mem_Seq a canonical instance of topred. *)
-Canonical Structure Mem_Seq_PredType := Eval hnf in mkPredType Mem_Seq.
+Coercion Pred_Of_Seq (s : EqSeq_Class) : {Pred T} := [eta Mem_Seq s].
+Canonical Structure seq_PredType := 
+  PropPredType (Pred_Of_Seq : seq T -> Pred T).
+(* The line below makes mem_seq a canonical instance of topred. *)
+Canonical Structure Mem_Seq_PredType := PropPredType Mem_Seq.
 
 Lemma In_cons y s x : (x \In y :: s) <-> (x = y) \/ (x \In s).
 Proof. by []. Qed.
@@ -458,7 +781,9 @@ Proof. by []. Qed.
 Lemma Mem_Seq1 x y : (x \In [:: y]) <-> (x = y).
 Proof. by rewrite In_cons orpF. Qed.
 
-Definition InE := (Mem_Seq1, In_cons, In_Simpl).
+Definition InE := 
+  (Mem_Seq1, In_cons, 
+     (In_Applicative, In_Simpl, Simpl_PredE)).
 
 Lemma Mem_cat x : forall s1 s2, (x \In s1 ++ s2) <-> x \In s1 \/ x \In s2.
 Proof.
@@ -473,12 +798,14 @@ Qed.
 
 Lemma In_split x s : x \In s -> exists s1 s2, s = s1 ++ x :: s2.
 Proof.
-elim:s=>[|y s IH] //=; rewrite InE.
+elim: s=>[|y s IH] //=; rewrite InE.
 case=>[<-|]; first by exists [::], s.
 by case/IH=>s1 [s2 ->]; exists (y :: s1), s2.
 Qed.
 
 End ListMembership.
+
+Prenex Implicits In_split.
 
 Lemma Mem_map T T' (f : T -> T') x (s : seq T) :
          x \In s -> f x \In (map f s).
@@ -540,6 +867,7 @@ elim: s=>[|y s IH]; first by constructor.
 rewrite inE; case: eqP=>[<-|H /=]; first by constructor; left.
 by apply: equivP IH _; rewrite InE; split; [right | case].
 Qed.
+
 
 (* Big \In equivalences for all and has *)
 
@@ -636,9 +964,6 @@ split.
 by case=>/HasP [x Hx Px]; apply/HasP; exists x=>//; apply/Mem_cat; [left|right].
 Qed.
 
-(* also prop uniqueness *)
-Fixpoint Uniq (xs : seq T) := if xs is x :: xs then x \Notin xs /\ Uniq xs else True.
-
 End AllHasP.
 
 Section AllHasT.
@@ -650,6 +975,19 @@ Fixpoint AllT xs : Type := if xs is x :: xs then P x * AllT xs else unit.
 Fixpoint HasT xs : Type := if xs is x :: xs then P x + HasT xs else Empty_set.
 
 End AllHasT.
+
+(* prop uniqueness *)
+Fixpoint Uniq T (xs : seq T) := 
+  if xs is x :: xs then x \Notin xs /\ Uniq xs else True.
+
+Lemma UniqP (T : eqType) (xs : seq T) : 
+        reflect (Uniq xs) (uniq xs).
+Proof.
+elim: xs=>[|x xs IH] //=; first by apply: ReflectT.
+case: andP=>H; constructor.
+- by case: H=>/mem_seqP H /IH.
+by case=>/mem_seqP H1 /IH H2; elim: H.
+Qed.
 
 (***********************************)
 (* Image of a collective predicate *)
@@ -682,19 +1020,25 @@ Notation "[ 'Image' E | i : T <- s & C ]" :=
   [Image E | i : T <- [PredI s & C]]
   (at level 0, E at level 99, i name, only parsing) : rel_scope.
 
-Lemma Image_mem A B (f : A -> B) (P : Pred A) x : x \In P -> f x \In Image f P.
+Lemma Image_mem A B (f : A -> B) (P : Pred A) x : 
+        x \In P -> 
+        f x \In Image f P.
 Proof. by apply: Im_mem. Qed.
 
 Lemma Image_inj_sub A B (f : A -> B) (X1 X2 : Pred A) :
-        injective f -> Image f X1 <=p Image f X2 -> X1 <=p X2.
+        injective f -> 
+        Image f X1 <=p Image f X2 -> 
+        X1 <=p X2.
 Proof. by move=>H E x /(Image_mem f) /E [y] /H ->. Qed.
 
 Lemma Image_inj_eqmem A B (f : A -> B) (X1 X2 : Pred A) :
-        injective f -> Image f X1 =p Image f X2 -> X1 =p X2.
+        injective f -> 
+        Image f X1 <~> Image f X2 -> 
+        X1 <~> X2.
 Proof. by move=>H E; split; apply: Image_inj_sub H _ _; rewrite E. Qed.
 
 Lemma ImageU A B (f : A -> B) (X1 X2 : Pred A) :
-        Image f (PredU X1 X2) =p [PredU Image f X1 & Image f X2].
+        Image f (PredU X1 X2) <~> PredU (Image f X1) (Image f X2).
 Proof.
 move=>x; split.
 - by case=>y -> [H|H]; [left | right]; apply: Image_mem.
@@ -702,16 +1046,51 @@ by case; case=>y -> H; apply: Image_mem; [left | right].
 Qed.
 
 Lemma ImageIm A B C (f1 : B -> C) (f2 : A -> B) (X : Pred A) :
-        Image f1 (Image f2 X) =p Image (f1 \o f2) X.
+        Image f1 (Image f2 X) <~> Image (f1 \o f2) X.
 Proof.
 move=>x; split; first by case=>_ -> [x' ->] H; exists x'.
 by case=>a -> H; exists (f2 a)=>//; exists a.
 Qed.
 
 Lemma ImageEq A B (f1 f2 : A -> B) (X : Pred A) :
-        f1 =1 f2 -> Image f1 X =p Image f2 X.
+        f1 =1 f2 -> 
+        Image f1 X <~> Image f2 X.
 Proof. by move=>H x; split; case=>a ->; exists a. Qed.
 
+(********************************)
+(* Relation preserving function *)
+(********************************)
+
+Definition rel_on_func A B (f : B -> A) (p : Pred B) (g : Rel A) := 
+  forall x y, p x -> g (f x) y -> 
+    exists y', [/\ y = f y', p y' & (g \\o f) x y'].
+
+Notation "'on-' f" := (rel_on_func f) 
+ (at level 1, format "'on-' f").
+
+(* last conjunct can be dropped *)
+Lemma onE A B (f : B -> A) p g :  
+        on-f p g <->
+        forall x y, p x -> g (f x) y -> exists2 y', y = f y' & p y'.
+Proof.
+split=>H x y C /[dup] X /(H _ _ C).
+- by case=>y' []; exists y'.
+by case=>y' E; exists y'; rewrite /Rel_app -E.
+Qed.
+
+Add Parametric Morphism A B : (@rel_on_func A B) with signature
+  eq ==> @Eq_Pred _ _ ==> eqRel ==> iff as relon_eq.
+Proof.
+move=>f p1 p2 H r1 r2 E; split=>X;
+by apply/onE=>x y /H /= P /E /(X _ _ P) [y'][-> /H]; eauto. 
+Qed.
+
+Add Parametric Morphism A B : (@rel_on_func A B) with signature
+  eq ==> @Eq_Pred _ _ ==> subRel ==> flip impl as relon_sub.
+Proof.
+move=>f p1 p2 H r1 r2 E X.
+by apply/onE=>x y /H /= P /E /(X _ _ P) [y'][-> /H]; eauto. 
+Qed.
 
 (**********************************)
 (**********************************)
@@ -719,16 +1098,7 @@ Proof. by move=>H x; split; case=>a ->; exists a. Qed.
 (**********************************)
 (**********************************)
 
-(* Not a definition to avoid universe inconsistencies. *)
-
-Local Notation Rel A := (A -> A -> Prop).
-
-(**********************************)
-(*   Special cases of relations   *)
-(**********************************)
-
 Section RelationProperties.
-
 Variables (A : Type) (R : Rel A).
 
 Definition Total := forall x y, R x y \/ R y x.
@@ -741,8 +1111,9 @@ Definition Antisymmetric := forall x y, R x y -> R y x -> x = y.
 Lemma sym_iff_pre_sym : pre_Symmetric <-> Symmetric.
 Proof. by split=> S x y; [split; apply: S | rewrite S]. Qed.
 
-(* Do NOT use Reflexive for actual lemmas, because auto does not unfold definitions,
-   so Hint Resolve lemma_refl won't work *)
+(* Do NOT use Reflexive for actual lemmas *)
+(* because auto does not unfold definitions, *)
+(* so Hint Resolve lemma_refl won't work *)
 Definition Reflexive := forall x, R x x.
 Definition Irreflexive := forall x, R x x -> False.
 
@@ -756,6 +1127,7 @@ Hypotheses (symR : Symmetric) (trR : Transitive).
 
 Lemma sym_left_Transitive : left_Transitive.
 Proof. by move=> x y Rxy z; split; apply: trR; rewrite // symR. Qed.
+
 
 Lemma sym_right_Transitive : right_Transitive.
 Proof. by move=> x y Rxy z; rewrite !(symR z); apply: sym_left_Transitive. Qed.
@@ -790,14 +1162,12 @@ Definition functional := forall x y1 y2, R x y1 -> R x y2 -> y1 = y2.
 (* a relation preserves the resource invariant *)
 Definition preserved (P : A -> Prop) R := forall x y, R x y -> P x -> P y.
 Definition bpreserved (P : A -> Prop) R := forall x y, R x y -> P y -> P x.
-
 End RelationProperties.
 
 Arguments sym_iff_pre_sym {A R}.
 
 
 (* Lifting equivalence relation to option type *)
-
 Section OptionRel.
 Variables (A : Type) (R : Rel A).
 
@@ -867,6 +1237,7 @@ End SumRel.
 Section Transitivity.
 Variables (A : Type) (R : Rel A).
 
+
 Lemma trans_imp (F : A -> Prop) : Transitive (fun x y => F x -> F y).
 Proof. by move=>x y z H1 H2 /H1. Qed.
 
@@ -877,8 +1248,8 @@ Lemma rev_Trans : Transitive R -> Transitive (fun x y => R y x).
 Proof. by move=> trR x y z Ryx Rzy; apply: trR Rzy Ryx. Qed.
 End Transitivity.
 
-#[export]
-Hint Resolve trans_imp trans_eq : core.
+#[export] Hint Resolve trans_imp trans_eq : core.
+
 
 (**********************************************)
 (* Reflexive-Transitive closure of a relation *)
@@ -887,46 +1258,13 @@ Hint Resolve trans_imp trans_eq : core.
 Fixpoint iter' T (g : T -> T -> Prop) n s1 s2 :=
   if n is n'.+1 then exists s, g s1 s /\ iter' g n' s s2 else s1 = s2.
 Definition iter T (g : T -> T -> Prop) s1 s2 := exists n, iter' g n s1 s2.
-(* curry the iteration *)
-Definition iterc A T (g : A -> T -> A -> T -> Prop) a1 s1 a2 s2 :=
-  iter (fun '(a1, a2) '(b1, b2) => g a1 a2 b1 b2) (a1, s1) (a2, s2).
 
 Section IteratedRels.
 Variable T : Type.
 Implicit Type g : T -> T -> Prop.
 
-Lemma iter_refl g s : iter g s s.
-Proof. by exists 0. Qed.
-
-Lemma iter_trans g : Transitive (iter g).
-Proof.
-move=> s2 s1 s3; case=>n; elim: n s1 =>[|n IH] s1 /=; first by move=>->.
-by case=>s [H1 H2] /(IH _ H2) [m]; exists m.+1, s.
-Qed.
-
-Lemma iterS g n s1 s2 : iter' g n.+1 s1 s2 <-> exists s, iter' g n s1 s /\ g s s2.
-Proof.
-elim: n s1=>[|n IH] s1.
-- by split; [case=>s [H <-]; exists s1 | case=>s [<- H]; exists s2].
-split; first by case=>s [H1] /IH [s'][H G]; exists s'; split=>//; exists s.
-by case=>s [[s'][H1 H G]]; exists s'; split=>//; apply/IH; exists s.
-Qed.
-
-Lemma iter'_sub g g' n s1 s2 :
-        (forall s1 s2, g s1 s2 -> g' s1 s2) ->
-        iter' g n s1 s2 -> iter' g' n s1 s2.
-Proof. by move=>H; elim: n s1=>[|n IH] s1 //= [s][/H G] /IH; exists s. Qed.
-
-Lemma iter_sub g g' s1 s2 :
-        (forall s1 s2, g s1 s2 -> g' s1 s2) -> iter g s1 s2 -> iter g' s1 s2.
-Proof. by move=>H [n]; exists n; apply: iter'_sub H _. Qed.
-
-Lemma iter1 g s1 s2 : g s1 s2 -> iter g s1 s2.
-Proof. by exists 1, s2. Qed.
-
 Lemma iter'_add g n1 n2 s1 s2 s3 :
-        iter' g n1 s1 s2 -> iter' g n2 s2 s3 ->
-        iter' g (n1 + n2) s1 s3.
+        iter' g n1 s1 s2 -> iter' g n2 s2 s3 -> iter' g (n1 + n2) s1 s3.
 Proof.
 elim: n1 s1 s2=>[|n1 IH] s1 s2 /=; first by rewrite add0n=>->.
 by case=>s [H1 H2] /(IH _ _ H2); exists s.
@@ -940,11 +1278,96 @@ elim: n1 s1 s2=>[|n1 IH] s1 s2 /=; first by rewrite add0n; exists s1.
 by case=>s [H1] {}/IH [s'][H2 H3]; exists s'; split=>//; exists s.
 Qed.
 
+Lemma iterS g n s1 s2 : 
+        iter' g n.+1 s1 s2 <-> exists s, iter' g n s1 s /\ g s s2.
+Proof.
+rewrite -addn1; split; first by case/iter'_split=>s [H1] [s'][H2 <-]; exists s.
+by case=>s [H1 H2]; apply: iter'_add H1 _; exists s2.
+Qed.
+
+Lemma iter_refl g s : iter g s s.
+Proof. by exists 0. Qed.
+
+Lemma iter_trans g : Transitive (iter g).
+Proof.
+move=> s2 s1 s3; case=>n; elim: n s1 =>[|n IH] s1 /=; first by move=>->.
+by case=>s [H1 H2] /(IH _ H2) [m]; exists m.+1, s.
+Qed.
+
+Lemma iter_sub g g' : g ~2> g' -> iter g ~2> iter g'.
+Proof.
+move=>H s s' [n X]; exists n; elim: n s s' X=>[|n IH] s s' //=.
+by case=>x [/H G] /IH; exists x. 
+Qed.
+
+Lemma iter_eq g g' : g <~2> g' -> iter g <~2> iter g'.
+Proof. by move=>H s s'; split; apply/iter_sub; rewrite H. Qed.
+
+Lemma iter1 g : g ~2> iter g.
+Proof. by move=>s s'; exists 1, s'. Qed.
+
+Lemma iter_app T' g (f : T' -> T) : iter (g \\o f) ~2>  iter g \\o f.
+Proof. 
+move=>s s' [n] H; exists n; elim: n s s' H=>[|n IH] s s' /=; first by move=>->.
+by case=>x [H] /IH; exists (f x). 
+Qed.
+
+Lemma iter_on T' (f : T' -> T) p g : on-f p g -> on-f p (iter g).
+Proof.
+move=>O; apply/onE=>x y C [n].
+elim: n x y C=>[|n IH] x y /= C; first by move=><-; exists x. 
+case=>_ [/(O _ _ C)] [x'][->] X' H /(IH _ _ X') [y' ->] Y'.
+by exists y'.
+Qed.
+
+Lemma iter_subf T' g (f : T' -> T) : iter (g \\o f) ~2> iter g \\o f.
+Proof. 
+move=>s s' [n] H; exists n.
+elim: n s s' H=>[|n IH] s s'; first by move=>->.
+by case=>x [H1] {}/IH; exists (f x).
+Qed.
+
+Lemma iter_fsub T' g (f : T' -> T) : 
+        injective f ->
+        on-f xpredT g ->      
+        iter g \\o f ~2> iter (g \\o f).
+Proof. 
+move=>H1 H2 s s' [n] H; exists n.
+elim: n s s' H =>[|n IH] s s' /=; first by move/H1.
+by case=>_ [] /(H2 _ _ erefl) [x][-> _ X] {}/IH; exists x. 
+Qed.
+
+Lemma iter_eqf T' g (f : T' -> T) : 
+        injective f ->
+        on-f xpredT g ->
+        iter g \\o f <~2> iter (g \\o f).
+Proof. by move=>??; split; [apply: iter_fsub|apply: iter_subf]. Qed.
+
+(* localized variant of iter_fsub *)
+Lemma iter_fsubl T' g (f : T' -> T) p s s' : 
+        injective f ->
+        on-f p g ->
+        p s ->
+        (iter g \\o f) s s' -> iter (g \\o f) s s'.
+Proof.
+move=>H1 H2 P [n] H; exists n.
+elim: n s s' P H=>[|n IH] s s' /= Ps; first by move/H1=>->.
+by case=>_ [] /(H2 _ _ Ps) [x][-> Px H] /(IH _ _ Px); exists x.
+Qed.
+
 End IteratedRels.
 
-Lemma iter2 A T (g : A -> T -> A -> T -> Prop) x1 s1 x2 s2 :
-        g x1 s1 x2 s2 -> iterc g x1 s1 x2 s2.
-Proof. by apply: iter1. Qed.
+Lemma iter_pair {T} {g : unit*T -> unit*T -> Prop} :
+        iter g \\o pair tt <~2> iter (g \\o pair tt).
+Proof. by apply: iter_eqf=>[x y []|x [[y]]] //; exists y. Qed.
+
+Add Parametric Morphism A : (@iter A) with signature
+  eqRel ==> eqRel as iter_eq'.
+Proof. by move=>x y H x1 y1; rewrite (iter_eq H _). Qed.
+
+Add Parametric Morphism A : (@iter A) with signature
+  subRel ==> subRel as iter_sub'.
+Proof. by move=>x y H x1 y1; apply: iter_sub. Qed.
 
 Lemma iter_pres' A (g : Rel A) n C : preserved C g -> preserved C (iter' g n).
 Proof.
@@ -955,10 +1378,12 @@ Qed.
 Lemma iter_pres A (g : Rel A) C : preserved C g -> preserved C (iter g).
 Proof. by move=>pres x y [n] /(iter_pres' pres). Qed.
 
-Prenex Implicits iter1 iter2.
+Arguments iter1 {T}%_type_scope {g _ _}.
+Arguments iter_app {T T'}%_type_scope {g f}. 
 Arguments iter_refl {T g s}.
-#[export]
-Hint Resolve iter_refl : core.
+
+#[export] Hint Resolve iter_refl : core.
+
 
 (*****************************************************)
 (* Induction lemmas for Reflexive Transitive closure *)
@@ -1060,88 +1485,6 @@ Qed.
 
 End ReflexiveTransitiveClosureInductions.
 
-Section ReflexiveTransitiveClosureInductionsCurry.
-Variables (A T : Type) (R : A -> T -> A -> T -> Prop) .
-Variables (C P Q : A -> T -> Prop) (F : A -> T -> A -> T -> Prop).
-
-Notation Rc := (fun '(a, x) '(b, y) => R a x b y).
-Notation Cc := (fun '(a, x) => C a x).
-Notation Fc := (fun '(a, x) '(b, y)=> F a x b y).
-Notation Pc := (fun '(a, x) => P a x).
-Notation Qc := (fun '(a, x) => Q a x).
-
-Lemma itercf_ind :
-        (forall a x, C a x -> F a x a x) ->
-        Transitive Fc ->
-        (forall a x b y, R a x b y -> C a x -> C b y /\ F a x b y) ->
-        forall a x b y, iterc R a x b y -> C a x -> F a x b y.
-Proof.
-move=>H1 H2 H3 a x b y; apply: (@iterf_ind _ Rc Cc Fc)=>//.
-- by case=>a' x'; apply: H1.
-by case=>a' x' [b' y']; apply: H3.
-Qed.
-
-Lemma itercb_ind :
-        (forall a x, C a x -> F a x a x) ->
-        Transitive Fc ->
-        (forall a x b y, R a x b y -> C b y -> C a x /\ F a x b y) ->
-        forall a x b y, iterc R a x b y -> C b y -> F a x b y.
-Proof.
-move=>H1 H2 H3 a x b y; apply: (@iterb_ind _ Rc Cc Fc)=>//.
-- by case=>a' x'; apply: H1.
-by case=>a' x' [b' y']; apply: H3.
-Qed.
-
-Lemma iterc_ind :
-        (forall a x b y, R a x b y -> C a x -> C b y) ->
-        forall a x b y, iterc R a x b y -> C a x -> C b y.
-Proof.
-move=>H a x b y; apply: (@iter_ind _ Rc Cc)=>//.
-by case=>a' x' [b' y']; apply: H.
-Qed.
-
-Lemma itercs_ind :
-        (forall a x, C a x -> F a x a x) -> Transitive Fc ->
-        (forall a x b y, iterc R a x b y -> C a x -> C b y) ->
-        (forall a x b y, R a x b y -> C a x -> F a x b y) ->
-         forall a x b y, iterc R a x b y -> C a x -> F a x b y.
-Proof.
-move=>H1 H2 H3 H4 a x b y; apply: (@iters_ind _ Rc Cc Fc)=>//.
-- by case=>a' x'; apply: H1.
-- by case=>a' x' [b' y']; apply: H3.
-by case=>a' x' [b' y']; apply: H4.
-Qed.
-
-Lemma pres_itercf_ind :
-        preserved Pc Rc ->
-        (forall a x, P a x -> Q a x -> F a x a x) ->
-        Transitive Fc ->
-        (forall a x b y, R a x b y -> P a x -> Q a x -> Q b y /\ F a x b y) ->
-        forall a x b y, iterc R a x b y -> P a x -> Q a x -> F a x b y.
-Proof.
-move=>H1 H2 H3 H4 a x b y; apply: (@pres_iterf_ind _ Rc Pc Qc Fc)=>//.
-- by case=>a' x' [b' y']; apply: (H1 (a', x') (b', y')).
-- by case=>a' x'; apply: H2.
-by case=>a' x' [b' y']; apply: H4.
-Qed.
-
-Lemma pres_itercs_ind :
-        preserved Pc Rc ->
-        (forall a x, P a x -> Q a x -> F a x a x) ->
-        Transitive Fc ->
-        (forall a x b y, iterc R a x b y -> P a x -> Q a x -> Q b y) ->
-        (forall a x b y, R a x b y -> P a x -> Q a x -> F a x b y) ->
-        forall a x b y, iterc R a x b y -> P a x -> Q a x -> F a x b y.
-Proof.
-move=>H1 H2 H3 H4 H5 a x b y; apply: (@pres_iters_ind _ Rc Pc Qc Fc)=>//.
-- by case=>a' x' [b' y']; apply: (H1 (a', x') (b', y')).
-- by case=>a' x'; apply: H2.
-- by case=>a' x' [b' y']; apply: H4.
-by case=>a' x' [b' y']; apply: H5.
-Qed.
-
-End ReflexiveTransitiveClosureInductionsCurry.
-
 
 Section SomeBasicConstructions.
 Variable (A : Type).
@@ -1178,7 +1521,7 @@ Definition id_rel : Rel A := fun x y => y = x.
 Lemma id_rel_refl : forall x, id_rel x x.
 Proof. by []. Qed.
 Lemma id_rel_sym : Symmetric id_rel.
-Proof. by move=> *; split. Qed.
+Proof. by []. Qed.
 Lemma id_rel_trans : Transitive id_rel.
 Proof. by move=> x y z ->->. Qed.
 Lemma id_rel_func : functional id_rel.
@@ -1277,10 +1620,61 @@ End UnionRelation.
 
 End SomeBasicConstructions.
 
-Arguments id_rel [A] _ _ /.
-Arguments pre_rel [A] P R _ _ /.
-Arguments post_rel [A] R Q _ _ /.
+Arguments id_rel {A} _ _ /.
+Arguments pre_rel {A} P R _ _ /.
+Arguments post_rel {A} R Q _ _ /.
 
+Lemma union_eq A (x1 y1 x2 y2 : Rel A) :
+        eqRel x1 y1 -> eqRel x2 y2 -> 
+        eqRel (Union_rel x1 x2) (Union_rel y1 y2).
+Proof. by rewrite /eqRel/Union_rel=>E1 E2 x y; rewrite E1 E2. Qed.
+
+Arguments union_eq {A x1 y1 x2 y2}.
+Prenex Implicits union_eq.
+
+Add Parametric Morphism A : (@Union_rel A) with signature
+  eqRel ==> eqRel ==> eqRel as union_eq'. 
+Proof. by move=>*; apply: union_eq. Qed.
+
+Lemma union_sub A (x1 y1 x2 y2 : Rel A) :
+        subRel x1 y1 -> subRel x2 y2 -> 
+        subRel (Union_rel x1 x2) (Union_rel y1 y2).
+Proof. by move=>E1 E2 x y [/E1|/E2]; [left | right]. Qed.
+
+Arguments union_sub {A x1 y1 x2 y2}.
+Prenex Implicits union_sub.
+
+Add Parametric Morphism A : (@Union_rel A) with signature
+  subRel ==> subRel ==> subRel as union_sub1. 
+Proof. by move=>*; apply: union_sub. Qed.
+
+Lemma subrelL A (x y : Rel A) : x ~2> Union_rel x y.
+Proof. by left. Qed.
+
+Lemma subrelR A (x y : Rel A) : y ~2> Union_rel x y.
+Proof. by right. Qed.
+
+#[export]
+Instance eqrel_subrel A : subrelation (@eqRel A) (@subRel A).
+Proof. by move=>x y H ?? /H. Qed.
+
+Lemma union_app A B D1 D2 (f : B -> A) :
+        Union_rel D1 D2 \\o f <~2>
+        Union_rel (D1 \\o f) (D2 \\o f).
+Proof. by apply: union_eq. Qed.
+
+Arguments union_app {A B}%_type_scope {D1 D2 f}%_function_scope.
+Prenex Implicits union_app.
+
+Lemma on_union A B D1 D2 (f : B -> A) p :
+        on-f p D1 -> 
+        on-f p D2 ->
+        on-f p (Union_rel D1 D2).
+Proof.
+move=>H1 H2; apply/onE=>x y P; case.
+- by case/(H1 _ _ P)=>y' [->] P'; exists y'.
+by case/(H2 _ _ P)=>y' [->] P'; exists y'.
+Qed.
 
 (*************************)
 (* Property localization *)
@@ -1366,6 +1760,7 @@ Variables (P1 : T1 -> Prop) (P2 : T1 -> T2 -> Prop).
 Variable P3 : T1 -> T2 -> T3 -> Prop.
 Variables (d1 d1' : T1 -> Prop).
 
+
 Local Notation "{ 'All1' P }" := (forall x, P x : Prop) (at level 0).
 Local Notation "{ 'All2' P }" := (forall x y, P x y : Prop) (at level 0).
 Local Notation "{ 'All3' P }" := (forall x y z, P x y z: Prop) (at level 0).
@@ -1379,3 +1774,12 @@ Lemma In3W : {All3 P3} -> {In D1 & D2 & D3, {All3 P3}}.
 Proof. by move=> ? ?. Qed.
 
 End LocalGlobal.
+
+(* we can now state localized version of iter_fsubl *)
+Lemma iter_fsubl' T T' (g : Rel T) (f : T' -> T) p : 
+        injective f ->
+        on-f p g ->
+        {In p & xPredT, iter g \\o f ~2> iter (g \\o f)}.
+Proof. by move=>H1 H2 x y H _; apply: iter_fsubl H1 H2 H. Qed.
+
+

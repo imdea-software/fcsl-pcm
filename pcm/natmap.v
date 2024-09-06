@@ -18,959 +18,1281 @@ limitations under the License.
 (* Histories are a special case of natmaps.                                   *)
 (******************************************************************************)
 
+From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path interval.
-From pcm Require Import options prelude pred finmap rtc seqext useqord uslice uconsec.
-From pcm Require Export pcm morphism unionmap.
+From pcm Require Import axioms options prelude pred finmap rtc seqext.
+From pcm Require Export useqord uslice uconsec pcm morphism unionmap.
+Import order.Order.NatOrder. (* listed last to avoid notation clash *)
+Local Open Scope order_scope.
 
-From mathcomp Require order.
-Import order.Order.NatOrder.
-
-(************************)
 (************************)
 (* Maps over non-0 nats *)
 (************************)
-(************************)
 
-Notation nat_pred := (fun x : nat_ordType => x != 0).
+Definition null := 0.
+Notation nat_pred := (fun x => x != 0). 
 
-Module Type NMSig.
+(* natmap is union map of non-0 nat keys *)
+HB.mixin Record isNatMap V U of UMC nat (fun x => x != 0) V U.
+#[short(type="natmap")]
+HB.structure Definition NatMap V := {
+  U of UMC nat (fun x => x != 0) V U & isNatMap V U}.
 
-Parameter tp : Type -> Type.
+(* pred structure (to write x \In h) is copied from union_map *)
+Canonical natmap_PredType A (U : natmap A) : PredType (nat * A) := 
+  um_PredType U.
+Coercion Pred_of_natmap A (U : natmap A) (x : U) : {Pred _} := 
+  [eta Mem_UmMap x].
 
-Section Params.
-Variable A : Type.
-Notation tp := (tp A).
+(* canonical natmap is histories *)
 
-Parameter nm_undef : tp.
-Parameter defined : tp -> bool.
-Parameter empty : tp.
-Parameter upd : nat -> A -> tp -> tp.
-Parameter dom : tp -> seq nat.
-Parameter dom_eq : tp -> tp -> bool.
-Parameter assocs : tp -> seq (nat * A).
-Parameter free : tp -> nat -> tp.
-Parameter find : nat -> tp -> option A.
-Parameter union : tp -> tp -> tp.
-Parameter empb : tp -> bool.
-Parameter undefb : tp -> bool.
-Parameter pts : nat -> A -> tp.
+Record history A := Hist {hist_base : @UM.base nat nat_pred A}.
 
-Parameter from : tp -> @UM.base nat_ordType nat_pred A.
-Parameter to : @UM.base nat_ordType nat_pred A -> tp.
+Section HistoryUMC.
+Variables A : Type.
+Implicit Type f : history A.
+Local Coercion hist_base : history >-> UM.base.
+Let ht_valid f := @UM.valid nat nat_pred A f.
+Let ht_empty := Hist (@UM.empty nat nat_pred A).
+Let ht_undef := Hist (@UM.Undef nat nat_pred A).
+Let ht_upd k v f := Hist (@UM.upd nat nat_pred A k v f).
+Let ht_dom f := @UM.dom nat nat_pred A f. 
+Let ht_assocs f := @UM.assocs nat nat_pred A f. 
+Let ht_free f k := Hist (@UM.free nat nat_pred A f k).
+Let ht_find k f := @UM.find nat nat_pred A k f. 
+Let ht_union f1 f2 := Hist (@UM.union nat nat_pred A f1 f2).
+Let ht_empb f := @UM.empb nat nat_pred A f. 
+Let ht_undefb f := @UM.undefb nat nat_pred A f.
+Let ht_from (f : history A) : UM.base _ _ := f. 
+Let ht_to (b : @UM.base nat nat_pred A) : history A := Hist b.
+Let ht_pts k v := Hist (@UM.pts nat nat_pred A k v).
 
-Axiom ftE : forall b, from (to b) = b.
-Axiom tfE : forall f, to (from f) = f.
-Axiom undefE : nm_undef = to (@UM.Undef nat_ordType nat_pred A).
-Axiom defE : forall f, defined f = UM.valid (from f).
-Axiom emptyE : empty = to (@UM.empty nat_ordType nat_pred A).
-Axiom updE : forall k v f, upd k v f = to (UM.upd k v (from f)).
-Axiom domE : forall f, dom f = UM.dom (from f).
-Axiom dom_eqE : forall f1 f2, dom_eq f1 f2 = UM.dom_eq (from f1) (from f2).
-Axiom assocsE : forall f, assocs f = UM.assocs (from f).
-Axiom freeE : forall f k, free f k = to (UM.free (from f) k).
-Axiom findE : forall k f, find k f = UM.find k (from f).
-Axiom unionE : forall f1 f2, union f1 f2 = to (UM.union (from f1) (from f2)).
-Axiom empbE : forall f, empb f = UM.empb (from f).
-Axiom undefbE : forall f, undefb f = UM.undefb (from f).
-Axiom ptsE : forall k v, pts k v = to (@UM.pts nat_ordType nat_pred A k v).
+Lemma history_is_umc : 
+        union_map_axiom ht_valid ht_empty ht_undef ht_upd ht_dom 
+                        ht_assocs ht_free ht_find ht_union ht_empb 
+                        ht_undefb ht_pts ht_from ht_to. 
+Proof. by split=>//; split=>[|[]]. Qed.
 
-End Params.
-End NMSig.
+HB.instance Definition _ := 
+  isUnion_map.Build nat nat_pred A (history A) history_is_umc. 
+End HistoryUMC.
 
-Module NMDef : NMSig.
-Section NMDef.
-Variable A : Type.
+HB.instance Definition _ A := isNatMap.Build A (history A).
+HB.instance Definition _ (A : eqType) := 
+  hasDecEq.Build (history A) (@union_map_eqP nat _ A (history A)).
+Canonical history_PredType A : PredType (nat * A) := 
+  um_PredType (history A).
+Coercion Pred_of_history A (x : history A) : {Pred _} := 
+  [eta Mem_UmMap x].
 
-Definition tp : Type := @UM.base nat_ordType nat_pred A.
+Notation "x \-> v" := (ptsT (history _) x v) (at level 30).
 
-Definition nm_undef := @UM.Undef nat_ordType nat_pred A.
-Definition defined f := @UM.valid nat_ordType nat_pred A f.
-Definition empty := @UM.empty nat_ordType nat_pred A.
-Definition upd k v f := @UM.upd nat_ordType nat_pred A k v f.
-Definition dom f := @UM.dom nat_ordType nat_pred A f.
-Definition dom_eq f1 f2 := @UM.dom_eq nat_ordType nat_pred A f1 f2.
-Definition assocs f := @UM.assocs nat_ordType nat_pred A f.
-Definition free f k := @UM.free nat_ordType nat_pred A f k.
-Definition find k f := @UM.find nat_ordType nat_pred A k f.
-Definition union f1 f2 := @UM.union nat_ordType nat_pred A f1 f2.
-Definition empb f := @UM.empb nat_ordType nat_pred A f.
-Definition undefb f := @UM.undefb nat_ordType nat_pred A f.
-Definition pts k v := @UM.pts nat_ordType nat_pred A k v.
 
-Definition from (f : tp) : @UM.base nat_ordType nat_pred A := f.
-Definition to (b : @UM.base nat_ordType nat_pred A) : tp := b.
+(* Sometimes it's useful to not think of natmaps as recording *)
+(* times (i.e., being histories), but just as ordinary maps *)
+(* over nats. For that occassion, use the nmap type *)
 
-Lemma ftE b : from (to b) = b. Proof. by []. Qed.
-Lemma tfE f : to (from f) = f. Proof. by []. Qed.
-Lemma undefE : nm_undef = to (@UM.Undef nat_ordType nat_pred A). Proof. by []. Qed.
-Lemma defE f : defined f = UM.valid (from f). Proof. by []. Qed.
-Lemma emptyE : empty = to (@UM.empty nat_ordType nat_pred A). Proof. by []. Qed.
-Lemma updE k v f : upd k v f = to (UM.upd k v (from f)). Proof. by []. Qed.
-Lemma domE f : dom f = UM.dom (from f). Proof. by []. Qed.
-Lemma dom_eqE f1 f2 : dom_eq f1 f2 = UM.dom_eq (from f1) (from f2).
-Proof. by []. Qed.
-Lemma assocsE f : assocs f = UM.assocs (from f). Proof. by []. Qed.
-Lemma freeE f k : free f k = to (UM.free (from f) k). Proof. by []. Qed.
-Lemma findE k f : find k f = UM.find k (from f). Proof. by []. Qed.
-Lemma unionE f1 f2 : union f1 f2 = to (UM.union (from f1) (from f2)).
-Proof. by []. Qed.
-Lemma empbE f : empb f = UM.empb (from f). Proof. by []. Qed.
-Lemma undefbE f : undefb f = UM.undefb (from f). Proof. by []. Qed.
-Lemma ptsE k v : pts k v = to (@UM.pts nat_ordType nat_pred A k v).
-Proof. by []. Qed.
+Record nmap A := NMap {nmap_base : @UM.base nat nat_pred A}.
 
-End NMDef.
-End NMDef.
+Section NMapUMC.
+Variables A : Type.
+Implicit Type f : nmap A.
+Local Coercion nmap_base : nmap >-> UM.base.
+Let nm_valid f := @UM.valid nat nat_pred A f.
+Let nm_empty := NMap (@UM.empty nat nat_pred A).
+Let nm_undef := NMap (@UM.Undef nat nat_pred A).
+Let nm_upd k v f := NMap (@UM.upd nat nat_pred A k v f).
+Let nm_dom f := @UM.dom nat nat_pred A f. 
+Let nm_assocs f := @UM.assocs nat nat_pred A f. 
+Let nm_free f k := NMap (@UM.free nat nat_pred A f k).
+Let nm_find k f := @UM.find nat nat_pred A k f. 
+Let nm_union f1 f2 := NMap (@UM.union nat nat_pred A f1 f2).
+Let nm_empb f := @UM.empb nat nat_pred A f. 
+Let nm_undefb f := @UM.undefb nat nat_pred A f.
+Let nm_from (f : nmap A) : UM.base _ _ := f. 
+Let nm_to (b : @UM.base nat nat_pred A) : nmap A := NMap b.
+Let nm_pts k v := NMap (@UM.pts nat nat_pred A k v).
 
-Notation natmap := NMDef.tp.
+Lemma nmap_is_umc : 
+        union_map_axiom nm_valid nm_empty nm_undef nm_upd nm_dom 
+                        nm_assocs nm_free nm_find nm_union nm_empb 
+                        nm_undefb nm_pts nm_from nm_to. 
+Proof. by split=>//; split=>[|[]]. Qed.
 
-Definition natmapMixin A :=
-  UMCMixin (@NMDef.ftE A) (@NMDef.tfE A) (@NMDef.defE A)
-           (@NMDef.undefE A) (@NMDef.emptyE A) (@NMDef.updE A)
-           (@NMDef.domE A) (@NMDef.dom_eqE A) (@NMDef.assocsE A)
-           (@NMDef.freeE A) (@NMDef.findE A) (@NMDef.unionE A)
-           (@NMDef.empbE A) (@NMDef.undefbE A) (@NMDef.ptsE A).
+HB.instance Definition _ := 
+  isUnion_map.Build nat nat_pred A (nmap A) nmap_is_umc. 
+End NMapUMC.
 
-Canonical nat_mapUMC A :=
-  Eval hnf in UMC (natmap A) (@natmapMixin A).
+HB.instance Definition _ A := isNatMap.Build A (nmap A).
+HB.instance Definition _ (A : eqType) := 
+  hasDecEq.Build (nmap A) (@union_map_eqP nat _ A (nmap A)).
+Canonical nmap_PredType A : PredType (nat * A) := 
+  um_PredType (nmap A).
+Coercion Pred_of_nmap A (x : nmap A) : {Pred _} := 
+  [eta Mem_UmMap x].
 
-(* we add the canonical projections matching against naked type *)
-(* thus, there are two ways to get a PCM for a union map: *)
-(* generic one going through union_map_classPCM, and another by going *)
-(* through union_mapPCM. Luckily, they produce equal results *)
-(* and this is just a matter of convenience *)
-(* Ditto for the equality type *)
+(* no points-to notation for nmaps *)
 
-Definition nat_mapPCMMix A := union_map_classPCMMix (nat_mapUMC A).
-Canonical nat_mapPCM A := Eval hnf in PCM (natmap A) (@nat_mapPCMMix A).
+(*************)
+(* Main defs *)
+(*************)
 
-Definition nat_mapCPCMMix A := union_map_classCPCMMix (nat_mapUMC A).
-Canonical nat_mapCPCM A := Eval hnf in CPCM (natmap A) (@nat_mapCPCMMix A).
+Definition last_key {A} {U : natmap A} (h : U) := last 0 (dom h).
+Definition fresh {A} {U : natmap A} (h : U) := (last_key h).+1.
+Definition last_val {A} {U : natmap A} (h : U) := find (last_key h) h.
 
-Definition nat_mapTPCMMix A := union_map_classTPCMMix (nat_mapUMC A).
-Canonical nat_mapTPCM A := Eval hnf in TPCM (natmap A) (@nat_mapTPCMMix A).
+(**********************)
+(* generic properties *)
+(**********************)
 
-Definition nat_map_eqMix (A : eqType) :=
-  @union_map_class_eqMix nat_ordType nat_pred A _ (@natmapMixin A).
-Canonical nat_map_eqType (A : eqType) :=
-  Eval hnf in EqType (natmap A) (@nat_map_eqMix A).
+(* alternative to In_cond *)
+Lemma In_neq A (U : natmap A) (h : U) k : 
+        k \In h -> 
+        k.1 > 0.
+Proof. by move/In_cond; rewrite lt0n. Qed. 
 
-(* installing the Pred structure for writing x \In h *)
-Canonical Structure natmap_PredType A : PredType (nat * A) :=
-  Mem_UmMap_PredType (nat_mapUMC A).
-Coercion Pred_of_natmap A (f : natmap A) : Pred_Class := [eta Mem_UmMap f].
+Lemma mem_domN0 A (U : natmap A) {h : U} : 0 \notin dom h.
+Proof. by rewrite cond_dom. Qed.
 
-Definition nm_pts A (k : nat) (v : A) :=
-  @UMC.pts nat_ordType nat_pred A (@nat_mapUMC A) k v.
+Lemma mem_dom0 A (U : natmap A) {h : U} : 0 \in dom h = false.
+Proof. by rewrite cond_dom. Qed.
 
-(* baking nat_pred into the notation *)
-Notation "x \-> v" := (@nm_pts _ x v) (at level 30).
-
-Definition nm_foldr V C a c d f := @um_foldr nat_ordType nat_pred V C (@nat_mapUMC V) a c d f.
-
-Lemma uniq_dom0 A (h : natmap A) : uniq (0 :: dom h).
+Lemma uniq_dom0 A (U : natmap A) {h : U} : uniq (0 :: dom h).
 Proof. by rewrite /= uniq_dom cond_dom. Qed.
 
-#[export]
-Hint Resolve uniq_dom0 : core.
+Lemma all_leq0 A (U : natmap A) {h : U} : all (leq 0) (dom h).
+Proof. by apply/allP=>x /dom_cond; case: ltngtP. Qed.
 
-Lemma nm_dom0 A (h : natmap A) : (h = undef \/ h = Unit) <-> (dom h = [::]).
-Proof.
-split=>[|E]; first by case=>->; rewrite ?dom_undef ?dom0.
-case V : (valid h); last by move/invalidE: (negbT V)=>->; left.
-by rewrite (dom0E V) ?E //; right.
-Qed.
+Lemma all_ltn0 A (U : natmap A) {h : U} : all (ltn 0) (dom h).
+Proof. by apply/allP=>x /dom_cond; case: ltngtP. Qed.
 
-Definition stamp := nat.
+#[export] Hint Resolve uniq_dom0 all_leq0 all_ltn0 mem_domN0 : core.
 
-Lemma In_dom0 A (h : natmap A) k e : (k, e) \In h -> k \in 0::dom h.
+Lemma In_dom0 {A} {U : natmap A} (h : U) k e : 
+        (k, e) \In h -> 
+        k \in 0 :: dom h.
 Proof. by move=>H; rewrite inE (In_dom H) orbT. Qed.
 
-(***************************************)
-(***************************************)
-(* Constructions of last_key and fresh *)
-(***************************************)
-(***************************************)
+Lemma sorted_leq_dom A {U : natmap A} {h : U} : sorted leq (dom h).
+Proof. by rewrite -(eq_sorted nat_oleq) sorted_dom_oleq. Qed.
 
-Definition last_key {A} (h : natmap A) := last 0 (dom h).
-Definition fresh {A} (h : natmap A) := (last_key h).+1.
+Lemma sorted_ltn_dom A {U : natmap A} {h : U} : sorted ltn (dom h).
+Proof. by rewrite sorted_dom. Qed.
 
-Prenex Implicits last_key fresh.
+Lemma path_leq_dom A {U : natmap A} {h : U} : path leq 0 (dom h).
+Proof. by rewrite path_min_sorted // sorted_leq_dom. Qed.
 
-Section FreshLastKey.
+Lemma path_ltn_dom A {U : natmap A} {h : U} : path ltn 0 (dom h).
+Proof. by rewrite path_min_sorted. Qed.
 
-Lemma lastkey_undef A : last_key (undef : natmap A) = 0.
-Proof. by rewrite /last_key /undef /= !umEX. Qed.
+#[export] Hint Resolve sorted_leq_dom sorted_ltn_dom 
+  path_leq_dom path_ltn_dom : core.
 
-Lemma lastkey0 A : last_key (Unit : natmap A) = 0.
-Proof. by rewrite /last_key /Unit /= !umEX. Qed.
-
-Lemma lastkey_dom A (h : natmap A) :
-        valid h -> last_key h \notin dom h -> h = Unit.
-Proof.
-rewrite /valid /= /last_key /Unit /= !umEX /= -{4}[h]UMC.tfE.
-case: (UMC.from h)=>//=; case=>s H /= H1 _ /seq_last_in.
-rewrite /UM.empty UMC.eqE UM.umapE /supp fmapE /= {H H1}.
-by elim: s.
-Qed.
-
-Lemma dom_lastkey0P A (h : natmap A) : last_key h = 0 <-> dom h = [::].
-Proof.
-rewrite -nm_dom0; split; last first.
-- by case=>E; subst h; rewrite ?lastkey_undef ?lastkey0.
-move=>E; case V : (valid h); last by left; move/invalidE: (negbT V).
-right; apply: lastkey_dom=>//; rewrite E.
-by apply: contraT; rewrite negbK; apply: dom_cond.
-Qed.
-
-Lemma dom_lastkey0PN A (h : natmap A) : last_key h != 0 <-> dom h != [::].
-Proof. by split; move/eqP=>H; apply/eqP=>X; elim: H; apply/dom_lastkey0P. Qed.
-
-Lemma dom_lastkey0D A (h : natmap A) k : k \in dom h -> last_key h != 0.
-Proof. by move=>D; apply/negP=>/eqP/dom_lastkey0P H; rewrite H in D. Qed.
-
-Lemma dom_lastkey0DX A (h : natmap A) :
-        last_key h != 0 <-> exists k, k \in dom h.
-Proof.
-rewrite dom_lastkey0PN; split.
-- by case/has_nilP/hasP=>x; exists x.
-by case=>k D; apply/eqP=>N; rewrite N in D.
-Qed.
-
-Lemma dom_lastkey A (h : natmap A) :
-        valid h -> ~~ unitb h -> last_key h \in dom h.
-Proof. by move=>X; apply: contraR; move/(lastkey_dom X)=>->; apply/unitbP. Qed.
-
-Lemma lastkeyxx A (h : natmap A) :
-        valid h -> last_key h = 0 -> h = Unit.
-Proof.
-by move=>V H; apply: lastkey_dom V _; apply/negP=>/dom_cond; rewrite H.
-Qed.
-
-Lemma dom_lastkeyE A (h : natmap A) a : a < last_key h -> last_key h \in dom h.
-Proof.
-move=>H; case V : (valid h); last first.
-- by move/invalidE: (negbT V) H=>->; rewrite lastkey_undef.
-by apply: dom_lastkey V (contraL _ H)=>/unitbE ->; rewrite lastkey0.
-Qed.
-
-Lemma dom_lastkeyN A (h : natmap A) : last_key h != 0 <-> last_key h \in dom h.
-Proof.
-split; last by move/dom_cond.
-by rewrite -lt0n=>H; apply: dom_lastkeyE H.
-Qed.
-
-Lemma lastkey_max A (h : natmap A) x : x \in dom h -> x <= last_key h.
-Proof.
-rewrite /last_key /= !umEX; case: (UMC.from h)=>//; case=>s H _ /=.
-rewrite /supp /ord /= (leq_eqVlt x) orbC.
-by apply: sorted_last_key_maxR (sorted_oleq H)=>//; apply: otrans.
-Qed.
-
-Lemma max_lastkey A (h : natmap A) x :
-        x \in dom h -> {in dom h, forall y, y <= x} -> last_key h = x.
-Proof.
-rewrite /last_key !umEX; case: (UMC.from h)=>//; case=>s H _ /=.
-move=>H1 /= H2; apply: sorted_max_key_last (sorted_oleq H) H1 _=>//.
-- by apply: otrans.
-- by apply: oantisym.
-by move=>z /(H2 z); rewrite leq_eqVlt orbC.
-Qed.
-
-Lemma lastkey_leq A (h : natmap A) x :
-        {in dom h, forall y, y <= x} <-> last_key h <= x.
-Proof.
-split; last by move=>D y Y; apply: leq_trans D; apply: lastkey_max Y.
-case V : (valid h); last first.
-- by move/negbT/invalidE: V=>->; rewrite lastkey_undef.
-case E: (unitb h); first by move/unitbP: E=>->; rewrite lastkey0.
-by apply; rewrite dom_lastkey // E.
-Qed.
-
-Lemma lastkey_ltn A a (h : natmap A) x :
-        a < last_key h -> {in dom h, forall y, y < x} <-> last_key h < x.
-Proof.
-move/dom_lastkeyE=>D; split; first by apply.
-by move=>Y y X; apply: leq_ltn_trans Y; apply: lastkey_max.
-Qed.
-
-Lemma lastkeyPt A (x : nat) (v : A) : x != 0 -> last_key (x \-> v) = x.
-Proof. by rewrite /last_key domPtK /= => ->. Qed.
-
-Lemma hist_path A (h : natmap A) : path oleq 0 (dom h).
-Proof.
-rewrite !umEX; case: (UMC.from h)=>//= {}h _; case: h; case=>//= x s H.
-rewrite {1}/oleq /ord /= orbC -leq_eqVlt /=.
-by apply: sub_path H=>z y; rewrite /oleq=>->.
-Qed.
-
-Lemma lastkey_mono A B (h1 : natmap A) (h2 : natmap B) :
-        {subset dom h1 <= dom h2} -> last_key h1 <= last_key h2.
-Proof.
-rewrite leq_eqVlt orbC; apply: (seq_last_monoR _ (@otrans nat_ordType))=>//;
-by apply: hist_path.
-Qed.
-
-Lemma lastkeyfUn A (h1 h2 : natmap A) :
-        valid (h1 \+ h2) -> last_key h1 <= last_key (h1 \+ h2).
-Proof. by move=>X; apply: lastkey_mono=>x; rewrite domUn inE X => ->. Qed.
-
-Lemma lastkeyUnf A (h1 h2 : natmap A) :
-        valid (h1 \+ h2) -> last_key h2 <= last_key (h1 \+ h2).
-Proof. by rewrite joinC; apply: lastkeyfUn. Qed.
-
-(* a convenient rephrasing of above lemmas *)
-
-Lemma lastkeyUn_mono A (h1 h2 : natmap A) t :
-        valid (h1 \+ h2) -> last_key (h1 \+ h2) < t -> last_key h1 < t.
-Proof.
-move=>V; apply/leq_trans/lastkey_mono.
-by move=>x D; rewrite domUn inE V D.
-Qed.
-
-Lemma lastkeyUn0T A1 A2 (h1 : natmap A1) (h2 : natmap A2) :
-        valid h1 -> valid h2 ->
-        (forall x, x \in dom h1 -> x \in dom h2 -> false) ->
-        last_key h1 = last_key h2 -> (h1 = Unit) * (h2 = Unit).
-Proof.
-move=>V1 V2 D E.
-case E1: (unitb h1).
-- move/unitbE: E1 E V2=>->; rewrite lastkey0.
-  by case/esym/dom_lastkey0P/nm_dom0=>-> //; rewrite valid_undef.
-case E2: (unitb h2).
-- move/unitbE: E2 E V1=>->; rewrite lastkey0.
-  by case/dom_lastkey0P/nm_dom0=>-> //; rewrite valid_undef.
-move: (D _ (dom_lastkey V1 (negbT E1))).
-by rewrite E (dom_lastkey V2 (negbT E2))=>/(_ erefl).
-Qed.
-
-Lemma lastkeyUn0 A (h1 h2 : natmap A) :
-        valid (h1 \+ h2) ->
-        last_key h1 = last_key h2 -> (h1 = Unit) * (h2 = Unit).
-Proof.
-move=>V E.
-case: validUn V=>// V1 V2 D _; apply: lastkeyUn0T V1 V2 _ E.
-by move=>x /D /negbTE ->.
-Qed.
-
-Lemma lastkey_subdom A1 A2 (h1 : natmap A1) (h2 : natmap A2) :
-        {subset dom h1 <= dom h2} ->
-        last_key h2 \in dom h1 -> last_key h1 = last_key h2.
-Proof.
-by move=>S D; apply/eqP; rewrite eqn_leq (lastkey_max D) (lastkey_mono S).
-Qed.
-
-Variable A : Type.
-Implicit Type h : natmap A.
-
-Lemma lastkeyUn h1 h2 :
-        last_key (h1 \+ h2) =
-        if valid (h1 \+ h2) then maxn (last_key h1) (last_key h2) else 0.
-Proof.
-have H (k1 k2 : natmap A) : valid (k1 \+ k2) ->
-  last_key k1 < last_key k2 -> last_key (k1 \+ k2) = last_key k2.
-- move=>V H; apply: max_lastkey=>[|x].
-  - by rewrite domUn inE V (dom_lastkeyE H) orbT.
-  rewrite domUn inE V; case/orP; move/lastkey_max=>// T;
-  by apply: leq_trans T (ltnW H).
-case V : (valid _); last first.
-- by move/invalidE: (negbT V)=>->; rewrite lastkey_undef.
-rewrite /maxn; case: (ltngtP (last_key h2) (last_key h1)).
-- by rewrite joinC in V *; apply: H.
-- by apply: H.
-by move/esym/(lastkeyUn0 V)=>E; rewrite !E unitL.
-Qed.
-
-Lemma lastkeyPtUn_max h t u :
-        last_key (t \-> u \+ h) =
-        if valid (t \-> u \+ h) then maxn t (last_key h) else 0.
-Proof.
-by rewrite lastkeyUn; case: ifP=>// /validPtUn_cond /= D; rewrite lastkeyPt.
-Qed.
-
-Lemma lastkeyPtUn h t1 v :
-        valid h ->
-        fresh h <= t1 ->
-        last_key (t1 \-> v \+ h) = t1.
-Proof.
-move=>V N; rewrite lastkeyPtUn_max validPtUn /= V.
-case: eqP N=>[->|] //= _ N.
-case: ifP=>D; first by rewrite /maxn; case: ltngtP N.
-by move/(elimF idP): D; elim; apply/negP=>/lastkey_max; case: ltngtP N.
-Qed.
-
-Lemma lastkeyPtUn_valid h t u :
-        valid h -> last_key h < t -> valid (t \-> u \+ h).
-Proof.
-move=>V L; rewrite validPtUn; apply/and3P; split=>//=.
-- by rewrite /= -lt0n; apply: leq_ltn_trans L.
-by apply: contraL L; move/lastkey_max; case: leqP.
-Qed.
-
-(* monotonicity just gives us <= *)
-(* when we remove the last key, we get a strict < *)
-Lemma lastkeyF h :
-        last_key h \in dom h ->
-        last_key (free h (last_key h)) < last_key h.
-Proof.
-move=>D; case: (um_eta D)=>v [Ef] Eh.
-have N : last_key h \notin dom (free h (last_key h)).
-- by rewrite domF inE eqxx.
-have: last_key (free h (last_key h)) <= last_key h.
-- by apply: lastkey_mono=>x; rewrite domF inE; case: ifP.
-rewrite leq_eqVlt; case/orP=>// /eqP E; rewrite -{1}E in N.
-have Dn : last_key h > 0 by move/dom_cond: D; case: (last_key h).
-by rewrite -E in Dn; rewrite (dom_lastkeyE Dn) in N.
-Qed.
-
-Lemma lastkeyPtUnE u2 u1 h t :
-        last_key (t \-> u1 \+ h) = last_key (t \-> u2 \+ h).
-Proof. by rewrite !lastkeyPtUn_max !validPtUn. Qed.
-
-Lemma lastkeyUnPtE u2 u1 h t :
-        last_key (h \+ t \-> u1) = last_key (h \+ t \-> u2).
-Proof. by rewrite !(joinC h); apply: lastkeyPtUnE. Qed.
-
-Lemma lastkeyU u h t :
-        t \in dom h -> last_key (upd t u h) = last_key h.
-Proof. by case/um_eta=>v [_ E]; rewrite E updPtUn (lastkeyPtUnE v). Qed.
-
-Lemma lastkeyUmax h u t :
-        last_key (upd t u h) =
-        if t \in dom h then last_key h else
-        if valid (upd t u h) then maxn t (last_key h) else 0.
-Proof.
-case: ifP; first by apply: lastkeyU.
-move=>H; rewrite validU /=; case: eqP =>[->|/eqP Nt /=].
-- by rewrite upd_condN // lastkey_undef.
-case: ifP=>V; last first.
-- by move/invalidE: (negbT V)=>->; rewrite upd_undef lastkey_undef.
-have W : valid (upd t u h) by rewrite validU /= V Nt.
-have E : upd t u h = t \-> u \+ h.
-- apply: find_eta=>//; first by rewrite validPtUn /= V H Nt.
-- by move=>k; rewrite findU /= Nt V findPtUn2 // validPtUn /= Nt V H.
-by rewrite E lastkeyUn -E W lastkeyPt.
-Qed.
-
-(* freshness *)
-
-Lemma fresh0N h x : fresh h <= x -> x != 0.
-Proof. by case: eqP=>// ->. Qed.
-
-Lemma dom_ordfresh h x : x \in dom h -> x < fresh h.
-Proof. by move/lastkey_max. Qed.
-
-Lemma dom_freshN h x : x \in dom h -> x != fresh h.
-Proof. by move/dom_ordfresh; case: ltngtP. Qed.
-
-Lemma dom_ordfreshT h x t : fresh h <= t -> x \in dom h -> x != t.
-Proof. by move=>H1 /dom_ordfresh H2; case: ltngtP (leq_trans H2 H1). Qed.
-
-Lemma dom_freshn h n : fresh h + n \notin dom h.
-Proof. by apply: contra (@dom_ordfresh _ _) _; rewrite -leqNgt leq_addr. Qed.
-
-Lemma ordfresh_dom0 h t : fresh h <= t -> t \notin 0::dom h.
-Proof.
-rewrite leqNgt; apply: contra; rewrite inE.
-by case/orP=>[/eqP -> //|]; apply: dom_ordfresh.
-Qed.
-
-Lemma ordfresh_dom h t : fresh h <= t -> t \notin dom h.
-Proof. by rewrite leqNgt; apply: contra; apply: dom_ordfresh. Qed.
-
-Lemma dom_ordfresh0 h x t : fresh h <= t -> x \in 0::dom h -> x < t.
-Proof.
-by rewrite inE=>D /orP [/eqP ->|/dom_ordfresh H]; apply: leq_ltn_trans D.
-Qed.
-
-Lemma dom_freshN0 h x t : fresh h <= t -> x \in 0::dom h -> x != t.
-Proof. by move=>D /(dom_ordfresh0 D); case: ltngtP. Qed.
-
-Lemma omfresh_dom B h t (f : omap_fun (nat_mapUMC A) (nat_mapUMC B)) :
-         fresh h <= t -> t \notin dom (f h).
-Proof. by move=>F; apply/negP=>/omf_subdom/dom_ordfresh; case: ltngtP F. Qed.
-
-Lemma dom_omfresh B h t (f : omap_fun (nat_mapUMC A) (nat_mapUMC B)) :
-        t \in dom (f h) -> t < fresh h.
-Proof. by move/omf_subdom/dom_ordfresh. Qed.
-
-Lemma dom_omfreshT B h x t (f : omap_fun (nat_mapUMC A) (nat_mapUMC B)) :
-        fresh h <= t -> x \in dom (f h) -> x != t.
-Proof. by move=>H1 /dom_omfresh H2; case: ltngtP (leq_trans H2 H1). Qed.
-
-Lemma omf_subdom0 B h (f : omap_fun (nat_mapUMC A) (nat_mapUMC B)) :
-        {subset 0::dom (f h) <= 0::dom h}.
-Proof.
-move=>x; rewrite !inE; case/orP=>[->//|].
-by move/omf_subdom=>->; rewrite orbT.
-Qed.
-
-Lemma find_fresh h x : fresh h <= x -> find x h = None.
-Proof. by move=>H; rewrite In_findNE // ordfresh_dom. Qed.
-
-Lemma dom_freshUn h1 h2 : valid h1 -> [pcm h2 <= h1] -> fresh h1 \notin dom h2.
-Proof.
-move=>V [x E]; rewrite {h1}E in V *; apply: contra (@dom_ordfresh _ _) _.
-by rewrite joinC in V *; rewrite -leqNgt; apply: lastkeyUnf.
-Qed.
-
-Lemma valid_fresh h v t : fresh h <= t -> valid (t \-> v \+ h) = valid h.
-Proof. by move=>N; rewrite validPtUn /= (fresh0N N) (ordfresh_dom N) andbT. Qed.
-
-Lemma dom_freshUnN h1 h2 x :
-        valid h1 -> [pcm h2 <= h1] -> x \in dom h2 -> x != fresh h1.
-Proof. by move=>V H; apply: contraL=>/eqP ->; apply: dom_freshUn. Qed.
-
-Lemma fresh_dom h : fresh h \notin dom h.
-Proof. by move: (dom_freshn h 0); rewrite addn0.  Qed.
-
-Lemma valid_freshX h1 h2 v :
-        valid h1 -> last_key h2 <= last_key h1 ->
-        valid (fresh h1 \-> v \+ h2) = valid h2.
-Proof.
-move=>V N; rewrite validPtUn /=; case W : (valid h2)=>//=.
-apply/negP=>/dom_ordfresh; rewrite ltnS /fresh.
-by case: ltngtP N.
-Qed.
-
-Lemma dom_fresh t1 e h :
-        valid h -> fresh h <= t1 ->
-        dom (t1 \-> e \+ h) = rcons (dom h) t1.
-Proof.
-move=>W N; rewrite joinC domUnPtK //.
-- by rewrite joinC valid_fresh.
-by apply/allP=>x /dom_ordfresh D; apply: leq_ltn_trans N.
-Qed.
-
-Lemma freshPtUn h t1 v :
-        valid h ->
-        fresh h <= t1 ->
-        fresh (t1 \-> v \+ h) = t1.+1.
-Proof. by move=>V N; rewrite /fresh lastkeyPtUn. Qed.
-
-Lemma lastkey_freshX h1 h2 v :
-        valid h1 -> valid h2 ->
-        last_key h2 <= last_key h1 ->
-        last_key (fresh h1 \-> v \+ h2) = fresh h1.
-Proof.
-move=>V1 V2 N; apply: max_lastkey=>[|y] /=.
-- by rewrite domUn inE valid_freshX //= V2 /= domPt inE /= eqxx.
-rewrite dom_fresh // mem_rcons inE.
-case/orP=>[/eqP ->//|/dom_ordfresh].
-by rewrite ltnS=>H; apply: leq_trans H (ltnW _).
-Qed.
-
-Lemma valid_freshUn h1 h2 v :
-        valid h1 -> [pcm h2 <= h1] -> valid (fresh h1 \-> v \+ h2) = valid h2.
-Proof.
-move=>V [x E]; rewrite {h1}E in V *.
-by rewrite validPtUn dom_freshUn // andbT.
-Qed.
-
-Lemma lastkey_freshUn h1 h2 v :
-        valid h1 -> [pcm h2 <= h1] ->
-        last_key (fresh h1 \-> v \+ h2) = fresh h1.
-Proof.
-move=>V [x E]; rewrite {h1}E in V *; apply: max_lastkey=>[|y] /=;
-  rewrite domUn inE valid_freshUn // (validE2 V) /= domPt inE ?eqxx //.
-rewrite andbC eq_sym leq_eqVlt; case: eqP=>//= _ D.
-by apply: lastkey_max; rewrite domUn inE V D.
-Qed.
-
-Lemma lastkey_fresh h v : valid h -> last_key (fresh h \-> v \+ h) = fresh h.
-Proof.
-move=>Vf; apply: max_lastkey=>[|x] /=.
-- by rewrite domUn inE valid_fresh // Vf domPt inE eqxx.
-rewrite domUn inE /= valid_fresh // Vf /= domPt inE /= eq_sym.
-by rewrite leq_eqVlt; case: eqP=>//= _; apply: dom_ordfresh.
-Qed.
-
-Lemma dom_freshUnK h1 h2 v :
-        valid h1 -> [pcm h2 <= h1] ->
-        dom (fresh h1 \-> v \+ h2) = rcons (dom h2) (fresh h1).
-Proof.
-move=>V [x E]; subst h1; rewrite joinC domUnPtK //.
-- by rewrite joinC valid_freshUn // (validL V).
-apply/allP=>k /= D; apply: dom_ordfresh.
-by rewrite domUn inE V D.
-Qed.
-
-Lemma freshfUn h1 h2 :
-        valid (h1 \+ h2) -> fresh h1 <= fresh (h1 \+ h2).
-Proof. by apply: lastkeyfUn. Qed.
-
-Lemma freshUnf h1 h2 :
-        valid (h1 \+ h2) -> fresh h2 <= fresh (h1 \+ h2).
-Proof. by apply: lastkeyUnf. Qed.
-
-Lemma freshfUnT U D (f : @morphism U (nat_mapPCM A) D) fr :
-        forall x y : U, valid (x \+ y) ->
-          D x y ->
-          fresh (f (x \+ y)) <= fr -> fresh (f x) <= fr.
-Proof.
-move=>x y V H; apply: leq_trans.
-by rewrite pfjoin // freshfUn // pfV2.
-Qed.
-
-Lemma freshfUn_phantT U D fr (f : @morphism U (nat_mapPCM A) D) of phantom (_ -> _) f :
-        forall x y : U, valid (x \+ y) ->
-          D x y ->
-          fresh (f (x \+ y)) <= fr -> fresh (f x) <= fr.
-Proof. by apply: freshfUnT. Qed.
-
-
-(* pcm induced ordering *)
-
-Lemma umpleq_lastkey h1 h2 :
-        valid h2 -> [pcm h1 <= h2] -> last_key h1 <= last_key h2.
-Proof.
-by move=>V H; case: H V=>z->V; apply: lastkey_mono=>k D; rewrite domUn inE V D.
-Qed.
-
-(* backward induction on valid natmaps *)
-
-Lemma valid_indb (P : natmap A -> Prop) :
-        P Unit ->
-        (forall u, P (1 \-> u)) ->
-        (forall t u h, P h -> last_key h < t ->
-                       valid (h \+ t \-> u) -> P (t \-> u \+ h)) ->
-        forall h, valid h -> P h.
-Proof.
-move=>H1 H2 H3; elim/um_indb=>//=.
-- by rewrite -[valid _]negbK; move/negP/invalidE.
-move=>k v f H V K _.
-case E: (unitb f); last first.
-- apply: H3=>//; first by apply: H (validL V).
-  apply: K; apply: contraR (negbT E).
-  by rewrite -unitbE; apply: lastkey_dom (validL V).
-move/unitbE: {K H} E V=>->; rewrite unitL unitR => V.
-move: (H3 k v Unit H1); rewrite unitL unitR lastkey0 lt0n.
-by apply=>//; rewrite validPt /= in V.
-Qed.
-
-(* forward induction on valid natmaps *)
-
-Lemma valid_indf (P : natmap A -> Prop) :
-        P Unit ->
-        (forall t u h, P h ->
-           (forall x, x \in dom h -> t < x) ->
-           valid (t \-> u \+ h) -> P (t \-> u \+ h)) ->
-        forall h, valid h -> P h.
-Proof.
-move=>H1 H2; elim/um_indf=>//=.
-- by rewrite -[valid _]negbK; move/negP/invalidE.
-move=>k v f H V K _.
-apply: H2=>//; first by apply: H (validR V).
-move=>x; move/(order_path_min (@ordtype.trans _)): K.
-by case: allP=>// X _; apply: X.
-Qed.
-
-End FreshLastKey.
-
-Notation freshT f := (@freshfUn_phantT _ _ _ _ _ (Phantom (_ -> _) f)).
-
-Lemma fresh_mono A B (h1 : natmap A) (h2 : natmap B) :
-        {subset dom h1 <= dom h2} -> fresh h1 <= fresh h2.
-Proof. by apply: lastkey_mono. Qed.
-
-Lemma range_freshUnK (A : ordType) (h : natmap A) k (v : A) :
-        valid h -> last_key h < k ->
-        range (k \-> v \+ h) = rcons (range h) v.
-Proof.
-move=>V K; rewrite joinC rangeUnPtK //; last first.
-- by apply/allP=>x /lastkey_max/leq_ltn_trans; apply.
-rewrite validUnPt V /=; case: k K=>//= k K.
-by apply: contraL K=>/lastkey_max; rewrite ltnS; case: ltngtP.
-Qed.
-
-Lemma dom_fresh_sub A1 A2 (h1 : natmap A1) (h2 : natmap A2) :
-        valid h1 -> {subset dom h2 <= dom h1} -> fresh h1 \notin dom h2.
-Proof.
-move=>V S; apply: contra; first by move/S; apply: dom_ordfresh.
-by rewrite ltnn.
-Qed.
-
-Lemma valid_fresh_sub A1 A2 (h1 : natmap A1) (h2 : natmap A2) v :
-        valid h1 -> {subset dom h2 <= dom h1} ->
-        valid (fresh h1 \-> v \+ h2) = valid h2.
-Proof. by move=>V S; rewrite validPtUn dom_fresh_sub // andbT. Qed.
-
-(* lemmas with omap *)
-
-Lemma lastkey_omap V1 V2 (f : nat * V1 -> option V2) (h : natmap V1) :
-        last_key (omap f h) <= last_key h.
-Proof. by apply: lastkey_mono; apply: dom_omap_sub. Qed.
-
-Lemma lastkey_omap_some V1 V2 (f : nat * V1 -> option V2) (h : natmap V1) :
-        (forall x, x \In h -> oapp predT false (f x)) ->
-        last_key (omap f h) = last_key h.
-Proof. by rewrite /last_key=>/dom_omap_some ->. Qed.
-
-Lemma omap_fresh V V' (h : natmap V) (a : nat * V -> option V') k v :
-        fresh h <= k ->
-        omap a (pts k v \+ h) =
-        (if a (k, v) is Some v' then
-         pts k v' \+ omap a h else omap a h) :> natmap V'.
-Proof.
-case W : (valid h).
-- by move=>H; rewrite omapPtUn valid_fresh // W.
-move/negbT/invalidE: W=>->.
-by case: (a _)=>[w|]; rewrite join_undef omap_undef // join_undef.
-Qed.
-
-(* renaming for freshness *)
-
-Lemma fresh_omap V1 V2 (f : nat * V1 -> option V2) (h : natmap V1) :
-        fresh (omap f h) <= fresh h.
-Proof. by apply: lastkey_omap. Qed.
-
-Lemma fresh_omap_some V1 V2 (f : nat * V1 -> option V2) (h : natmap V1) :
-        (forall x, x \In h -> oapp predT false (f x)) ->
-        fresh (omap f h) = fresh h.
-Proof. by move=>H; rewrite /fresh lastkey_omap_some. Qed.
-
-(* lemmas with In *)
-
-Lemma In_lastkey V k v (h : natmap V) :  (k, v) \In h -> k <= last_key h.
-Proof. by move/In_dom/lastkey_max. Qed.
-
-Lemma In_fresh V (h : natmap V) x e t k :
-         fresh h <= t ->
-         (k, x) \In h -> (k, x) \In t \-> e \+ h.
-Proof.
-by move=>N H; apply/InR=>//; rewrite valid_fresh // (In_valid H).
-Qed.
-
-Lemma In_fresh_inv V (h : natmap V) x e t k :
-        k < fresh h -> fresh h <= t ->
-        (k, x) \In t \-> e \+ h -> (k, x) \In h.
-Proof.
-move=>N F H; have W : valid (t \-> e \+ h).
-- by rewrite valid_fresh // (validR (In_valid H)).
-by case/(InPtUnE _ W): H F=>// [[<- _]]; case: ltngtP N.
-Qed.
-
-(* lemmas with umfilt *)
-
-(* a form of totality on the stamp ordering *)
-Lemma umfiltT V (k1 k2 : stamp) (f : natmap V) :
-        k1 \in dom f ->
-        k2 \in dom f ->
-        k1 \notin dom (um_filterk (ltn^~ k2) f) ->
-        k2 \notin dom (um_filterk (ltn^~ k1) f) ->
+(* form of totality of key order *)
+Lemma umfiltT A (U : natmap A) k1 k2 (h : U) :
+        k1 \in dom h -> k1 \notin dom (um_filterk (ltn^~ k2) h) ->
+        k2 \in dom h -> k2 \notin dom (um_filterk (ltn^~ k1) h) ->
         k1 = k2.
 Proof.
-case/In_domX=>v1 D1 /In_domX [v2 D2] S1 S2.
+case/In_domX=>v1 D1 S1 /In_domX [v2 D2] S2.
 case: (ltngtP k1 k2)=>// N.
 - by move/(In_umfiltk (ltn^~ k2))/(_ N)/In_dom: D1; rewrite (negbTE S1).
 by move/(In_umfiltk (ltn^~ k1))/(_ N)/In_dom: D2; rewrite (negbTE S2).
 Qed.
 
-(* a somewhat different form of the previous lemma *)
-Lemma umfiltT0 V (k1 k2 : stamp) (f : natmap V) :
-        k1 \in dom f ->
-        k2 \in dom f ->
-        um_filterk (ltn^~ k1) f = Unit ->
-        um_filterk (ltn^~ k2) f = Unit ->
+Lemma umfiltT0 A (U : natmap A) k1 k2 (h : U) :
+        k1 \in dom h -> um_filterk (ltn^~ k1) h = Unit ->
+        k2 \in dom h -> um_filterk (ltn^~ k2) h = Unit ->
         k1 = k2.
-Proof.
-by move=>D1 D2 U1 U2; apply: umfiltT D1 D2 _ _; rewrite ?U1 ?U2 dom0.
+Proof. 
+by move=>D1 U1 D2 U2; apply: umfiltT D1 _ D2 _; rewrite ?U1 ?U2 dom0. 
 Qed.
 
-(* umfilt and last/fresh *)
-Lemma lastkey_umfilt V (p : pred (nat * V)) (h : natmap V) :
-        last_key (um_filter p h) <= last_key h.
-Proof. by apply: lastkey_mono; apply: dom_umfilt_subset. Qed.
+Lemma omf_subdom0 {A1 A2} {U1 : natmap A1} {U2 : natmap A2} 
+                          {f : omap_fun U1 U2} {h : U1} :
+        {subset 0::dom (f h) <= 0::dom h}.
+Proof.
+move=>x; rewrite !inE; case/orP=>[|/omf_subdom] -> //.
+by rewrite orbT.
+Qed.
 
-Lemma fresh_umfilt V (p : pred (nat * V)) (h : natmap V) :
-        fresh (um_filter p h) <= fresh h.
-Proof. by apply: lastkey_umfilt. Qed.
+(**************)
+(* Base cases *)
+(**************)
 
-Lemma umfilt_fresh V (p : pred (nat * V)) (h : natmap V) k v :
+Lemma lastkey_undef A (U : natmap A) : last_key (undef : U) = 0.
+Proof. by rewrite /last_key dom_undef. Qed.
+
+Lemma lastkey0 A (U : natmap A) : last_key (Unit : U) = 0.
+Proof. by rewrite /last_key dom0. Qed.
+
+Lemma lastkeyPt A (U : natmap A) (x : nat) (v : A) : 
+        last_key (pts x v : U) = x. 
+Proof. by rewrite /last_key domPtK; case: (x =P 0). Qed.
+
+Lemma lastval0 A (U : natmap A) : last_val (Unit : U) = None.
+Proof. by rewrite /last_val lastkey0 find0E. Qed.
+
+Lemma lastval_undef A (U : natmap A) : last_val (undef : U) = None.
+Proof. by rewrite /last_val lastkey_undef find_undef. Qed.
+
+Lemma lastvalPt A (U : natmap A) x v : 
+        last_val (pts x v : U) = if x != 0 then Some v else None.
+Proof. by rewrite /last_val lastkeyPt findPt. Qed.
+
+(* basic transfer lemma *)
+Lemma In_last A (U : natmap A) (h : U) v : 
+        (last_key h, v) \In h <-> last_val h = Some v.
+Proof. exact: In_find. Qed.
+
+(* for inlined rewriting *)
+Lemma In_lastE A (U : natmap A) (h : U) v : 
+        (last_key h, v) \In h -> last_val h = Some v.
+Proof. exact: In_findE. Qed.
+
+(* fresh and 0 *)
+
+Lemma fresh_undef A (U : natmap A) : fresh (undef : U) = 1.
+Proof. by rewrite /fresh lastkey_undef. Qed.
+
+Lemma fresh0 A (U : natmap A) : fresh (Unit : U) = 1.
+Proof. by rewrite /fresh lastkey0. Qed.
+
+Lemma fresh_lt0 A (U : natmap A) (h : U) x : fresh h <= x -> 0 < x.
+Proof. by case: x. Qed.
+
+Lemma freshN0 A (U : natmap A) (h : U) x : fresh h <= x -> x != 0.
+Proof. by case: x. Qed.
+
+(*************)
+(* Main view *)
+(*************)
+
+(* captures that following properties are equivalent: *)
+(* (undefb && unitb) = (last_key != 0) = (last_key > 0) = ... *)
+(* ... = (last_key \in dom) = (dom <> [::]) = lastval = Some *)
+
+Variant lastkey_dom_spec A (U : natmap A) (h : U) : 
+  bool -> bool -> bool -> nat -> seq nat -> 
+  bool -> bool -> bool -> option A -> Type := 
+| lastkey_dom_undef of h = undef : 
+    lastkey_dom_spec h false true false 0 [::] true false false None
+| lastkey_dom_unit of h = Unit : 
+    lastkey_dom_spec h true false true 0 [::] true false false None
+| lastkey_dom_valid v of (last_key h, v) \In h :
+    lastkey_dom_spec h true false false (last_key h) 
+                     (dom h) false true true (Some v).
+
+Lemma lastkeyP A (U : natmap A) (h : U) :
+        lastkey_dom_spec h (valid h) (undefb h) (unitb h)
+                           (last_key h) (dom h) (last_key h == 0) 
+                           (last_key h > 0) (last_key h \in dom h) 
+                           (last_val h).
+Proof.
+have L (x : U) : valid x -> last_key x \notin dom x -> x = Unit.
+- rewrite /last_key !umEX /UM.valid/UM.dom/UM.empty -{4}[x]tfE. 
+  case: (UMC_from x)=>//=; case=>s H H1 _ /seq_last_in. 
+  by rewrite eqE UM.umapE /supp fmapE /= {H H1}; elim: s. 
+case: (normalP0 h)=>[->|->|].
+- by rewrite lastkey_undef dom_undef lastval_undef; apply: lastkey_dom_undef.
+- by rewrite lastkey0 dom0 lastval0; apply: lastkey_dom_unit.
+move=>V H.
+have H1 : last_key h \in dom h by apply: contraT=>/(L _ V)/H.
+have H2 : last_key h != 0 by apply: dom_cond H1.
+have [v H4] : {v | last_val h = Some v}.
+- by rewrite /last_val; case: dom_find H1=>// v; exists v.
+by rewrite H1 lt0n (negbTE H2) H4; apply/lastkey_dom_valid/In_last.
+Qed.
+
+(* main membership invariant of last_key *)
+Lemma lastkey_mem0 A (U : natmap A) (h : U) : 
+        last_key h \in 0 :: dom h.
+Proof. by rewrite inE; case: lastkeyP. Qed.
+
+(* view for last_val can simplify obligations from last_keyP *)
+(* by joining the cases for unit and undef *)
+Variant lastval_spec A (U : natmap A) (h : U) : option A -> Type :=
+| lastval_none of last_val h = None & (forall kv, kv \Notin h) :
+    lastval_spec h None 
+| lastval_some r kv of last_val h = Some r & kv \In h :
+    lastval_spec h (Some r).
+
+Lemma lastvalP A (U : natmap A) (h : U) : lastval_spec h (last_val h).
+Proof.
+case: lastkeyP=>[->|->|v].
+- by apply: lastval_none; [rewrite lastval_undef|move=>kv /In_undef].
+- by apply: lastval_none; [rewrite lastval0|move=>kv /In0].
+by move=>H; apply/lastval_some/H/In_findE.
+Qed.
+
+(************)
+(* last_key *)
+(************)
+
+Section LastkeyLemmas.
+Variables (A : Type) (U : natmap A).
+Implicit Type h : U.
+
+(* last_key is upper bound *)
+Lemma dom_lastkey h k : 
+        k \in dom h -> 
+        k <= last_key h.
+Proof.
+rewrite /last_key !umEX /UM.dom; case: (UMC_from h)=>//; case=>s H _ /=.
+rewrite /supp/ord /= (leq_eqVlt k) orbC. 
+by apply: sorted_last_key_maxR otrans (sorted_oleq H).
+Qed.
+
+(* useful variants with 0 :: dom and contrapositives *)
+Lemma dom0_lastkey h k : k \in 0 :: dom h -> k <= last_key h.
+Proof. by rewrite inE; case/orP=>[/eqP -> //|]; apply: dom_lastkey. Qed.
+Lemma lastkey_dom h k : last_key h < k -> k \notin dom h.
+Proof. by apply: contraL; rewrite -leqNgt; apply: dom_lastkey. Qed.
+Lemma lastkey_dom0 h k : last_key h < k -> k \notin 0 :: dom h.
+Proof. by apply: contraL; rewrite -leqNgt; apply: dom0_lastkey. Qed.
+
+(* last_key is least upper bound *)
+Lemma lastkey_lub h k : 
+         {in dom h, forall x, x <= k} -> 
+         last_key h <= k.
+Proof. by case lastkeyP=>// v /In_dom H; apply. Qed.
+
+(* variant with contrapositive side-condition *)
+Lemma lastkey_memk h k :
+        (forall x, k < x -> x \notin dom h) -> 
+        last_key h <= k.
+Proof. 
+move=>H; apply: lastkey_lub=>x; rewrite leqNgt.
+by apply/contraL/H.
+Qed.
+
+(* useful variant with equality *)
+Lemma lub_lastkey h k : 
+        k \in dom h -> 
+        (forall x, k < x -> x \notin dom h) -> 
+        k = last_key h.
+Proof.
+case: lastkeyP=>// v H /dom_lastkey Dx X.
+rewrite (@anti_leq (last_key _) k) // Dx andbT.
+apply: lastkey_lub=>x; apply: contraTT.
+by rewrite -ltnNge; apply: X.
+Qed.
+
+(* no need to quantify over x in lastkey_memk *)
+(* it suffices to use x := last_key h *)
+Lemma lastkey_memkX h k :
+        (k < last_key h -> last_key h \notin dom h) -> 
+        last_key h <= k.
+Proof. by case: lastkeyP=>//= v _; case: ltngtP=>// _; apply. Qed.
+
+(* no need to quantify over x in lub_lastkey *)
+(* it suffices to use x := last_key h *)
+Lemma lub_lastkeyX h k :
+        k \in dom h -> 
+        (k < last_key h -> last_key h \notin dom h) ->
+        k = last_key h.
+Proof.
+move/dom_lastkey=>D /lastkey_memkX H.
+by rewrite (@anti_leq (last_key _) k) // H D.
+Qed.
+
+(* equivalences *)
+
+Lemma lastkey_leq h k : 
+        (last_key h <= k) = all (fun x => x <= k) (dom h).
+Proof. 
+apply/idP/allP=>[H x /dom_lastkey D|]; 
+by [apply: leq_trans D H | apply: lastkey_lub].
+Qed.
+
+Lemma leq_lastkey h k : 
+        (k <= last_key h) = has (fun x => k <= x) (0 :: dom h).
+Proof. 
+apply/idP/hasP=>[|[x] D H]; last by apply: leq_trans H (dom0_lastkey D).
+by exists (last_key h)=>//; apply: lastkey_mem0.
+Qed.
+
+Lemma ltn_lastkey h k : 
+        (k < last_key h) = has (fun x => k < x) (dom h).
+Proof. 
+apply/idP/hasP=>[|[x] D H]; last by apply: leq_trans H (dom_lastkey D).
+by exists (last_key h)=>//; case: lastkeyP H.
+Qed.
+
+Lemma lastkey_ltn h k : 
+        (last_key h < k) = all (fun x => x < k) (0 :: dom h).
+Proof. 
+apply/idP/allP=>[H x D|]; last by apply; apply: lastkey_mem0.
+by apply: leq_ltn_trans (dom0_lastkey D) H. 
+Qed.
+
+(* unfolding equivalences into implications (forward) *)
+Lemma lastkey_leq_dom h x k : last_key h <= k -> x \in dom h -> x <= k.
+Proof. by rewrite lastkey_leq=>/allP; apply. Qed.
+Lemma lastkey_leq_dom0 h x k : last_key h <= k -> x \in 0 :: dom h -> x <= k.
+Proof. by move=>H; case/orP=>[/eqP ->//|]; apply: lastkey_leq_dom H. Qed.
+Lemma lastkey_ltn_dom0 h x k : last_key h < k -> x \in 0 :: dom h -> x < k.
+Proof. by rewrite lastkey_ltn=>/allP; apply. Qed.
+Lemma lastkey_ltn_dom h x k : last_key h < k -> x \in dom h -> x < k.
+Proof. by move=>H D; apply: lastkey_ltn_dom0 H _; rewrite inE D orbT. Qed.
+
+(* unfolding equivalences into implications (backward) *)
+Lemma dom0_leq_lastkey h x k : x \in 0 :: dom h -> k <= x -> k <= last_key h.
+Proof. by move=>D H; rewrite leq_lastkey; apply/hasP; exists x. Qed.
+Lemma dom_leq_lastkey h x k : x \in dom h -> k <= x -> k <= last_key h.
+Proof. by move=>D; apply: dom0_leq_lastkey; rewrite inE D orbT. Qed.
+Lemma dom_ltn_lastkey h x k : x \in dom h -> k < x -> k < last_key h.
+Proof. by move=>D H; rewrite ltn_lastkey; apply/hasP; exists x. Qed.
+Lemma dom0_ltn_lastkey h x k : x \in 0 :: dom h -> k < x -> k < last_key h.
+Proof. by case/orP=>[/eqP ->//|]; apply: dom_ltn_lastkey. Qed.
+End LastkeyLemmas.
+
+(* interaction of two lastkeys *)
+
+Lemma lastkey_mono A1 A2 (U1 : natmap A1) (U2 : natmap A2) (h1 : U1) (h2 : U2) :
+        {subset dom h1 <= dom h2} -> 
+        last_key h1 <= last_key h2.
+Proof.
+rewrite leq_eqVlt orbC; apply: (seq_last_monoR orefl otrans); 
+by rewrite (eq_path nat_oleq).
+Qed.
+
+Lemma lastkey_subdom A1 A2 (U1 : natmap A1) (U2 : natmap A2) (h1 : U1) (h2 : U2) :
+        {subset dom h1 <= dom h2} ->
+        last_key h2 \in dom h1 -> 
+        last_key h1 = last_key h2.
+Proof.
+by move=>S D; apply/eqP; rewrite eqn_leq (dom_lastkey D) (lastkey_mono S). 
+Qed.
+
+Lemma lastkeyUnL A (U : natmap A) (h1 h2 : U) :
+        valid (h1 \+ h2) -> 
+        last_key h1 <= last_key (h1 \+ h2).
+Proof. by move=>V; apply: lastkey_mono=>x; rewrite domUn inE V => ->. Qed.
+
+Lemma lastkeyUnLT A (U : natmap A) (h1 h2 : U) k :
+        valid (h1 \+ h2) -> 
+        last_key (h1 \+ h2) < k ->
+        last_key h1 < k.
+Proof. by move=>V; apply/leq_ltn_trans/lastkeyUnL/V. Qed.
+
+Lemma lastkeyUnR A (U : natmap A) (h1 h2 : U) :
+        valid (h1 \+ h2) -> 
+        last_key h2 <= last_key (h1 \+ h2).
+Proof. by rewrite joinC; apply: lastkeyUnL. Qed.
+
+Lemma lastkeyUnRT A (U : natmap A) (h1 h2 : U) k :
+        valid (h1 \+ h2) -> 
+        last_key (h1 \+ h2) < k ->
+        last_key h2 < k. 
+Proof. by rewrite joinC; apply: lastkeyUnLT. Qed.
+
+(* disjoint maps with equal last keys are both empty *)
+Lemma lastkeyUn0T A1 A2 (U1 : natmap A1) (U2 : natmap A2) (h1 : U1) (h2 : U2) :
+        valid h1 -> valid h2 ->
+        (forall x, x \in dom h1 -> x \in dom h2 -> False) ->
+        last_key h1 = last_key h2 -> 
+        (h1 = Unit) * (h2 = Unit).
+Proof.
+case: (lastkeyP h1)=>[//|-> _ V _ /esym/eqP|]; first by case: (lastkeyP h2) V.
+move=>v1 H1 _ V2 /(_ _ (In_dom H1)) /[swap]/eqP /=.
+case: (lastkeyP h2) V2=>//; first by rewrite (negbTE (In_cond H1)).
+by move=>v2 H2 _ /eqP -> /(_ (In_dom H2)).
+Qed.
+
+(* specialization to equally-typed maps *)
+Lemma lastkeyUn0 A (U : natmap A) (h1 h2 : U) :
+        valid (h1 \+ h2) ->
+        last_key h1 = last_key h2 -> 
+        (h1 = Unit) * (h2 = Unit).
+Proof. by case: validUn=>// ?? D _; apply: lastkeyUn0T=>// x /D/negbTE ->. Qed.
+
+(* variation to avoid validity *)
+Lemma lastkey00 A1 A2 (U1 : natmap A1) (U2 : natmap A2) (h1 : U1) (h2 : U2) :
+        (forall x, x \in dom h1 -> x \in dom h2 -> False) ->
+        last_key h1 = last_key h2 -> 
+        (last_key h1 = 0) * (last_key h2 = 0).
+Proof.
+case: (normalP h1)=>[->|V1] D; first by rewrite lastkey_undef.
+case: (normalP h2) D=>[->|V2] D; first by rewrite lastkey_undef.
+by move=>H; rewrite !(lastkeyUn0T V1 V2 D H) !lastkey0.
+Qed.
+
+(* variation with subdoms *)
+Lemma lastkey_subdom00 A1 A2 (U1 : natmap A1) (U2 : natmap A2) 
+           (h1 : U1) (h2 : U2) (s1 s2 : pred nat) : 
+        (forall x, x \in s1 -> x \in s2 -> False) ->
+        {subset dom h1 <= s1} ->
+        {subset dom h2 <= s2} ->
+        last_key h1 = last_key h2 -> 
+        (last_key h1 = 0) * (last_key h2 = 0).
+Proof. by move=>D S1 S2; apply: lastkey00=>x /S1 H /S2; apply: D H. Qed.
+
+(* variation with subdoms and indexing *)
+Lemma lastkey_subdom00E A1 A2 (U1 : natmap A1) (U2 : natmap A2) 
+          (g : nat -> pred nat) (h1 : U1) (h2 : U2) (t1 t2 : nat) :
+        (forall x, x \in g t1 -> x \in g t2 -> t1 = t2) ->
+        {subset dom h1 <= g t1} ->
+        {subset dom h2 <= g t2} ->
+        last_key h1 != 0 ->
+        last_key h1 = last_key h2 ->
+        t1 = t2.
+Proof.
+move=>H S1 S2 X E; apply: contraNeq X=>/eqP X.
+move/(lastkey_subdom00 _ S1 S2): E=>-> //. 
+by move=>x D1 /(H x D1)/X.
+Qed.
+
+(* interaction with constructors *)
+
+Section LastkeyConstructors.
+Variables (A : Type) (U : natmap A).
+Implicit Type h : U.
+
+Lemma lastkey_find h k : last_key h < k -> find k h = None.
+Proof. by move/lastkey_dom; case: dom_find. Qed.
+
+(* monotonicity gives <=; removing last_key gives strict < *)
+Lemma lastkeyF h : 
+        last_key h != 0 -> 
+        last_key (free h (last_key h)) < last_key h.
+Proof.
+move=>D; have {}D : last_key h \in dom h by case: lastkeyP D.
+case: (um_eta D)=>v [Ef Eh].
+have N : last_key h \notin dom (free h (last_key h)).
+- by rewrite domF inE eqxx.
+have: last_key (free h (last_key h)) <= last_key h.
+- by apply: lastkey_mono=>x; rewrite domF inE; case: ifP.
+rewrite leq_eqVlt; case/orP=>// /eqP E; rewrite -{1}E in N.
+have : last_key h > 0 by move/dom_cond: D; case: (last_key h).
+by case: lastkeyP N.
+Qed.
+
+(* lastkey of union is max of lastkeys *)
+Lemma lastkeyUn h1 h2 :
+        last_key (h1 \+ h2) =
+        if valid (h1 \+ h2) then maxn (last_key h1) (last_key h2) else 0.
+Proof.
+have H (k1 k2 : U) : valid (k1 \+ k2) ->
+  last_key k1 < last_key k2 -> last_key (k1 \+ k2) = last_key k2.
+- move=>V H; apply/eqP; rewrite eqn_leq lastkeyUnR // andbT lastkey_leq.
+  apply/allP=>/= x; rewrite domUn inE V /=.
+  by case/orP=>/dom_lastkey // T; apply: leq_trans T (ltnW H). 
+case: (normalP (h1 \+ h2))=>[->|V]; first by rewrite lastkey_undef.
+case: (ltngtP (last_key h2) (last_key h1)).
+- by rewrite joinC in V *; apply: H.
+- by apply: H.
+by move/esym/(lastkeyUn0 V)=>E; rewrite !E unitL.
+Qed.
+
+Lemma lastkeyPtUnV h k v : last_key h < k -> valid (pts k v \+ h) = valid h.
+Proof.
+move=>N; rewrite validPtUn -lt0n (leq_ltn_trans _ N) //= andbC.
+by case D: (k \in dom h)=>//; move/dom_lastkey: D; case: leqP N.
+Qed.
+
+Lemma lastkey_domPtUn h k v :
+        valid h -> last_key h < k -> dom (pts k v \+ h) = rcons (dom h) k.
+Proof.
+move=>V N; rewrite joinC domUnPtK //.
+- by rewrite joinC lastkeyPtUnV.
+by apply/allP=>x /dom_lastkey D; apply: leq_ltn_trans D N.
+Qed.
+
+Lemma lastkey_rangePtUn h k v :
+        valid h -> last_key h < k -> range (pts k v \+ h) = rcons (range h) v.
+Proof.
+move=>V K; rewrite joinC rangeUnPtK //; last first.
+- by apply/allP=>x /dom_lastkey H; apply: leq_ltn_trans H K.
+by rewrite joinC lastkeyPtUnV.
+Qed.
+
+Lemma lastkeyPtUnE h k v :
+        last_key (pts k v \+ h) =
+        if valid (pts k v \+ h) then maxn k (last_key h) else 0.
+Proof. by rewrite lastkeyUn lastkeyPt. Qed.
+
+Lemma lastkeyPtUn h k v :
+        valid h -> last_key h < k -> last_key (pts k v \+ h) = k.
+Proof.
+move=>V N; rewrite lastkeyPtUnE (lastkeyPtUnV _ N) V. 
+by apply: maxn_idPl (ltnW N).
+Qed.
+
+Lemma lastkeyPtUnEX v2 v1 h k :
+        last_key (pts k v1 \+ h) = last_key (pts k v2 \+ h).
+Proof. by rewrite !lastkeyPtUnE !validPtUn. Qed.
+
+Lemma lastkeyUnPtEX v2 v1 h k :
+        last_key (h \+ pts k v1) = last_key (h \+ pts k v2).
+Proof. by rewrite !(joinC h) (lastkeyPtUnEX v2). Qed.
+
+Lemma lastkeyU h k v : k \in dom h -> last_key (upd k v h) = last_key h.
+Proof. by case/um_eta=>u [_ ->]; rewrite updPtUn (lastkeyPtUnEX u). Qed.
+
+Lemma lastkeyUE h k v :
+        last_key (upd k v h) =
+        if k \in dom h then last_key h else
+        if valid (upd k v h) then maxn k (last_key h) else 0.
+Proof.
+case: ifP=>[|H]; first by apply: lastkeyU.
+rewrite validU; case: eqVneq=>[->|N] /=. 
+- by rewrite upd_condN // lastkey_undef.
+case: (normalP h)=>[->|V]; first by rewrite upd_undef lastkey_undef.
+by rewrite upd_eta2 ?H // lastkeyUn -upd_eta2 ?H // validU N V lastkeyPt. 
+Qed.
+
+(* backward induction on valid natmaps *)
+Lemma valid_indb (P : U -> Prop) :
+        P Unit ->
+        (forall v, P (pts 1 v)) ->
+        (forall k v h, 
+           P h -> last_key h < k ->
+           valid (pts k v \+ h) -> P (pts k v \+ h)) ->
+        forall h, valid h -> P h.
+Proof.
+move=>H1 H2 H3; elim/um_indb=>[||k v f H V K _]; rewrite ?valid_undef //. 
+rewrite joinC in V; move: (validR V)=>Vf; case E: (unitb f); last first.
+- by apply: H3 (H Vf) (K _ _) V; case: lastkeyP Vf E.
+move/unitbP: {K H} E V (H3 k v Unit H1)=>->.
+by rewrite unitR validPt lastkey0 lt0n=>V; apply.
+Qed.
+
+(* forward induction on valid natmaps *)
+Lemma valid_indf (P : U -> Prop) :
+        P Unit ->
+        (forall k v h, P h ->
+           {in dom h, forall x, k < x} ->
+           valid (pts k v \+ h) -> P (pts k v \+ h)) ->
+        forall h, valid h -> P h.
+Proof.
+move=>H1 H2; elim/um_indf=>[||k v f H V K _]; rewrite ?valid_undef //.
+by apply: H2 (H (validR V)) _ V; apply/allP/(order_path_min _ K). 
+Qed.
+
+(* membership *)
+
+Lemma In_lastkey h k v : (k, v) \In h -> k <= last_key h.
+Proof. by move/In_dom/dom_lastkey. Qed.
+
+Lemma In_lastkeyPtUn h x k v w :
+         last_key h < k -> (x, w) \In h -> (x, w) \In pts k v \+ h.
+Proof. by move=>N H; apply: InR=>//; rewrite lastkeyPtUnV ?(In_valid H). Qed.
+
+Lemma In_lastkeyPtUn_inv h x k v w :
+         x <= last_key h -> last_key h < k ->
+         (x, w) \In pts k v \+ h -> (x, w) \In h.
+Proof. 
+move=>N1 N2 H; case/(InPtUnE _ (In_valid H)): H N2=>//.
+by case=><- _; case: ltngtP N1.
+Qed.
+
+End LastkeyConstructors.
+
+(* last_key and omap_fun -- compositions with omf_subdom/omf_subdom0 *)
+
+Section LastKeyOmapFun.
+Variables (A1 A2 : Type) (U1 : natmap A1) (U2 : natmap A2).
+Implicit Type f : omap_fun U1 U2.
+
+(* upper bound lemmas *)
+Lemma odom_lastkey f h k : k \in dom (f h) -> k <= last_key h.
+Proof. by move/omf_subdom/dom_lastkey. Qed.
+Lemma odom0_lastkey f h k : k \in 0 :: dom (f h) -> k <= last_key h.
+Proof. by move/omf_subdom0/dom0_lastkey. Qed.
+Lemma lastkey_odom f h k : last_key h < k -> k \notin dom (f h).
+Proof. by move/lastkey_dom; apply/(subsetC omf_subdom). Qed.
+Lemma lastkey_odom0 f h k : last_key h < k -> k \notin 0 :: dom (f h).
+Proof. move/lastkey_dom0; apply/(subsetC omf_subdom0). Qed.
+
+Lemma olub_lastkeyX f h k v :
+        (k, v) \In h -> omf f (k, v) ->
+        (forall w, k < last_key (f h) -> 
+           (last_key (f h), w) \In h -> 
+           omf f (last_key (f h), w) -> False) ->
+        k = last_key (f h).
+Proof.
+move=>D1 D2 H; apply: lub_lastkeyX=>[|X].
+- by apply/In_dom_omfX; exists v.
+by apply/In_dom_omfX; case=>w []; apply: H X.
+Qed.
+
+(* lub lemmas: combine lastkey_lub/lub_lastkey with In_dom_omfX *)
+Lemma lastkey_olub f h k : 
+        (forall x v, (x, v) \In h -> omf f (x, v) -> x <= k) ->
+        last_key (f h) <= k.
+Proof.
+move=>H; apply: lastkey_lub=>x /In_dom_omfX [v][X E].
+by apply: H X _; rewrite E.
+Qed.
+
+Lemma olub_lastkey f h k : 
+        k \in dom (f h) ->
+        (forall x v, k < x -> (x, v) \In h -> omf f (x, v) -> False) ->
+        k = last_key (f h).
+Proof.
+move=>D H; apply: lub_lastkey=>// x K; apply/In_dom_omfX; case=>y [X E].
+by apply: H K X _; rewrite E.
+Qed.
+
+(* equivalence lemmas (forward) *)
+Lemma lastkey_leq_odom f h x k : last_key h <= k -> x \in dom (f h) -> x <= k.
+Proof. by move/lastkey_leq_dom=>H /omf_subdom /H. Qed.
+Lemma lastkey_leq_odom0 f h x k : last_key h <= k -> x \in 0 :: dom (f h) -> x <= k.
+Proof. by move/lastkey_leq_dom0=>H /omf_subdom0 /H. Qed.
+Lemma lastkey_ltn_odom0 f h x k : last_key h < k -> x \in 0 :: dom (f h) -> x < k.
+Proof. by move/lastkey_ltn_dom0=>H /omf_subdom0 /H. Qed.
+Lemma lastkey_ltn_odom f h x k : last_key h < k -> x \in dom (f h) -> x < k.
+Proof. by move/lastkey_ltn_dom=>H /omf_subdom /H. Qed.
+
+(* equivalence lemms (backward) *)
+Lemma odom0_leq_lastkey f h x k : x \in 0 :: dom (f h) -> k <= x -> k <= last_key h.
+Proof. by move/omf_subdom0; apply/dom0_leq_lastkey. Qed.
+Lemma odom_leq_lastkey f h x k : x \in dom (f h) -> k <= x -> k <= last_key h.
+Proof. by move/omf_subdom; apply/dom_leq_lastkey. Qed.
+Lemma odom_ltn_lastkey f h x k : x \in dom (f h) -> k < x -> k < last_key h.
+Proof. by move/omf_subdom; apply: dom_ltn_lastkey. Qed.
+Lemma odom0_ltn_lastkey f h x k : x \in 0 :: dom (f h) -> k < x -> k < last_key h.
+Proof. by move/omf_subdom0; apply: dom0_ltn_lastkey. Qed.
+
+(* other lemmas *)
+
+Lemma lastkey_omf f h : last_key (f h) <= last_key h.
+Proof. by apply: lastkey_mono; apply: omf_subdom. Qed.
+
+Lemma lastkey_omfT f h k : last_key h <= k -> last_key (f h) <= k.
+Proof. by apply/leq_trans/lastkey_omf. Qed.
+
+Lemma lastkey_omfT' f h k : last_key h < k -> last_key (f h) < k.
+Proof. by apply/leq_ltn_trans/lastkey_omf. Qed.
+
+Lemma lastkey_omfUn f h1 h2 :
+        valid (h1 \+ h2) -> last_key (f h1 \+ f h2) <= last_key (h1 \+ h2).
+Proof. by move=>V; rewrite -omfUn // lastkey_omf. Qed.
+
+Lemma lastkey_omf_some f h :
+        (forall x, x \In h -> oapp predT false (omf f x)) -> 
+        last_key (f h) = last_key h.
+Proof. by rewrite /last_key=>/dom_omf_some ->. Qed.
+
+Lemma lastkey_omfE f h : last_key h \in dom (f h) -> last_key (f h) = last_key h.
+Proof. by apply: lastkey_subdom omf_subdom. Qed.
+
+Lemma lastkey_omfPtUn f k v h :
+        last_key h < k ->
+        f (pts k v \+ h) =
+        if omf f (k, v) is Some w then pts k w \+ f h else f h.
+Proof. 
+case: (normalP h)=>[->|V N]; last by rewrite omfPtUn lastkeyPtUnV // V.
+by case: (omf _ _)=>[a|]; rewrite pfundef !join_undef pfundef.
+Qed.
+
+Lemma omf_sublastkey f k v h : 
+        last_key h < k ->
+        {subset dom (f h) <= dom (f (pts k v \+ h))}.
+Proof.
+move=>N x H; rewrite lastkey_omfPtUn //; case: (omf _ _)=>[a|//].
+by rewrite domPtUn inE H orbT lastkeyPtUnV ?(dom_valid H,lastkey_omfT').
+Qed.
+
+End LastKeyOmapFun.
+
+(* lastkey_subdom00 for application of omap functions *)
+Lemma lastkey00E A A1 A2 (U : natmap A) (U1 : natmap A1) (U2 : natmap A2) 
+          (f1 : omap_fun U U1) (f2 : omap_fun U U2) (h1 : U) (h2 : U) :
+        (forall x, x \in dom h1 -> x \in dom h2 -> False) ->
+        last_key (f1 h1) = last_key (f2 h2) -> 
+        (last_key (f1 h1) = 0) * (last_key (f2 h2) = 0).
+Proof. by move=>H; apply: lastkey_subdom00 H omf_subdom omf_subdom. Qed.
+
+(* formulation with application and indexing *)
+(* NOTE: not a consequence of lastkey_subdom00E *)
+Lemma lastkeyFE T A A1 A2 (U : natmap A) (g : nat -> T -> U) 
+          (U1 : natmap A1) (f1 : omap_fun U U1) 
+          (U2 : natmap A2) (f2 : omap_fun U U2)
+          (h1 h2 : T) t1 t2 :
+        (forall x, x \in dom (g t1 h1) -> x \in dom (g t2 h2) -> t1 = t2) ->
+        last_key (f1 (g t1 h1)) != 0 ->
+        last_key (f1 (g t1 h1)) = last_key (f2 (g t2 h2)) -> 
+        t1 = t2.
+Proof.
+move=>X N1 E; apply: contraNeq N1=>/eqP N2.
+by move/lastkey00E: E=>-> // x D1 /(X x D1)/N2.
+Qed.
+
+(* formulation with application of composition and with indexing *)
+Lemma lastkeyFFE T A A1 A2 A1' A2' (U : natmap A) (g : nat -> T -> U) 
+          (U1 : natmap A1) (f1 : omap_fun U U1)
+          (U2 : natmap A2) (f2 : omap_fun U U2)
+          (U1' : natmap A1') (f1' : omap_fun U1 U1') 
+          (U2' : natmap A2') (f2' : omap_fun U2 U2')
+          (h1 h2 : T) t1 t2 :
+        (forall x, x \in dom (g t1 h1) -> x \in dom (g t2 h2) -> t1 = t2) ->
+        last_key (f1' (f1 (g t1 h1))) != 0 ->
+        last_key (f1' (f1 (g t1 h1))) = last_key (f2' (f2 (g t2 h2))) -> 
+        t1 = t2.
+Proof. by rewrite (compE f1') (compE f2'); apply: lastkeyFE. Qed.
+
+(* last_key and filter *)
+
+Lemma lastkey_umfilt_le A (U : natmap A) (h : U) k :
+        last_key h <= k -> um_filterk [pred x | x <= k] h = h.
+Proof.
+move=>N; rewrite -[RHS]umfilt_predT -eq_in_umfilt.
+by case=>x v /In_dom/dom_lastkey/leq_trans/(_ N).
+Qed.
+
+Lemma lastkey_umfilt_lt A (U : natmap A) (h : U) k :
+        last_key h < k -> um_filterk [pred x | x < k] h = h.
+Proof.
+move=>N; rewrite -[RHS]umfilt_predT -eq_in_umfilt.
+by case=>x v /In_dom/dom_lastkey/leq_ltn_trans/(_ N).
+Qed.
+
+Lemma lastkey_umfiltPtUn A (U : natmap A) (p : pred (nat * A)) (h : U) k v :
+        last_key h < k ->
+        um_filter p (pts k v \+ h) =
+        if p (k, v) then pts k v \+ um_filter p h else um_filter p h.
+Proof. by move=>V; rewrite lastkey_omfPtUn ?omf_omap //=; case: ifP. Qed.
+
+(* last_key and side *)
+
+Lemma lastkey_sidePtUn (T : eqType) (Us : T -> Type) 
+          (U : natmap (sigT Us)) (Ut : forall t, natmap (Us t)) 
+          (h : U) t k v :
+        fresh h <= k ->
+        side_map Ut t (pts k v \+ h) =
+        if decP (t =P tag v) is left pf then 
+          pts k (cast Us pf (tagged v)) \+ side_map Ut t h
+        else side_map Ut t h.
+Proof. by case: v=>tx vx N; rewrite lastkey_omfPtUn //= /omfx/=; case: eqP. Qed.
+
+Lemma lastkey_dom_sidePtUn (T : eqType) (Us : T -> Type) 
+          (U : natmap (sigT Us)) (Ut : forall t, natmap (Us t))
+          (h : U) t k v :
+        last_key h < k ->
+        dom (side_map Ut t (pts k v \+ h)) =
+        if valid h then
+          if t == tag v then rcons (dom (side_map Ut t h)) k 
+          else dom (side_map Ut t h)
+        else [::].
+Proof. 
+case: (normalP h)=>[->|V N]; first by rewrite join_undef pfundef dom_undef.
+rewrite lastkey_sidePtUn //; case: eqP=>//= ?; subst t. 
+by rewrite eqc lastkey_domPtUn ?(pfV (side_map Ut _)) ?lastkey_omfT'.
+Qed.
+
+(* last_key and non-omap morphisms *)
+Lemma plastkey (A : Type) (U1 : pcm) (U2 : natmap A) 
+               (f : pcm_morph U1 U2) k (x y : U1) : 
+        valid (x \+ y) -> 
+        sep f x y ->
+        last_key (f (x \+ y)) < k -> 
+        last_key (f x) < k.
+Proof.
+move=>V D; apply: leq_ltn_trans.
+by rewrite pfjoin // lastkeyUnL // pfV2.
+Qed.
+
+Lemma plastkeyT A (U1 : pcm) (U2 : natmap A) 
+                (f : full_pcm_morph U1 U2) k (x y : U1) : 
+        valid (x \+ y) -> 
+        last_key (f (x \+ y)) < k -> 
+        last_key (f x) < k.
+Proof. by move=>V; apply/(plastkey V)/pfT. Qed.
+
+(* monotonicity for natmap nat *)
+Lemma lastkey_monoPtUn (U : natmap nat) k w (h : U) :
+        last_key h < k ->
+        (forall k v, (k, v) \In h -> v < w) ->
+        um_mono (pts k w \+ h) = um_mono h.
+Proof.
+move=>N H; case: (normalP h)=>[->|V]; first by rewrite join_undef.
+apply: ummonoPtUn; first by rewrite lastkeyPtUnV.
+move=>x v X; split; last by apply: H X.
+by apply: leq_ltn_trans (dom_lastkey (In_dom X)) N.  
+Qed.
+
+(* last_key and pcm ordering *)
+Lemma lastkey_fun A (U1 : pcm) (U2 : natmap A) 
+           (f : full_pcm_morph U1 U2) (x y : U1) :
+        [pcm y <= x] ->
+        valid x -> 
+        last_key (f y) <= last_key (f x).
+Proof. by case=>z -> V; rewrite pfjoinT // lastkeyUnL // pfV2I. Qed.
+
+(* special case of lastkey_fun when f = id *)
+Lemma lastkey_umpleq A (U : natmap A) (h1 h2 : U) : 
+        [pcm h1 <= h2] ->
+        valid h2 -> 
+        last_key h1 <= last_key h2.
+Proof. by apply: (lastkey_fun idfun). Qed.
+
+Lemma lastkeyL A (U1 : pcm) (U2 : natmap A)
+          (f : full_pcm_morph U1 U2) (x y : U1) :
+        valid (x \+ y) -> 
+        last_key (f x) <= last_key (f (x \+ y)).
+Proof. by apply: lastkey_fun. Qed.
+
+Lemma lastkeyR A (U1 : pcm) (U2 : natmap A) 
+          (f : full_pcm_morph U1 U2) (x y : U1) :
+        valid (x \+ y) -> 
+        last_key (f y) <= last_key (f (x \+ y)).
+Proof. by apply: lastkey_fun. Qed.
+
+(*********)
+(* fresh *)
+(*********)
+
+(* mostly new names for lastkey lemmas *)
+(* but there are several new lemmas also *)
+(* to be systematic, we list all *)
+
+Section FreshLemmas.
+Variables (A : Type) (U : natmap A).
+Implicit Type h : U.
+
+(* fresh is strict upper bound *)
+Lemma dom_fresh h k : k \in dom h -> k < fresh h. 
+Proof. exact: dom_lastkey. Qed.
+
+(* variants with 0 :: dom and contrapositives *) 
+Lemma dom0_fresh h k : k \in 0 :: dom h -> k < fresh h. 
+Proof. exact: dom0_lastkey. Qed.
+Lemma fresh_dom h k : fresh h <= k -> k \notin dom h.
+Proof. exact: lastkey_dom. Qed.
+Lemma fresh_dom0 h k : fresh h <= k -> k \notin 0 :: dom h.
+Proof. exact: lastkey_dom0. Qed.
+
+(* equivalences (similar to lastkey, but with x.+1) *)
+Lemma fresh_leq h k : (fresh h <= k) = all (fun x => x.+1 <= k) (0 :: dom h).
+Proof. exact: lastkey_ltn. Qed.
+
+Lemma leq_fresh h k : (k <= fresh h) = has (fun x => k <= x.+1) (0 :: dom h).
+Proof. 
+apply/idP/hasP=>[|[x] D H]; last by apply: leq_trans H (dom0_fresh D). 
+by exists (last_key h)=>//; apply: lastkey_mem0.
+Qed.
+
+Lemma ltn_fresh h k : (k < fresh h) = has (fun x => k < x.+1) (0 :: dom h).
+Proof. by rewrite ltnS leq_lastkey. Qed.
+
+Lemma fresh_ltn h k : (fresh h < k) = all (fun x => x.+1 < k) (0 :: dom h).
+Proof. 
+apply/idP/allP=>[H x D|]; last by apply; apply: lastkey_mem0.
+by apply: leq_ltn_trans (dom0_fresh D) H.
+Qed.
+
+(* unfolding equivalences into implications (forward) *)
+Lemma fresh_leq_dom0 h x k : fresh h <= k -> x \in 0 :: dom h -> x < k.
+Proof. exact: lastkey_ltn_dom0. Qed.
+Lemma fresh_leq_dom h x k : fresh h <= k -> x \in dom h -> x < k.
+Proof. exact: lastkey_ltn_dom. Qed.
+Lemma fresh_ltn_dom0 h x k : fresh h < k -> x \in 0 :: dom h -> x.+1 < k.
+Proof. by rewrite fresh_ltn=>/allP; apply. Qed.
+Lemma fresh_ltn_dom h x k : fresh h < k -> x \in dom h -> x.+1 < k.
+Proof. by move=>H D; apply: fresh_ltn_dom0 H _; rewrite inE D orbT. Qed.
+
+(* unfolding equivalences into implications (backward) *)
+Lemma dom0_leq_fresh h x k : x \in 0 :: dom h -> k <= x.+1 -> k <= fresh h.
+Proof. by move=>D H; rewrite leq_fresh; apply/hasP; exists x. Qed.
+Lemma dom_leq_fresh h x k : x \in dom h -> k <= x.+1 -> k <= fresh h.
+Proof. by move=>D; apply: dom0_leq_fresh; rewrite inE D orbT. Qed.
+Lemma dom0_ltn_fresh h x k : x \in 0 :: dom h -> k <= x -> k < fresh h.
+Proof. exact: dom0_leq_lastkey. Qed.
+Lemma dom_ltn_fresh h x k : x \in dom h -> k <= x -> k < fresh h.
+Proof. exact: dom_leq_lastkey. Qed.
+End FreshLemmas.
+
+(* interaction of two fresh's *)
+
+Lemma fresh_mono A1 A2 (U1 : natmap A1) (U2 : natmap A2) 
+          (h1 : U1) (h2 : U2) :
+        {subset dom h1 <= dom h2} -> 
+        fresh h1 <= fresh h2.
+Proof. exact: lastkey_mono. Qed.
+
+Lemma fresh_subdom A1 A2 (U1 : natmap A1) (U2 : natmap A2) 
+          (h1 : U1) (h2 : U2) :
+        {subset dom h1 <= dom h2} -> 
+        fresh h2 \notin dom h1.
+Proof. by move/fresh_mono/fresh_dom. Qed.
+
+Lemma fresh_subdom_lt A1 A2 (U1 : natmap A1) (U2 : natmap A2) 
+          (h1 : U1) (h2 : U2) x :
+        {subset dom h1 <= dom h2} -> 
+        x \in dom h1 -> 
+        x < fresh h2.
+Proof. by move=>H /H /dom_fresh. Qed.
+
+Lemma fresh_subdomN A1 A2 (U1 : natmap A1) (U2 : natmap A2) 
+          (h1 : U1) (h2 : U2) x :
+        {subset dom h1 <= dom h2} -> 
+        x \in dom h1 -> 
+        x != fresh h2.
+Proof. by move=>S /(fresh_subdom_lt S); case: ltngtP. Qed.
+
+Lemma freshUnL A (U : natmap A) (h1 h2 : U) :
+        valid (h1 \+ h2) -> 
+        fresh h1 <= fresh (h1 \+ h2).
+Proof. exact: lastkeyUnL. Qed.
+
+Lemma freshUnLT A (U : natmap A) (h1 h2 : U) k :
+        valid (h1 \+ h2) -> 
+        fresh (h1 \+ h2) <= k ->
+        fresh h1 <= k.
+Proof. exact: lastkeyUnLT. Qed.
+
+Lemma freshUnR A (U : natmap A) (h1 h2 : U) :
+        valid (h1 \+ h2) -> 
+        fresh h2 <= fresh (h1 \+ h2).
+Proof. exact: lastkeyUnR. Qed.
+
+Lemma freshUnRT A (U : natmap A) (h1 h2 : U) k :
+        valid (h1 \+ h2) -> 
+        fresh (h1 \+ h2) <= k ->
+        fresh h2 <= k.
+Proof. exact: lastkeyUnRT. Qed.
+
+(* interaction with constructors *)
+
+Section FreshConstructors.
+Variables (A : Type) (U : natmap A).
+Implicit Type h : U.
+
+Lemma fresh_find h k : 
+        fresh h <= k -> find k h = None.
+Proof. exact: lastkey_find. Qed.
+
+Lemma freshF h : 
+        last_key h != 0 -> 
+        fresh (free h (last_key h)) < fresh h.
+Proof. exact: lastkeyF. Qed.
+
+Lemma freshUn h1 h2 :
+        fresh (h1 \+ h2) = 
+        if valid (h1 \+ h2) then maxn (fresh h1) (fresh h2) else 1.
+Proof. by rewrite /fresh lastkeyUn maxnSS; case: ifP. Qed.
+
+Lemma freshPtUnV h k v : 
+        fresh h <= k -> 
+        valid (pts k v \+ h) = valid h.
+Proof. exact: lastkeyPtUnV. Qed.
+
+(* easier name to remember *)
+Definition valid_fresh := freshPtUnV.
+
+Lemma fresh_domPtUn h k v :
+        valid h -> 
+        fresh h <= k -> 
+        dom (pts k v \+ h) = rcons (dom h) k.
+Proof. exact: lastkey_domPtUn. Qed.
+
+Lemma fresh_rangePtUn h k v :
+        valid h -> 
+        fresh h <= k -> 
+        range (pts k v \+ h) = rcons (range h) v.
+Proof. exact: lastkey_rangePtUn. Qed.
+
+Lemma freshPtUnE h k v :
+        fresh (pts k v \+ h) =
+        if valid (pts k v \+ h) then maxn k.+1 (fresh h) else 1.
+Proof. by rewrite /fresh lastkeyPtUnE maxnSS; case: ifP. Qed.
+
+Lemma freshPtUn h k v :
+        valid h -> fresh h <= k -> fresh (pts k v \+ h) = k.+1.
+Proof. by move=>V N; rewrite /fresh lastkeyPtUn. Qed.
+
+Lemma freshPtUnEX v2 v1 h k : fresh (pts k v1 \+ h) = fresh (pts k v2 \+ h).
+Proof. by congr (_.+1); apply: lastkeyPtUnEX. Qed.
+
+Lemma freshUnPtEX v2 v1 h k : fresh (h \+ pts k v1) = fresh (h \+ pts k v2).
+Proof. by rewrite !(joinC h) (freshPtUnEX v2). Qed.
+
+Lemma freshU h k v : k \in dom h -> fresh (upd k v h) = fresh h.
+Proof. by move=>D; congr _.+1; apply: lastkeyU D. Qed.
+
+Lemma freshUE h k v :
+        fresh (upd k v h) =
+        if k \in dom h then fresh h else
+        if valid (upd k v h) then maxn k.+1 (fresh h) else 1.
+Proof. by rewrite /fresh lastkeyUE maxnSS; case: ifP=>//; case: ifP. Qed.
+
+(* membership *)
+
+Lemma In_fresh h k v : (k, v) \In h -> k < fresh h.
+Proof. exact: In_lastkey. Qed.
+
+Lemma In_freshPtUn h x k v w :
+         fresh h <= k -> (x, w) \In h -> (x, w) \In pts k v \+ h.
+Proof. exact: In_lastkeyPtUn. Qed.
+
+Lemma In_freshPtUn_inv h x k v w :
+         x < fresh h -> fresh h <= k ->
+         (x, w) \In pts k v \+ h -> (x, w) \In h.
+Proof. exact: In_lastkeyPtUn_inv. Qed.
+
+End FreshConstructors.
+
+(* fresh and omap_fun -- compositions with omf_subdom/omf_subdom0 *)
+Section FreshOmapFun.
+Variables (A1 A2 : Type) (U1 : natmap A1) (U2 : natmap A2).
+Implicit Types (f : omap_fun U1 U2) (h : U1).
+
+(* strict upper bound lemmas *)
+Lemma odom_fresh f h k : k \in dom (f h) -> k < fresh h.  
+Proof. exact: odom_lastkey. Qed.
+Lemma odom0_fresh f h k : k \in 0 :: dom (f h) -> k < fresh h. 
+Proof. exact: odom0_lastkey. Qed.
+Lemma fresh_odom f h k : fresh h <= k -> k \notin dom (f h).
+Proof. exact: lastkey_odom. Qed.
+Lemma fresh_odom0 f h k : fresh h <= k -> k \notin 0 :: dom (f h).
+Proof. exact: lastkey_odom0. Qed.
+
+(* equivalence lemmas (forward) *)
+Lemma fresh_leq_odom0 f h x k : fresh h <= k -> x \in 0 :: dom (f h) -> x < k.
+Proof. exact: lastkey_ltn_odom0. Qed.
+Lemma fresh_leq_odom f h x k : fresh h <= k -> x \in dom (f h) -> x < k.
+Proof. exact: lastkey_ltn_odom. Qed.
+Lemma fresh_ltn_odom0 f h x k : fresh h < k -> x \in 0 :: dom (f h) -> x.+1 < k.
+Proof. by move/fresh_ltn_dom0=>H /omf_subdom0 /H. Qed.
+Lemma fresh_ltn_odom f h x k : fresh h < k -> x \in dom (f h) -> x.+1 < k.
+Proof. by move/fresh_ltn_dom=>H /omf_subdom /H. Qed.
+
+(* equivalence lemmas (backward) *)
+Lemma odom0_leq_fresh f h x k : x \in 0 :: dom (f h) -> k <= x.+1 -> k <= fresh h.
+Proof. by move/omf_subdom0; apply/dom0_leq_fresh. Qed.
+Lemma odom_leq_fresh f h x k : x \in dom (f h) -> k <= x.+1 -> k <= fresh h.
+Proof. by move/omf_subdom; apply/dom_leq_fresh. Qed.
+Lemma odom0_ltn_fresh f h x k : x \in 0 :: dom (f h) -> k <= x -> k < fresh h.
+Proof. exact: odom0_leq_lastkey. Qed.
+Lemma odom_ltn_fresh f h x k : x \in dom (f h) -> k <= x -> k < fresh h.
+Proof. exact: odom_leq_lastkey. Qed.
+
+(* other lemmas *)
+
+Lemma fresh_omf f h : fresh (f h) <= fresh h.
+Proof. exact: lastkey_omf. Qed.
+
+Lemma fresh_omfT f k h : 
+        fresh h <= k -> 
+        fresh (f h) <= k.
+Proof. exact: lastkey_omfT'. Qed.
+
+Lemma fresh_omfUn f h1 h2 :
+        valid (h1 \+ h2) -> 
+        fresh (f h1 \+ f h2) <= fresh (h1 \+ h2).
+Proof. exact: lastkey_omfUn. Qed.
+
+Lemma fresh_omf_some f h :
+        (forall x, x \In h -> oapp predT false (omf f x)) ->
+        fresh (f h) = fresh h.
+Proof. by move=>H; congr _.+1; apply: lastkey_omf_some H. Qed.
+
+Lemma fresh_omfE f h : 
+        last_key h \in dom (f h) -> 
+        fresh (f h) = fresh h.
+Proof. by move=>H; congr _.+1; apply: lastkey_omfE. Qed.
+
+Lemma fresh_omfPtUn f k v h :
+        fresh h <= k ->
+        f (pts k v \+ h) =
+        if omf f (k, v) is Some w then pts k w \+ f h else f h.
+Proof. exact: lastkey_omfPtUn. Qed.
+
+Lemma omf_subfresh f k v h : 
+        fresh h <= k ->
+        {subset dom (f h) <= dom (f (pts k v \+ h))}.
+Proof. exact: omf_sublastkey. Qed.
+
+End FreshOmapFun.
+
+(* fresh and filter *)
+
+Lemma fresh_umfilt_lt A (U : natmap A) (h : U) k :
+        fresh h <= k -> 
+        um_filterk [pred x | x < k] h = h.
+Proof. exact: lastkey_umfilt_lt. Qed.
+
+Lemma fresh_umfiltPtUn A (U : natmap A) (p : pred (nat * A)) (h : U) k v :
         fresh h <= k ->
         um_filter p (pts k v \+ h) =
         if p (k, v) then pts k v \+ um_filter p h else um_filter p h.
-Proof.
-case W : (valid h).
-- by move=>H; rewrite umfiltPtUn valid_fresh // W.
-move/negbT/invalidE: W=>->.
-by case: ifP; rewrite join_undef umfilt_undef // join_undef.
-Qed.
+Proof. exact: lastkey_umfiltPtUn. Qed.
 
-Lemma fresh_lt V (h : natmap V) x :
-        fresh h <= x ->
-        um_filterk [ pred k | k < x ] h = h.
-Proof.
-move=>F; rewrite -[RHS]umfilt_predT.
-apply/eq_in_umfilt; case=>y v /In_dom/lastkey_max /= K.
-by rewrite (leq_ltn_trans K F).
-Qed.
+(* fresh and side *)
 
-(* OmapFun lemmas regarding natmaps *)
+Lemma fresh_sidePtUn (T : eqType) (Us : T -> Type) 
+          (U : natmap (sigT Us)) (Ut : forall t, natmap (Us t)) 
+          (h : U) t k v :
+        fresh h <= k ->
+        side_map Ut t (pts k v \+ h) =
+        if decP (t =P tag v) is left pf then 
+          pts k (cast Us pf (tagged v)) \+ side_map Ut t h
+        else side_map Ut t h.
+Proof. exact: lastkey_sidePtUn. Qed.
 
-Section OmapFunNatmap.
-Variables (V V' : Type).
-Variable f : omap_fun (nat_mapUMC V) (nat_mapUMC V').
+Lemma fresh_dom_sidePtUn (T : eqType) (Us : T -> Type) 
+          (U : natmap (sigT Us)) (Ut : forall t, natmap (Us t))
+          (h : U) t k v :
+        fresh h <= k ->
+        dom (side_map Ut t (pts k v \+ h)) =
+        if valid h then
+          if t == tag v then rcons (dom (side_map Ut t h)) k 
+          else dom (side_map Ut t h)
+        else [::].
+Proof. exact: lastkey_dom_sidePtUn. Qed.
 
-Lemma omf0 h : 0 \in dom (f h) = false.
-Proof. by apply/negP=>/dom_cond. Qed.
+(* fresh and non-omap morphisms *)
+Lemma pfresh (A : Type) (U1 : pcm) (U2 : natmap A) 
+             (f : pcm_morph U1 U2) k (x y : U1) : 
+        valid (x \+ y) -> 
+        sep f x y ->
+        fresh (f (x \+ y)) <= k -> 
+        fresh (f x) <= k.
+Proof. exact: plastkey. Qed.
 
-Lemma omf_path h : path ltn 0 (dom (f h)).
-Proof.
-rewrite path_min_sorted; first by apply: omf_sorted.
-by apply/allP=>z /dom_cond /=; case: z.
-Qed.
+Lemma pfreshT (A : Type) (U1 : pcm) (U2 : natmap A) 
+              (f : full_pcm_morph U1 U2) k (x y : U1) : 
+        valid (x \+ y) -> 
+        fresh (f (x \+ y)) <= k -> 
+        fresh (f x) <= k.
+Proof. exact: plastkeyT. Qed.
 
-Lemma omf_fresh t e h :
-        fresh h <= t ->
-        f (t \-> e \+ h) =
-        if map_fun f (t, e) is Some v then t \-> v \+ f h else f h.
-Proof. by case: f=>s [m H] /= N; rewrite !H omap_fresh. Qed.
+(* monotonicity for natmap nat *)
+Lemma fresh_monoPtUn (U : natmap nat) k w (h : U) :
+        fresh h <= k ->
+        (forall k v, (k, v) \In h -> v < w) ->
+        um_mono (pts k w \+ h) = um_mono h.
+Proof. exact: lastkey_monoPtUn. Qed.
 
-Lemma fresh_omf h : fresh (f h) <= fresh h.
-Proof. by case: f=>s [m H] /=; rewrite H fresh_omap. Qed.
+(* fresh and pcm ordering *)
+Lemma fresh_fun A (U1 : pcm) (U2 : natmap A) 
+           (f : full_pcm_morph U1 U2) (x y : U1) :
+        [pcm y <= x] ->
+        valid x -> 
+        fresh (f y) <= fresh (f x).
+Proof. exact: lastkey_fun. Qed.
 
-(* commonly used lemma in automation *)
-Lemma fresh_omfT t h : fresh h <= t -> fresh (f h) <= t.
-Proof. by apply: leq_trans (fresh_omf _). Qed.
+(* special case of fresh_fun when f = id *)
+Lemma fresh_umpleq A (U : natmap A) (h1 h2 : U) : 
+        [pcm h1 <= h2] ->
+        valid h2 -> 
+        fresh h1 <= fresh h2.
+Proof. exact: lastkey_umpleq. Qed.
 
-Lemma omf_freshT t h : t < fresh (f h) -> t < fresh h.
-Proof. by apply: contraTT; rewrite -!ltnNge; apply: fresh_omfT. Qed.
+Lemma freshL A (U1 : pcm) (U2 : natmap A)
+          (f : full_pcm_morph U1 U2) (x y : U1) :
+        valid (x \+ y) -> 
+        fresh (f x) <= fresh (f (x \+ y)).
+Proof. exact: lastkeyL. Qed.
 
-Lemma fresh_omfUn h1 h2 :
-        valid (h1 \+ h2) -> fresh (f h1 \+ f h2) <= fresh (h1 \+ h2).
-Proof. by move=>W; rewrite -omfUn // fresh_omf. Qed.
-
-Lemma fresh_omfUnT t h1 h2 :
-        valid (h1 \+ h2) ->
-        fresh (h1 \+ h2) <= t ->
-        fresh (f h1 \+ f h2) <= t.
-Proof. by move=>W /fresh_omfT; rewrite omfUn. Qed.
-
-Lemma omf_subfresh t e h :
-        fresh h <= t ->
-        {subset dom (f h) <= dom (f (t \-> e \+ h))}.
-Proof.
-move=>N x H; rewrite omf_fresh //; case: (map_fun _ _)=>[a|//].
-by rewrite domPtUn inE H orbT valid_fresh ?(dom_valid H, fresh_omfT).
-Qed.
-
-Lemma lastkey_omf h : last_key (f h) <= last_key h.
-Proof. by case: f=>s [m H] /=; rewrite H lastkey_omap. Qed.
-
-Lemma omf_fresh_lt x h :
-        fresh h <= x -> um_filterk [ pred k | k < x ] (f h) = f h.
-Proof. by move=>H; apply/fresh_lt/leq_trans/H/fresh_omf. Qed.
-
-Lemma lastkey_omfE h : last_key h \in dom (f h) -> last_key (f h) = last_key h.
-Proof. by apply: lastkey_subdom omf_subdom. Qed.
-
-(* some phantomization *)
-
-Lemma pfresh_omf_phantT (x : phantom (_ -> _) f) t h :
-         fresh h <= t -> fresh (f h) <= t.
-Proof. by apply: fresh_omfT. Qed.
-
-End OmapFunNatmap.
-
-(* in many proofs, rewriting by the following 3 lemmas discharges the sideconditions *)
-(* so we give it a name *)
-Definition freshX := (fresh_omfT, valid_omf, ordfresh_dom).
-Notation pfresh_omfT f := (@pfresh_omf_phantT _ _ _ (Phantom (_ -> _) f)).
-
-(*******************************)
-(* Monotonicity for natmap nat *)
-(*******************************)
-
-Lemma nm_monoPtUn t t' (h : natmap nat) :
-        last_key h < t ->
-        (forall k v, (k, v) \In h -> v < t') ->
-        um_mono (t \-> t' \+ h) = um_mono h.
-Proof.
-move=>H1 H2; case W: (valid h); last first.
-- by move/invalidE: (negbT W)=>->; rewrite join_undef.
-by apply: ummonoPtUn (lastkeyPtUn_valid _ W H1) _=>k v X; split;
-[move/In_dom/lastkey_max/leq_ltn_trans: X; apply|apply: H2 X].
-Qed.
-
-(* Membership lemmas under pcm morphisms *)
-Section Membership.
-Variables (U : pcm) (V : Type) (S : rel U).
-Variables (f : morphism (nat_mapPCM V) S).
-
-Lemma pfL e (x y : U) :
-        valid (x \+ y) -> S x y -> e \In f x -> e \In f (x \+ y).
-Proof. by move=>W H1 H2; rewrite pfjoin //=; apply: InL=>//; rewrite pfV2. Qed.
-
-Lemma pfR e (x y : U) :
-        valid (x \+ y) -> S x y -> e \In f y -> e \In f (x \+ y).
-Proof. by move=>W H1 H2; rewrite pfjoin //=; apply: InR=>//; rewrite pfV2. Qed.
-
-Lemma pfUn e (x y : U) :
-        valid (x \+ y) -> S x y -> e \In f (x \+ y) -> e \In f x \/ e \In f y.
-Proof. by move=>W H1; rewrite pfjoin //; case/InUn; eauto. Qed.
-
-End Membership.
-
-
-Section LastVal.
-Variable A : Type.
-Implicit Type h : natmap A.
-
-Definition last_val h := find (last_key h) h.
-
-Lemma lastval0 : last_val Unit = None.
-Proof. by rewrite /last_val lastkey0 find0E. Qed.
-
-Lemma lastval_undef : last_val um_undef = None.
-Proof. by rewrite /last_val lastkey_undef find_undef. Qed.
-
-Variant lastval_specx h : option A -> Type :=
-| lastval_somex r kv of last_val h = Some r & kv \In h :
-    lastval_specx h (Some r)
-| lastval_nonex of valid h & h = Unit : lastval_specx h None
-| lastval_undefx of h = um_undef : lastval_specx h None.
-
-Lemma lastvalPX h : lastval_specx h (last_val h).
-Proof.
-case E : (last_val h)=>[a|].
-- move/find_some: (E); case: dom_find=>// v /In_find H _ _.
-  by apply: lastval_somex E H.
-move/find_none: E=>E.
-case V : (valid h).
-- by move/(lastkey_dom V)/(lastval_nonex V): E.
-by move/negbT/invalidE: V=>->; apply: lastval_undefx.
-Qed.
-
-Variant lastval_spec h : option A -> Type :=
-| lastval_some r kv of last_val h = Some r & kv \In h :
-    lastval_spec h (Some r)
-| lastval_none of last_val h = None & (forall kv, kv \Notin h) :
-    lastval_spec h None.
-
-Lemma lastvalP h : lastval_spec h (last_val h).
-Proof.
-case: lastvalPX=>[r kv|_ ->|->].
-- by apply: lastval_some.
-- by apply: lastval_none=>[|kv /In0//]; rewrite lastval0.
-by apply: lastval_none=>[|kv /In_undef//]; rewrite lastval_undef.
-Qed.
-
-Lemma lastvalS h : reflect (exists kv, kv \In h) (isSome (last_val h)).
-Proof.
-case: lastvalP=>[r kv E H|E H]; constructor.
-- by exists kv.
-by case=>kv /H.
-Qed.
-
-Lemma lastval_mem kv h : kv \In h -> exists r, last_val h = Some r.
-Proof. by case: lastvalP=>[r|_ H /H//]; exists r. Qed.
-
-Lemma lastval_mem_none kv h : last_val h = None -> kv \Notin h.
-Proof. by case: lastvalP. Qed.
-
-End LastVal.
+Lemma freshR A (U1 : pcm) (U2 : natmap A) 
+          (f : full_pcm_morph U1 U2) (x y : U1) :
+        valid (x \+ y) -> 
+        fresh (f y) <= fresh (f (x \+ y)).
+Proof. by apply: lastkeyR. Qed.
 
 (***********************************************)
 (***********************************************)
@@ -978,23 +1300,31 @@ End LastVal.
 (***********************************************)
 (***********************************************)
 
-Definition oexec_le V R (a : R -> V -> R) ks t (h : natmap V) z0 :=
+Definition oexec_le V (U : natmap V) R (a : R -> V -> R) ks t (h : U) z0 :=
   oevalv a (&=ks `]-oo, t]) h z0.
-Definition oexec_lt V R (a : R -> V -> R) ks t (h : natmap V) z0 :=
+Definition oexec_lt V (U : natmap V) R (a : R -> V -> R) ks t (h : U) z0 :=
   oevalv a (&=ks `]-oo, t[) h z0.
+
+(* explicit rewrites to facilitate folding *)
+Lemma oexleP V U R a ks t h z0 : 
+        oevalv a (&=ks `]-oo, t]) h z0 = @oexec_le V U R a ks t h z0.
+Proof. by []. Qed.
+Lemma oexltP V U R a ks t h z0 : 
+        oevalv a (&=ks `]-oo, t[) h z0 = @oexec_lt V U R a ks t h z0.
+Proof. by []. Qed.
 
 (* Main transfer lemmas *)
 
-Lemma oexleE V R a t v (h : natmap V) ks (z0 : R) :
+Lemma oexleE V (U : natmap V) R a t v (h : U) ks (z0 : R) :
         t \in ks -> (t, v) \In h ->
         oexec_le a ks t h z0 = a (oexec_lt a ks t h z0) v.
 Proof.
 by move=>K H; rewrite /oexec_le/oexec_lt eqsl_uxR K (oev_rconsP _ _ _ H).
 Qed.
 
-Arguments oexleE [V R a t v h ks z0].
+Arguments oexleE [V U R a t v h ks z0].
 
-Lemma oexleNE V R a t (h : natmap V) ks (z0 : R) :
+Lemma oexleNE V (U : natmap V) R a t (h : U) ks (z0 : R) :
         (t \notin ks) || (t \notin dom h) ->
         oexec_le a ks t h z0 = oexec_lt a ks t h z0.
 Proof.
@@ -1005,27 +1335,28 @@ rewrite [LHS]oevFK [RHS]oevFK; congr oeval.
 by rewrite eqsl_uxR K filter_rcons (negbTE H).
 Qed.
 
-Arguments oexleNE [V R a t h ks z0].
+Arguments oexleNE [V U R a t h ks z0].
 
 (**********************************************************)
 (* Interaction of oexec_lt and oexec_le with constructors *)
 (**********************************************************)
 
-Lemma oexlt_notin V R a ks t (h : natmap V) (z0 : R) :
+
+Lemma oexlt_notin V (U : natmap V) R a ks t (h : U) (z0 : R) :
         t \notin ks ->
         oexec_lt a ks t h z0 = oevalv a ks h z0.
 Proof. by move=>K; rewrite /oexec_lt eqsl_uL_notinE. Qed.
 
-Arguments oexlt_notin [V R a ks t h z0].
+Arguments oexlt_notin [V U R a ks t h z0].
 
-Lemma oexle_notin V R a ks t (h : natmap V) (z0 : R) :
+Lemma oexle_notin V (U : natmap V) R a ks t (h : U) (z0 : R) :
         t \notin ks ->
         oexec_le a ks t h z0 = oevalv a ks h z0.
 Proof. by move=>K; rewrite /oexec_le eqsl_uL_notinE. Qed.
 
-Arguments oexle_notin [V R a ks t h z0].
+Arguments oexle_notin [V U R a ks t h z0].
 
-Lemma oexlt_cat V R a ks1 ks2 t (h : natmap V) (z0 : R) :
+Lemma oexlt_cat V (U : natmap V) R a ks1 ks2 t (h : U) (z0 : R) :
         t \notin ks1 ->
         oexec_lt a (ks1 ++ ks2) t h z0 =
         if t \in ks1 then oexec_lt a ks1 t h z0
@@ -1035,9 +1366,9 @@ move=>T; rewrite /oexec_lt eqsl_uL_catE (negbTE T).
 by rewrite oev_cat (eqsl_uL_notinE (s:=ks1)).
 Qed.
 
-Arguments oexlt_cat [V R a ks1 ks2 t h z0].
+Arguments oexlt_cat [V U R a ks1 ks2 t h z0].
 
-Lemma oexle_cat V R a ks1 ks2 t (h : natmap V) (z0 : R) :
+Lemma oexle_cat V (U : natmap V) R a ks1 ks2 t (h : U) (z0 : R) :
         t \notin ks1 ->
         oexec_le a (ks1 ++ ks2) t h z0 =
         if t \in ks1 then oexec_le a ks1 t h z0
@@ -1047,9 +1378,9 @@ move=>T; rewrite /oexec_le eqsl_uL_catE (negbTE T).
 by rewrite oev_cat (eqsl_uL_notinE (s:=ks1)).
 Qed.
 
-Arguments oexle_cat [V R a ks1 ks2 t h z0].
+Arguments oexle_cat [V U R a ks1 ks2 t h z0].
 
-Lemma oexlt_cons V R a ks k t v (h : natmap V) (z0 : R) :
+Lemma oexlt_cons V (U : natmap V) R a ks k t v (h : U) (z0 : R) :
         (k, v) \In h -> t != k ->
         oexec_lt a (k :: ks) t h z0 = oexec_lt a ks t h (a z0 v).
 Proof.
@@ -1057,9 +1388,9 @@ move=>H Ntk; rewrite /oexec_lt eqsl_uL_consE (negbTE Ntk) /=.
 by move/In_find: H=>->.
 Qed.
 
-Arguments oexlt_cons [V R a ks k t v h z0].
+Arguments oexlt_cons [V U R a ks k t v h z0].
 
-Lemma oexle_cons V R a ks k t v (h : natmap V) (z0 : R) :
+Lemma oexle_cons V (U : natmap V) R a ks k t v (h : U) (z0 : R) :
         (k, v) \In h ->
         oexec_le a (k :: ks) t h z0 =
         if t == k then a z0 v else oexec_le a ks t h (a z0 v).
@@ -1068,16 +1399,16 @@ move=>H; rewrite /oexec_le eqsl_uL_consE.
 by case: eqP=>/=; move/In_find: H=>->.
 Qed.
 
-Arguments oexle_cons [V R a ks k t v h z0].
+Arguments oexle_cons [V U R a ks k t v h z0].
 
 (* for oexlt, we need to cover the case when k == t *)
-Lemma oexlt_cons_same V R a ks k (h : natmap V) (z0 : R) :
+Lemma oexlt_cons_same V (U : natmap V) R a ks k (h : U) (z0 : R) :
         oexec_lt a (k :: ks) k h z0 = z0.
 Proof. by rewrite /oexec_lt eqsl_uL_consL. Qed.
 
-Arguments oexlt_cons_same {V R a ks k h z0}.
+Arguments oexlt_cons_same {V U R a ks k h z0}.
 
-Lemma oexlt_cons_notin V R a ks k t (h : natmap V) (z0 : R) :
+Lemma oexlt_cons_notin V (U : natmap V) R a ks k t (h : U) (z0 : R) :
         k \notin dom h -> t != k ->
         oexec_lt a (k :: ks) t h z0 = oexec_lt a ks t h z0.
 Proof.
@@ -1085,19 +1416,19 @@ move=>H Ntk; rewrite /oexec_lt eqsl_uL_consE (negbTE Ntk) /=.
 by case: dom_find H=>//= -> _.
 Qed.
 
-Arguments oexlt_cons_notin [V R a ks k t h z0].
+Arguments oexlt_cons_notin [V U R a ks k t h z0].
 
 (* for oexle, we have two "notin" lemmas *)
-Lemma oexle_cons_same_notin V R a ks k (h : natmap V) (z0 : R) :
+Lemma oexle_cons_same_notin V (U : natmap V) R a ks k (h : U) (z0 : R) :
         k \notin dom h -> oexec_le a (k :: ks) k h z0 = z0.
 Proof.
 move=>H.
 by rewrite /oexec_le [in LHS]oevFK eqsl_uL_consL /= (negbTE H).
 Qed.
 
-Arguments oexle_cons_same_notin [V R a ks k h z0].
+Arguments oexle_cons_same_notin [V U R a ks k h z0].
 
-Lemma oexle_cons_notin V R a ks k t (h : natmap V) (z0 : R) :
+Lemma oexle_cons_notin V (U : natmap V) R a ks k t (h : U) (z0 : R) :
         k \notin dom h -> t != k ->
         oexec_le a (k :: ks) t h z0 = oexec_le a ks t h z0.
 Proof.
@@ -1105,23 +1436,23 @@ move=>H Ntk; rewrite /oexec_le [in LHS]oevFK [in RHS]oevFK.
 by rewrite eqsl_uL_consE (negbTE Ntk) /= (negbTE H).
 Qed.
 
-Arguments oexle_cons_notin [V R a ks k t h z0].
+Arguments oexle_cons_notin [V U R a ks k t h z0].
 
-Lemma oexlt_rcons V R a ks k t (h : natmap V) (z0 : R) :
+Lemma oexlt_rcons V (U : natmap V) R a ks k t (h : U) (z0 : R) :
         t \in ks ->
         oexec_lt a (rcons ks k) t h z0 = oexec_lt a ks t h z0.
 Proof. by move=>T; rewrite /oexec_lt eqsl_uL_rconsE T. Qed.
 
-Arguments oexlt_rcons [V R a ks k t h z0].
+Arguments oexlt_rcons [V U R a ks k t h z0].
 
-Lemma oexle_rcons V R a ks k t (h : natmap V) (z0 : R) :
+Lemma oexle_rcons V (U : natmap V) R a ks k t (h : U) (z0 : R) :
         t \in ks ->
         oexec_le a (rcons ks k) t h z0 = oexec_le a ks t h z0.
 Proof. by move=>T; rewrite /oexec_le eqsl_uL_rconsE T. Qed.
 
-Arguments oexle_rcons [V R a ks k t h z0].
+Arguments oexle_rcons [V U R a ks k t h z0].
 
-Lemma oexlt_rcons_notin V R a ks k t v (h : natmap V) (z0 : R) :
+Lemma oexlt_rcons_notin V (U : natmap V) R a ks k t v (h : U) (z0 : R) :
         (k, v) \In h -> t \notin ks -> t != k ->
         oexec_lt a (rcons ks k) t h z0 =
         a (oexec_lt a ks t h z0) v.
@@ -1130,35 +1461,34 @@ move=>H T Ntk; rewrite /oexec_lt eqsl_uL_rconsE /= (negbTE T) Ntk.
 by rewrite oev_rconsE eqsl_uL_notinE //; move/In_find: H=>->.
 Qed.
 
-Arguments oexlt_rcons_notin [V R a ks k t v h z0].
+Arguments oexlt_rcons_notin [V U R a ks k t v h z0].
 
-Lemma oexle_rcons_notin V R a ks k t (h : natmap V) (z0 : R) :
+Lemma oexle_rcons_notin V (U : natmap V) R a ks k t (h : U) (z0 : R) :
         t \notin ks ->
         oexec_le a (rcons ks k) t h z0 = oevalv a (rcons ks k) h z0.
 Proof. by move=>T; rewrite /oexec_le eqsl_uL_rconsE (negbTE T). Qed.
 
-Arguments oexle_rcons_notin [V R a ks k t h z0].
+Arguments oexle_rcons_notin [V U R a ks k t h z0].
 
 (* in case of oexlt we must cover the case when t == k *)
-Lemma oexlt_rcons_same V R a ks k (h : natmap V) (z0 : R) :
+Lemma oexlt_rcons_same V (U : natmap V) R a ks k (h : U) (z0 : R) :
         k \notin ks ->
         oexec_lt a (rcons ks k) k h z0 = oevalv a ks h z0.
-Proof. by move=>U; rewrite /oexec_lt eqsl_uL_rconsE eqxx /= (negbTE U). Qed.
+Proof. by move=>N; rewrite /oexec_lt eqsl_uL_rconsE eqxx /= (negbTE N). Qed.
 
-Arguments oexlt_rcons_same [V R a ks k h z0].
+Arguments oexlt_rcons_same [V U R a ks k h z0].
 
 (* in case of oexle, case t == k can be optimized *)
-(* TODO doesn't simplify anything *)
-Lemma oexle_rcons_same V R a ks k (h : natmap V) (z0 : R) :
+Lemma oexle_rcons_same V (U : natmap V) R a ks k (h : U) (z0 : R) :
         k \notin ks ->
         oexec_le a (rcons ks k) k h z0 = oevalv a (rcons ks k) h z0.
 Proof. exact: oexle_rcons_notin. Qed.
 
-Arguments oexle_rcons_same [V R a ks k h z0].
+Arguments oexle_rcons_same [V U R a ks k h z0].
 
 (* in case of oexle, when we know the value at k *)
 (* we can further expand the right-hand side *)
-Lemma oexle_rcons_notin_in V R a ks k t v (h : natmap V) (z0 : R) :
+Lemma oexle_rcons_notin_in V (U : natmap V) R a ks k t v (h : U) (z0 : R) :
         (k, v) \In h -> t \notin ks ->
         oexec_le a (rcons ks k) t h z0 = a (oexec_le a ks t h z0) v.
 Proof.
@@ -1166,26 +1496,26 @@ move=>H T; rewrite oexle_rcons_notin // oev_rconsE.
 by move/In_find: (H)=>->; rewrite oexleNE ?T // /oexec_lt eqsl_uL_notinE.
 Qed.
 
-Arguments oexle_rcons_notin_in [V R a ks k t v h z0].
+Arguments oexle_rcons_notin_in [V U R a ks k t v h z0].
 
 (* oexlt/oexle filter lemmas *)
 
-Lemma oexlt_umfilt V R a ks p t (h : natmap V) (z0 : R) :
+Lemma oexlt_umfilt V (U : natmap V) R a ks p t (h : U) (z0 : R) :
         oexec_lt a ks t (um_filterk p h) z0 =
         oevalv a (filter p (&=ks `]-oo, t[)) h z0.
 Proof. by rewrite /oexec_lt oev_filter. Qed.
 
-Arguments oexlt_umfilt {V R a ks p t h z0}.
+Arguments oexlt_umfilt {V U R a ks p t h z0}.
 
-Lemma oexle_umfilt V R a ks p t (h : natmap V) (z0 : R) :
+Lemma oexle_umfilt V (U : natmap V) R a ks p t (h : U) (z0 : R) :
         oexec_le a ks t (um_filterk p h) z0 =
         oevalv a (filter p (&=ks `]-oo, t])) h z0.
 Proof. by rewrite /oexec_le oev_filter. Qed.
 
-Arguments oexle_umfilt {V R a ks p t h z0}.
+Arguments oexle_umfilt {V U R a ks p t h z0}.
 
 (* two somewhat simpler rewrites under a condition *)
-Lemma oexlt_umfiltN V R a ks p t (h : natmap V) (z0 : R) :
+Lemma oexlt_umfiltN V (U : natmap V) R a ks p t (h : U) (z0 : R) :
         (t \notin ks) || (p t) ->
         oexec_lt a ks t (um_filterk p h) z0 =
         oexec_lt a (filter p ks) t h z0.
@@ -1195,9 +1525,9 @@ apply: eq_in_oevK; rewrite -!filter_predI; apply: eq_in_filter=>k Ks /=.
 by case D : (k \in dom h)=>//=; case/In_domX: D=>v /In_find ->.
 Qed.
 
-Arguments oexlt_umfiltN [V R a ks p t h z0].
+Arguments oexlt_umfiltN [V U R a ks p t h z0].
 
-Lemma oexle_umfiltN V R a ks p t (h : natmap V) (z0 : R) :
+Lemma oexle_umfiltN V (U : natmap V) R a ks p t (h : U) (z0 : R) :
         (t \notin ks) || (p t) ->
         oexec_le a ks t (um_filterk p h) z0 =
         oexec_le a (filter p ks) t h z0.
@@ -1207,17 +1537,16 @@ apply: eq_in_oevK; rewrite -!filter_predI; apply: eq_in_filter=>k Ks /=.
 by case D : (k \in dom h)=>//=; case/In_domX: D=>v /In_find ->.
 Qed.
 
-Arguments oexle_umfiltN [V R a ks p t h z0].
+Arguments oexle_umfiltN [V U R a ks p t h z0].
 
 (* restating the last two lemmas for the other direction *)
-(* TODO why not just state them like this initially? *)
-Lemma oexlt_filter V R a ks p t (h : natmap V) (z0 : R) :
+Lemma oexlt_filter V (U : natmap V) R a ks p t (h : U) (z0 : R) :
         (t \notin ks) || (p t) ->
         oexec_lt a (filter p ks) t h z0 =
         oexec_lt a ks t (um_filterk p h) z0.
 Proof. by move=>H; rewrite (oexlt_umfiltN H). Qed.
 
-Lemma oexle_filter V R a ks p t (h : natmap V) (z0 : R) :
+Lemma oexle_filter V (U : natmap V) R a ks p t (h : U) (z0 : R) :
         (t \notin ks) || (p t) ->
         oexec_le a (filter p ks) t h z0 =
         oexec_le a ks t (um_filterk p h) z0.
@@ -1225,13 +1554,13 @@ Proof. by move=>H; rewrite (oexle_umfiltN H). Qed.
 
 (* interaction with the map *)
 
-Lemma oexlt_filter_dom V R a ks t (h : natmap V) (z0 : R) :
+Lemma oexlt_filter_dom V (U : natmap V) R a ks t (h : U) (z0 : R) :
         (t \notin ks) || (t \in dom h) ->
         oexec_lt a ks t h z0 =
         oexec_lt a (filter (mem (dom h)) ks) t h z0.
 Proof. by move=>H; rewrite oexlt_filter // umfiltk_dom'. Qed.
 
-Lemma oexle_filter_dom V R a ks t (h : natmap V) (z0 : R) :
+Lemma oexle_filter_dom V (U : natmap V) R a ks t (h : U) (z0 : R) :
         (t \notin ks) || (t \in dom h) ->
         oexec_le a ks t h z0 =
         oexec_le a (filter (mem (dom h)) ks) t h z0.
@@ -1239,16 +1568,16 @@ Proof. by move=>H; rewrite oexle_filter // umfiltk_dom'. Qed.
 
 (* interaction of oexlt, oexle and last *)
 
-Lemma oexlt_oexle_last V R a k ks t (h : natmap V) (z0 : R) :
+Lemma oexlt_oexle_last V (U : natmap V) R a k ks t (h : U) (z0 : R) :
         uniq (k::ks) -> t != k ->
         oexec_lt a (k::ks) t h z0 =
         oexec_le a (k::ks) (last k (&=ks `]-oo, t[)) h z0.
 Proof.
-move=>U Ntk; rewrite /oexec_lt/oexec_le [LHS]oevFK [RHS]oevFK.
+move=>Uq Ntk; rewrite /oexec_lt/oexec_le [LHS]oevFK [RHS]oevFK.
 by rewrite eqsl_uox_last.
 Qed.
 
-Lemma oev_oexle_last V R a k ks (h : natmap V) (z0 : R) :
+Lemma oev_oexle_last V (U : natmap V) R a k ks (h : U) (z0 : R) :
         uniq (k::ks) ->
         oevalv a (k::ks) h z0 =
         oexec_le a (k::ks) (last k ks) h z0.
@@ -1265,7 +1594,7 @@ Qed.
 
 (* these can be called "induction" lemmas over the interval *)
 
-Definition oex_inv V R (P : R -> Prop) a ks (h : natmap V) (z0 : R) :=
+Definition oex_inv V (U : natmap V) R (P : R -> Prop) a ks (h : U) (z0 : R) :=
   forall k v, (k, v) \In h ->
     let z := oexec_lt a ks k h z0 in P z -> P (a z v).
 
@@ -1274,21 +1603,22 @@ Definition oex_inv V R (P : R -> Prop) a ks (h : natmap V) (z0 : R) :=
 
 (* two-sided intervals *)
 
-Lemma oex_ox V R (P : R -> Prop) a ks (h : natmap V) t1 t2 (z0 : R) :
+Lemma oex_ox V (U : natmap V) R (P : R -> Prop) a ks (h : U) t1 t2 (z0 : R) :
         uniq ks -> t1 <[ks] t2 ->
         {in &=ks `]t1, t2[, oex_inv P a ks h z0} ->
         P (oexec_le a ks t1 h z0) -> P (oexec_lt a ks t2 h z0).
 Proof.
-move=>U T IH P0; rewrite /oexec_lt (eqsl_uxoo T) oev_cat.
+move=>Uq T IH P0; rewrite /oexec_lt (eqsl_uxoo T) oev_cat.
 apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->; rewrite -oev_cat.
 have K : k \in &=ks `]t1, t2[ by rewrite Eh mem_cat inE eqxx orbT.
 have Nk : k \notin ks1.
-- move/(eqslice_uniq `]t1, t2[): U.
+- move/(eqslice_uniq `]t1, t2[): Uq.
   by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
 case/mem_oo: (K)=>// [_ T1K T2K].
-suff {IH U K}-> : ks1 = &=ks `]t1, k[ by rewrite -eqsl_uxoo //; apply: IH.
-move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=;
-  last by apply/andP; rewrite !lteBSide /= leEnat; split=>//=; apply: ltnW.
+suff {IH Uq K}-> : ks1 = &=ks `]t1, k[ by rewrite -eqsl_uxoo //; apply: IH.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first.
+- rewrite !lteBSide /= leEnat -seqlt_unlockE -seqle_unlock.
+  by rewrite T1K (sltW T2K).
 rewrite eqsl_xoL T2K /= => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
 Qed.
@@ -1298,275 +1628,281 @@ Qed.
 (* which we don't have yet. Hence, we prove the lemma directly *)
 (* using the same approach as in the previous lemma. *)
 
-Lemma oex_oo V R (P : R -> Prop) a ks (h : natmap V) t1 t2 (z0 : R) :
+Lemma oex_oo V (U : natmap V) R (P : R -> Prop) a ks (h : U) t1 t2 (z0 : R) :
         uniq ks -> t1 <=[ks] t2 ->
         {in &=ks `[t1, t2[, oex_inv P a ks h z0} ->
         P (oexec_lt a ks t1 h z0) -> P (oexec_lt a ks t2 h z0).
 Proof.
-move=>U T IH P0; rewrite /oexec_lt (eqsl_uoxo T) oev_cat.
+move=>Uq T IH P0; rewrite /oexec_lt (eqsl_uoxo T) oev_cat.
 apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->; rewrite -oev_cat.
 have K : k \in &=ks `[t1, t2[ by rewrite Eh mem_cat inE eqxx orbT.
 have Nk : k \notin ks1.
-- move/(eqslice_uniq `[t1, t2[): U.
+- move/(eqslice_uniq `[t1, t2[): Uq.
   by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
 case/mem_xo: (K)=>// [_ T1K T2K].
-suff {IH U K}-> : ks1 = &=ks `[t1, k[ by rewrite -eqsl_uoxo //; apply: IH.
-move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=;
-  last by apply/andP; rewrite !lteBSide /= !leEnat; split=>//=; apply: ltnW.
+suff {IH Uq K}-> : ks1 = &=ks `[t1, k[ by rewrite -eqsl_uoxo //; apply: IH.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first.
+- by rewrite !lteBSide /= !leEnat -!seqle_unlock T1K (sltW T2K).
 rewrite (eqsl_xoL k) T2K /= => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
 Qed.
 
-Lemma oex_xo V R (P : R -> Prop) a ks (h : natmap V) t1 t2 (z0 : R) :
+Lemma oex_xo V (U : natmap V) R (P : R -> Prop) a ks (h : U) t1 t2 (z0 : R) :
         uniq ks -> t1 <=[ks] t2 ->
         {in &=ks `[t1, t2], oex_inv P a ks h z0} ->
         P (oexec_lt a ks t1 h z0) -> P (oexec_le a ks t2 h z0).
 Proof.
-move=>U T IH P0; rewrite /oexec_le (eqsl_uoxx T) oev_cat.
+move=>Uq T IH P0; rewrite /oexec_le (eqsl_uoxx T) oev_cat.
 apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->; rewrite -oev_cat.
 have K : k \in &=ks `[t1, t2] by rewrite Eh mem_cat inE eqxx orbT.
 have Nk : k \notin ks1.
-- move/(eqslice_uniq `[t1, t2]): U.
+- move/(eqslice_uniq `[t1, t2]): Uq.
   by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
 case/mem_xx: (K)=>// [Ks T1K T2K].
-suff {IH U K}-> : ks1 = &=ks `[t1, k[ by rewrite -eqsl_uoxo //; apply: IH.
-move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last by apply/andP.
+suff {IH Uq K}-> : ks1 = &=ks `[t1, k[ by rewrite -eqsl_uoxo //; apply: IH.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first.
+- by rewrite /order.Order.le/=/order.Order.le/= -!seqle_unlock T1K T2K.
 rewrite eqsl_xxL T2K Ks /= => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
 Qed.
 
-Lemma oex_xx V R (P : R -> Prop) a ks (h : natmap V) t1 t2 (z0 : R) :
+Lemma oex_xx V (U : natmap V) R (P : R -> Prop) a ks (h : U) t1 t2 (z0 : R) :
         uniq ks -> t1 <=[ks] t2 ->
         {in &=ks `]t1, t2], oex_inv P a ks h z0} ->
         P (oexec_le a ks t1 h z0) -> P (oexec_le a ks t2 h z0).
 Proof.
-move=>U T IH P0; rewrite /oexec_le (eqsl_uxox T) oev_cat.
+move=>Uq T IH P0; rewrite /oexec_le (eqsl_uxox T) oev_cat.
 apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->; rewrite -oev_cat.
 have K : k \in &=ks `]t1, t2] by rewrite Eh mem_cat inE eqxx orbT.
 have Nk : k \notin ks1.
-- move/(eqslice_uniq `]t1, t2]): U.
+- move/(eqslice_uniq `]t1, t2]): Uq.
   by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
 case/mem_ox: (K)=>// [Ks T1K T2K].
-suff {IH U K}-> : ks1 = &=ks `]t1, k[ by rewrite -eqsl_uxoo //; apply: IH.
-move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last by apply/andP.
+suff {IH Uq K}-> : ks1 = &=ks `]t1, k[ by rewrite -eqsl_uxoo //; apply: IH.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first. 
+- rewrite /order.Order.le/=/order.Order.le/=/order.Order.lt /=.
+  by rewrite -seqlt_unlock -seqle_unlock T1K T2K.
 rewrite eqsl_xxL T2K Ks /= => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
 Qed.
 
-Arguments oex_ox [V R] P [a ks h t1 t2 z0].
-Arguments oex_oo [V R] P [a ks h t1 t2 z0].
-Arguments oex_xo [V R] P [a ks h t1 t2 z0].
-Arguments oex_xx [V R] P [a ks h t1 t2 z0].
+Arguments oex_ox [V U R] P [a ks h t1 t2 z0].
+Arguments oex_oo [V U R] P [a ks h t1 t2 z0].
+Arguments oex_xo [V U R] P [a ks h t1 t2 z0].
+Arguments oex_xx [V U R] P [a ks h t1 t2 z0].
 
 (* one-sided intervals *)
 
-Lemma oex_ux V R (P : R -> Prop) a ks (h : natmap V) t (z0 : R) :
+Lemma oex_ux V (U : natmap V) R (P : R -> Prop) a ks (h : U) t (z0 : R) :
         uniq ks ->
         {in &=ks `]t,+oo[, oex_inv P a ks h z0} ->
         P (oexec_le a ks t h z0) -> P (oevalv a ks h z0).
 Proof.
-move=>U IH P0; rewrite (eqsl_uxou ks t) oev_cat.
+move=>Uq IH P0; rewrite (eqsl_uxou ks t) oev_cat.
 apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->; rewrite -oev_cat.
 have K : k \in &=ks `]t, +oo[ by rewrite Eh mem_cat inE eqxx orbT.
 have Nk : k \notin ks1.
-- move/(eqslice_uniq `]t, +oo[): U.
+- move/(eqslice_uniq `]t, +oo[): Uq.
   by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
 case/mem_ou: (K)=>// [Ks TK].
-suff {IH U K}-> : ks1 = &=ks `]t, k[ by rewrite -eqsl_uxoo //; apply: IH.
-move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last by apply/andP.
+suff {IH Uq K}-> : ks1 = &=ks `]t, k[ by rewrite -eqsl_uxoo //; apply: IH.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first. 
+- by rewrite /order.Order.le/=/order.Order.lt/= -seqlt_unlock TK.
 rewrite eqsl_xuL Ks /= => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
 Qed.
 
-Lemma oex_uo V R (P : R -> Prop) a ks (h : natmap V) t (z0 : R) :
+Lemma oex_uo V (U : natmap V) R (P : R -> Prop) a ks (h : U) t (z0 : R) :
         uniq ks ->
         {in &=ks `[t,+oo[, oex_inv P a ks h z0} ->
         P (oexec_lt a ks t h z0) -> P (oevalv a ks h z0).
 Proof.
-move=>U IH P0; rewrite (eqsl_uoxu ks t) oev_cat.
+move=>Uq IH P0; rewrite (eqsl_uoxu ks t) oev_cat.
 apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->; rewrite -oev_cat.
 have K : k \in &=ks `[t, +oo[ by rewrite Eh mem_cat inE eqxx orbT.
 have Nk : k \notin ks1.
-- move/(eqslice_uniq `[t, +oo[): U.
+- move/(eqslice_uniq `[t, +oo[): Uq.
   by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
 case/mem_xu: (K)=>// [Ks TK].
-suff {IH U K}-> : ks1 = &=ks `[t, k[ by rewrite -eqsl_uoxo //; apply: IH.
-move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last by apply/andP.
+suff {IH Uq K}-> : ks1 = &=ks `[t, k[ by rewrite -eqsl_uoxo //; apply: IH.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first. 
+- by rewrite /order.Order.le/=/order.Order.le/= -seqle_unlock TK.
 rewrite eqsl_xuL Ks => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
 Qed.
 
-Lemma oex_xu V R (P : R -> Prop) a ks (h : natmap V) t (z0 : R) :
+Lemma oex_xu V (U : natmap V) R (P : R -> Prop) a ks (h : U) t (z0 : R) :
         uniq ks ->
         {in &=ks `]-oo, t], oex_inv P a ks h z0} ->
         P z0 -> P (oexec_le a ks t h z0).
 Proof.
-move=>U IH P0; apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->.
+move=>Uq IH P0; apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->.
 have K : k \in &=ks `]-oo, t] by rewrite Eh mem_cat inE eqxx orbT.
 have Nk : k \notin ks1.
-- move/(eqslice_uniq `]-oo, t]): U.
+- move/(eqslice_uniq `]-oo, t]): Uq.
   by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
 case/mem_ux: (K)=>// [Ks TK].
-suff {IH U K}-> : ks1 = &=ks `]-oo, k[ by apply: IH.
-move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) //=.
+suff {IH Uq K}-> : ks1 = &=ks `]-oo, k[ by apply: IH.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) //=; last first.
+- by rewrite /order.Order.le/=/order.Order.le/= -seqle_unlock.
 rewrite eqsl_xxL TK Ks /= => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
 Qed.
 
-Lemma oex_ou V R (P : R -> Prop) a ks (h : natmap V) t (z0 : R) :
+Lemma oex_ou V (U : natmap V) R (P : R -> Prop) a ks (h : U) t (z0 : R) :
         uniq ks ->
         {in &=ks `]-oo, t[, oex_inv P a ks h z0} ->
         P z0 -> P (oexec_lt a ks t h z0).
 Proof.
-move=>U IH P0; apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->.
+move=>Uq IH P0; apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->.
 have K : k \in &=ks `]-oo, t[ by rewrite Eh mem_cat inE eqxx orbT.
 have Nk : k \notin ks1.
-- move/(eqslice_uniq `]-oo, t[): U.
+- move/(eqslice_uniq `]-oo, t[): Uq.
   by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
 case/mem_uo: (K)=>// [Ks TK].
-suff {IH U K}-> : ks1 = &=ks `]-oo, k[ by apply: IH.
-move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=;
-  last by rewrite lteBSide /= leEnat; apply: ltnW.
+suff {IH Uq K}-> : ks1 = &=ks `]-oo, k[ by apply: IH.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first.
+- by rewrite lteBSide /= leEnat -seqle_unlock (sltW TK).
 rewrite eqsl_xoL TK => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
 Qed.
 
-Arguments oex_ux [V R] P [a ks h t z0].
-Arguments oex_uo [V R] P [a ks h t z0].
-Arguments oex_xu [V R] P [a ks h t z0].
-Arguments oex_ou [V R] P [a ks h t z0].
+Arguments oex_ux [V U R] P [a ks h t z0].
+Arguments oex_uo [V U R] P [a ks h t z0].
+Arguments oex_xu [V U R] P [a ks h t z0].
+Arguments oex_ou [V U R] P [a ks h t z0].
 
 (* whole list *)
 
-Lemma oex_uu V R (P : R -> Prop) a ks (h : natmap V) (z0 : R) :
+Lemma oex_uu V (U : natmap V) R (P : R -> Prop) a ks (h : U) (z0 : R) :
         uniq ks ->
         {in ks, oex_inv P a ks h z0} ->
         P z0 -> P (oevalv a ks h z0).
 Proof.
-move=>U IH P0; apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->.
+move=>Uq IH P0; apply: oev_indX=>// k ks1 ks2 v _ Kh Eh ->.
 have K : k \in ks by rewrite Eh mem_cat inE eqxx orbT.
 have Nk : k \notin ks1.
-- move: U.
+- move: Uq.
   by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
 suff -> : ks1 = &=ks `]-oo, k[ by apply: IH.
 move: Eh; rewrite {1}(eqsl_uxou ks k) eqsl_uxR K -cats1 -catA /= => Eh.
 by rewrite (cat_cancel _ _ Eh) //=; apply: eqsliceRO_notin.
 Qed.
 
-Arguments oex_uu [V R] P [a ks h z0].
+Arguments oex_uu [V U R] P [a ks h z0].
 
 (**********************************************)
 (* functional versions of the interval lemmas *)
 (**********************************************)
 
-Definition oexF_inv V R X (f : R -> X) a ks (h : natmap V) (z0 : R) :=
+Definition oexF_inv V (U : natmap V) R X (f : R -> X) a ks (h : U) (z0 : R) :=
   forall k v, (k, v) \In h ->
     let z := oexec_lt a ks k h z0 in f (a z v) = f z.
 
 (* two-sided intervals *)
 
-Lemma oexF_ox V R X (f : R -> X) a ks (h : natmap V) t1 t2 (z0 : R) :
+Lemma oexF_ox V (U : natmap V) R X (f : R -> X) a ks (h : U) t1 t2 (z0 : R) :
         uniq ks -> t1 <[ks] t2 ->
         {in &=ks `]t1, t2[, oexF_inv f a ks h z0} ->
         f (oexec_lt a ks t2 h z0) = f (oexec_le a ks t1 h z0).
 Proof.
-move=>U T H; pose P := fun x => f x = f (oexec_le a ks t1 h z0).
+move=>Uq T H; pose P := fun x => f x = f (oexec_le a ks t1 h z0).
 by apply: (oex_ox P) T _ _=>// x S v K E ; rewrite /P -E; apply: H.
 Qed.
 
-Lemma oexF_oo V R X (f : R -> X) a ks (h : natmap V) t1 t2 (z0 : R) :
+Lemma oexF_oo V (U : natmap V) R X (f : R -> X) a ks (h : U) t1 t2 (z0 : R) :
         uniq ks -> t1 <=[ks] t2 ->
         {in &=ks `[t1, t2[, oexF_inv f a ks h z0} ->
         f (oexec_lt a ks t2 h z0) = f (oexec_lt a ks t1 h z0).
 Proof.
-move=>U T H; pose P := fun x => f x = f (oexec_lt a ks t1 h z0).
+move=>Uq T H; pose P := fun x => f x = f (oexec_lt a ks t1 h z0).
 by apply: (oex_oo P) T _ _=>// x S v K E; rewrite /P -E; apply: H.
 Qed.
 
-Lemma oexF_xo V R X (f : R -> X) a ks (h : natmap V) t1 t2 (z0 : R) :
+Lemma oexF_xo V (U : natmap V) R X (f : R -> X) a ks (h : U) t1 t2 (z0 : R) :
         uniq ks -> t1 <=[ks] t2 ->
         {in &=ks `[t1, t2], oexF_inv f a ks h z0} ->
         f (oexec_le a ks t2 h z0) = f (oexec_lt a ks t1 h z0).
 Proof.
-move=>U T H; pose P := fun x => f x = f (oexec_lt a ks t1 h z0).
+move=>Uq T H; pose P := fun x => f x = f (oexec_lt a ks t1 h z0).
 by apply: (oex_xo P) T _ _=>// x S v K E; rewrite /P -E; apply: H.
 Qed.
 
-Lemma oexF_xx V R X (f : R -> X) a ks (h : natmap V) t1 t2 (z0 : R) :
+Lemma oexF_xx V (U : natmap V) R X (f : R -> X) a ks (h : U) t1 t2 (z0 : R) :
         uniq ks -> t1 <=[ks] t2 ->
         {in &=ks `]t1, t2], oexF_inv f a ks h z0} ->
         f (oexec_le a ks t2 h z0) = f (oexec_le a ks t1 h z0).
 Proof.
-move=>U T H; pose P := fun x => f x = f (oexec_le a ks t1 h z0).
+move=>Uq T H; pose P := fun x => f x = f (oexec_le a ks t1 h z0).
 by apply: (oex_xx P) T _ _=>// x S v K E; rewrite /P -E; apply: H.
 Qed.
 
-Arguments oexF_ox [V R X] f [a ks h t1 t2 z0].
-Arguments oexF_oo [V R X] f [a ks h t1 t2 z0].
-Arguments oexF_xo [V R X] f [a ks h t1 t2 z0].
-Arguments oexF_xx [V R X] f [a ks h t1 t2 z0].
+Arguments oexF_ox [V U R X] f [a ks h t1 t2 z0].
+Arguments oexF_oo [V U R X] f [a ks h t1 t2 z0].
+Arguments oexF_xo [V U R X] f [a ks h t1 t2 z0].
+Arguments oexF_xx [V U R X] f [a ks h t1 t2 z0].
 
 (* one-sided intervals *)
 
-Lemma oexF_ux V R X (f : R -> X) a ks (h : natmap V) t (z0 : R) :
+Lemma oexF_ux V (U : natmap V) R X (f : R -> X) a ks (h : U) t (z0 : R) :
         uniq ks ->
         {in &=ks `]t, +oo[, oexF_inv f a ks h z0} ->
         f (oevalv a ks h z0) = f (oexec_le a ks t h z0).
 Proof.
-move=>U H; pose P := fun x => f x = f (oexec_le a ks t h z0).
+move=>Uq H; pose P := fun x => f x = f (oexec_le a ks t h z0).
 by apply: (oex_ux P)=>// x S v K E; rewrite /P -E; apply: H.
 Qed.
 
-Lemma oexF_uo V R X (f : R -> X) a ks (h : natmap V) t (z0 : R) :
+Lemma oexF_uo V (U : natmap V) R X (f : R -> X) a ks (h : U) t (z0 : R) :
         uniq ks ->
         {in &=ks `[t, +oo[, oexF_inv f a ks h z0} ->
         f (oevalv a ks h z0) = f (oexec_lt a ks t h z0).
 Proof.
-move=>U H; pose P := fun x => f x = f (oexec_lt a ks t h z0).
+move=>Uq H; pose P := fun x => f x = f (oexec_lt a ks t h z0).
 by apply: (oex_uo P)=>// x S v K E; rewrite /P -E; apply: H.
 Qed.
 
-Lemma oexF_xu V R X (f : R -> X) a ks (h : natmap V) t (z0 : R) :
+Lemma oexF_xu V (U : natmap V) R X (f : R -> X) a ks (h : U) t (z0 : R) :
         uniq ks ->
         {in &=ks `]-oo, t], oexF_inv f a ks h z0} ->
         f (oexec_le a ks t h z0) = f z0.
 Proof.
-move=>U H; pose P := fun x => f x = f z0.
+move=>Uq H; pose P := fun x => f x = f z0.
 by apply: (oex_xu P)=>// x S v K E; rewrite /P -E; apply: H.
 Qed.
 
-Lemma oexF_ou V R X (f : R -> X) a ks (h : natmap V) t (z0 : R) :
+Lemma oexF_ou V (U : natmap V) R X (f : R -> X) a ks (h : U) t (z0 : R) :
         uniq ks ->
         {in &=ks `]-oo, t[, oexF_inv f a ks h z0} ->
         f (oexec_lt a ks t h z0) = f z0.
 Proof.
-move=>U H; pose P := fun x => f x = f z0.
+move=>Uq H; pose P := fun x => f x = f z0.
 by apply: (oex_ou P)=>// x S v K E; rewrite /P -E; apply: H.
 Qed.
 
-Arguments oexF_ux [V R X] f [a ks h t z0].
-Arguments oexF_uo [V R X] f [a ks h t z0].
-Arguments oexF_xu [V R X] f [a ks h t z0].
-Arguments oexF_ou [V R X] f [a ks h t z0].
+Arguments oexF_ux [V U R X] f [a ks h t z0].
+Arguments oexF_uo [V U R X] f [a ks h t z0].
+Arguments oexF_xu [V U R X] f [a ks h t z0].
+Arguments oexF_ou [V U R X] f [a ks h t z0].
 
 (* whole list *)
 
-Lemma oexF_uu V R X (f : R -> X) a ks (h : natmap V) (z0 : R) :
+Lemma oexF_uu V (U : natmap V) R X (f : R -> X) a ks (h : U) (z0 : R) :
         uniq ks ->
         {in ks, oexF_inv f a ks h z0} ->
         f (oevalv a ks h z0) = f z0.
 Proof.
-move=>U H; pose P := fun x => f x = f z0.
+move=>Uq H; pose P := fun x => f x = f z0.
 by apply: (oex_uu P)=>// x S v K E; rewrite /P -E; apply: H.
 Qed.
 
-Arguments oexF_uu [V R X] f [a ks h z0].
+Arguments oexF_uu [V U R X] f [a ks h z0].
 
 (* we can now combine the split lemmas with *)
 (* cons properties of oeval, to obtain a point-split *)
 (* when the middle point is in the map *)
 
-Lemma oev2_split V R a t1 v (h : natmap V) ks (z0 : R) :
+Lemma oev2_split V (U : natmap V) R a t1 v (h : U) ks (z0 : R) :
         t1 \in ks -> (t1, v) \In h ->
         oevalv a ks h z0 =
         oevalv a (&=ks `]t1, +oo[) h (a (oexec_lt a ks t1 h z0) v).
@@ -1575,9 +1911,9 @@ move=>D H; rewrite {1}(eqsl_uoxu ks t1) oev_cat.
 by rewrite eqsl_xuL D /=; move/In_find: H=>->.
 Qed.
 
-Arguments oev2_split [V R a t1 v h ks z0] _ _.
+Arguments oev2_split [V U R a t1 v h ks z0] _ _.
 
-Lemma oex2_split V R a t1 t2 v (h : natmap V) ks (z0 : R) :
+Lemma oex2_split V (U : natmap V) R a t1 t2 v (h : U) ks (z0 : R) :
         t1 <[ks] t2 -> (t1, v) \In h ->
         oexec_lt a ks t2 h z0 =
         oevalv a (&=ks `]t1, t2[) h (a (oexec_lt a ks t1 h z0) v).
@@ -1587,10 +1923,10 @@ rewrite (eqsl_uoxo (sltW T)) oev_cat eqsl_xoL T /=.
 by move/In_find: H=>->.
 Qed.
 
-Arguments oex2_split [V R a t1 t2 v h ks z0] _ _.
+Arguments oex2_split [V U R a t1 t2 v h ks z0] _ _.
 
 (* we frequently iterate oex2_split, so the following saves verbiage *)
-Lemma oex3_split V R a t1 t2 t3 v1 v2 (h : natmap V) ks (z0 : R) :
+Lemma oex3_split V (U : natmap V) R a t1 t2 t3 v1 v2 (h : U) ks (z0 : R) :
         t1 <[ks] t2 -> (t1, v1) \In h ->
         t2 <[ks] t3 -> (t2, v2) \In h ->
         oexec_lt a ks t3 h z0 =
@@ -1603,58 +1939,58 @@ move=>T1 H1 T2 H2.
 by rewrite (oex2_split T2 H2) (oex2_split T1 H1).
 Qed.
 
-Arguments oex3_split [V R a t1 t2 t3 v1 v2 h ks z0] _ _ _ _.
+Arguments oex3_split [V U R a t1 t2 t3 v1 v2 h ks z0] _ _ _ _.
 
 (******************************************)
 (* Interaction of consec with oexlt/oexle *)
 (******************************************)
 
-Lemma oexlt_consec V R a ks t1 t2 (h : natmap V) (z0 : R) :
+Lemma oexlt_consec V (U : natmap V) R a ks t1 t2 (h : U) (z0 : R) :
         uniq ks ->
         consec ks t1 t2 ->
         oexec_lt a ks t2 h z0 = oexec_le a ks t1 h z0.
 Proof.
-move=>U C; apply: (oexF_ox id)=>//; first by apply: consec_slt.
+move=>Uq C; apply: (oexF_ox id)=>//; first by apply: consec_slt.
 by move=>x; rewrite consec_oo.
 Qed.
 
-Arguments oexlt_consec [V R a ks t1 t2 h z0].
+Arguments oexlt_consec [V U R a ks t1 t2 h z0].
 
 (* the following is direct *)
-Lemma oexlt_split V R a x1 t1 t2 x2 (h : natmap V) (z0 : R) :
+Lemma oexlt_split V (U : natmap V) R a x1 t1 t2 x2 (h : U) (z0 : R) :
         uniq (x1++t1::t2::x2) ->
         oexec_lt a (x1++t1::t2::x2) t2 h z0 =
         oexec_le a (x1++t1::t2::x2) t1 h z0.
 Proof.
-move=>U; apply: oexlt_consec=>//; apply/consecP_split=>//.
+move=>Uq; apply: oexlt_consec=>//; apply/consecP_split=>//.
 - by rewrite mem_cat !inE eqxx !orbT.
 by exists x1, x2.
 Qed.
 
-Lemma oexlt_consec_in V R a t1 t2 v (h : natmap V) ks (z0 : R) :
+Lemma oexlt_consec_in V (U : natmap V) R a t1 t2 v (h : U) ks (z0 : R) :
         uniq ks ->
         (t1, v) \In h ->
         consec ks t1 t2 ->
         oexec_lt a ks t2 h z0 = a (oexec_lt a ks t1 h z0) v.
 Proof.
-move=>U H C; move/slt_memE: (consec_slt C)=>T.
-by rewrite (oexlt_consec U C) (oexleE T H).
+move=>Uq H C; move/slt_memE: (consec_slt C)=>T.
+by rewrite (oexlt_consec Uq C) (oexleE T H).
 Qed.
 
-Lemma oexlt_consec_fst V R a t (h : natmap V) k ks (z0 : R) :
+Lemma oexlt_consec_fst V (U : natmap V) R a t (h : U) k ks (z0 : R) :
         uniq (k::ks) -> k \notin dom h -> t \in k::ks ->
         consec (k::ks) k t ->
         oexec_lt a (k::ks) t h z0 = z0.
 Proof.
-move=>U K T C; case/(consecP_split _ U T): C=>xs1 [xs2] X.
-case: xs1 X U {T}=>[|x xs1]; last first.
+move=>Uq K T C; case/(consecP_split _ Uq T): C=>xs1 [xs2] X.
+case: xs1 X Uq {T}=>[|x xs1]; last first.
 - by case=>->-> /=; rewrite mem_cat inE eqxx !orbT.
 case=>->{ks}; rewrite /= inE negb_or -andbA; case/and4P=>U1 U2 U3 U4.
 rewrite oexlt_cons_notin ?inE 1?negb_or ?(eq_sym t) ?U1 ?U2 //.
 by rewrite oexlt_cons_same.
 Qed.
 
-Lemma oexlt_consec_find V R a t1 t2 (h : natmap V) ks (z0 : R) :
+Lemma oexlt_consec_find V (U : natmap V) R a t1 t2 (h : U) ks (z0 : R) :
         uniq ks ->
         consec ks t1 t2 ->
         oexec_lt a ks t2 h z0 =
@@ -1662,14 +1998,50 @@ Lemma oexlt_consec_find V R a t1 t2 (h : natmap V) ks (z0 : R) :
           then a (oexec_lt a ks t1 h z0) e
           else oexec_lt a ks t1 h z0.
 Proof.
-move=>U C; rewrite (oexlt_consec U C).
+move=>Uq C; rewrite (oexlt_consec Uq C).
 case E : (find t1 h)=>[e|]; first by move/In_find: E=>/(oexleE (consec_mem C)) ->.
 by rewrite oexleNE // orbC; move/In_findN: E=>->.
 Qed.
 
-Arguments oexlt_consec_find [V R a t1 t2 h ks z0].
+Arguments oexlt_consec_find [V U R a t1 t2 h ks z0].
 
+Lemma oexlt_last V (U : natmap V) R a t2 (h : U) ks (z0 : R) :
+        uniq ks ->
+        t2 \notin ks ->
+        oexec_lt a ks t2 h z0 = 
+        if ks is k :: ks' then 
+          if last k ks' \in dom h then 
+            oexec_le a ks (last k ks') h z0
+          else oexec_lt a ks (last k ks') h z0
+        else z0.
+Proof.
+case: ks=>[|k ks] Uq //= T2.
+have C : consec (k :: ks) (last k ks) t2.
+- by rewrite (consecP_lastE k) // mem_last /=.
+rewrite (oexlt_consec_find Uq C).
+case: dom_find=>// v /In_find E _.
+by rewrite -oexleE // mem_last.
+Qed.
 
+Lemma oexlt_last0 V (U : natmap V) R a t2 (h : U) ks (z0 : R) :
+        uniq (0::ks) ->
+        t2 \notin 0::ks ->
+        oexec_lt a ks t2 h z0 = 
+        if last 0 ks \in dom h then 
+          oexec_le a ks (last 0 ks) h z0
+        else oexec_lt a ks (last 0 ks) h z0.
+Proof.
+move=>Uq T2.
+have D : 0 \notin dom h by rewrite cond_dom. 
+have N : t2 != 0 by case: eqP T2=>// ->. 
+rewrite -(oexlt_cons_notin D N) oexlt_last //.
+case: ifP=>L.
+- by rewrite oexle_cons_notin // (dom_cond L).
+case: ks Uq {N T2 D L}=>[|k ks] //= Uq.
+rewrite oexlt_cons_notin ?cond_dom //.
+apply/negP=>/eqP N.
+by rewrite -N (mem_last k ks) in Uq.
+Qed.
 
 (* The lemmas past this point are currently used for some examples, *)
 (* but will be deprecated and removed in future releases *)
@@ -1681,8 +2053,8 @@ Arguments oexlt_consec_find [V R a t1 t2 h ks z0].
 (*******************)
 
 Section Gapless.
-Variable A : Type.
-Implicit Type h : natmap A.
+Variables (A : Type) (U : natmap A).
+Implicit Type h : U.
 
 Definition gapless h := forall k, 0 < k <= last_key h -> k \in dom h.
 
@@ -1702,38 +2074,34 @@ Proof. by move=>k; rewrite lastkey_undef; case: k. Qed.
 Lemma gp0 : gapless Unit.
 Proof. by move=>k; rewrite lastkey0; case: k. Qed.
 
-Lemma gp_fresh h u : gapless (fresh h \-> u \+ h) <-> gapless h.
+Lemma gp_fresh h u : gapless (pts (fresh h) u \+ h) <-> gapless h.
 Proof.
 case V : (valid h); last first.
 - by move/invalidE: (negbT V)=>->; rewrite join_undef.
-split=>H k; move: (V); rewrite -(valid_fresh u (leqnn _))=>V'; last first.
-- rewrite lastkey_fresh // domPtUn inE V' /= (leq_eqVlt k) eq_sym.
+split=>H k; move: (V); rewrite -(freshPtUnV u (leqnn _))=>V'; last first.
+- rewrite lastkeyPtUn // domPtUn inE V' /= (leq_eqVlt k) eq_sym.
   by move: (H k); rewrite -(ltnS k); case: (ltngtP k (last_key h).+1).
 rewrite -(ltnS k) -/(fresh h); case/andP=>Z N.
-move: (H k); rewrite lastkey_fresh // domPtUn inE V' Z /= leq_eqVlt eq_sym.
+move: (H k); rewrite lastkeyPtUn // domPtUn inE V' Z /= leq_eqVlt eq_sym.
 by case: ltngtP N=>//= _ _; apply.
 Qed.
 
 Lemma gpPtUn h k u :
-        valid (k \-> u \+ h) ->
-        gapless (k \-> u \+ h) -> last_key h < k -> k = fresh h.
+        valid (pts k u \+ h) ->
+        gapless (pts k u \+ h) -> last_key h < k -> k = fresh h.
 Proof.
 move=>V C N; apply/eqP/contraT=>X.
 have Y : fresh h < k by rewrite leq_eqVlt eq_sym (negbTE X) in N.
-suff Z : last_key (k \-> u \+ h) = k.
+suff Z : last_key (pts k u \+ h) = k.
 - move: (C (fresh h)); rewrite Z (leq_eqVlt _ k) Y orbT andbT; move/(_ (erefl _)).
-  rewrite domPtUn inE (negbTE X) /=; case/andP=>_ /dom_ordfresh.
-  by rewrite ltnn.
-apply: max_lastkey (find_some (findPtUn V)) _ => x.
-rewrite domUn inE; case/andP=>_ /orP [].
-- by rewrite domPt inE; case/andP=>_ /eqP ->.
-by move/lastkey_max/leq_ltn_trans/(_ N)/ltnW.
+  by rewrite domPtUn inE (negbTE X) /=; case/andP=>_ /dom_fresh; rewrite ltnn. 
+by rewrite lastkeyPtUn // (validR V). 
 Qed.
 
 Lemma gaplessPtUnE u2 u1 h k :
-        gapless (k \-> u1 \+ h) <-> gapless (k \-> u2 \+ h).
+        gapless (pts k u1 \+ h) <-> gapless (pts k u2 \+ h).
 Proof.
-rewrite /gapless (lastkeyPtUnE u2); split=>H t /H;
+rewrite /gapless (lastkeyPtUnEX u2); split=>H t /H;
 by rewrite !domPtUn !inE !validPtUn.
 Qed.
 
@@ -1748,7 +2116,7 @@ Qed.
 
 End Gapless.
 
-Arguments gp_fresh [A][h] u.
+Arguments gp_fresh [A U][h] u.
 
 (*****************************)
 (*****************************)
@@ -1757,8 +2125,8 @@ Arguments gp_fresh [A][h] u.
 (*****************************)
 
 Section AtVal.
-Variable A : Type.
-Implicit Type h : natmap (A * A).
+Variables (A : Type) (U : natmap (A * A)).
+Implicit Type h : U.
 
 Definition atval v t h := oapp snd v (find t h).
 
@@ -1784,15 +2152,18 @@ Definition last_atval v h := atval v (last_key h) h.
 Lemma lastatval0 v : last_atval v Unit = v.
 Proof. by rewrite /last_atval /atval lastkey0 find0E. Qed.
 
-Lemma lastatvalPt v p x : p != 0 -> last_atval v (p \-> x) = x.2.
+Lemma lastatval_undef v : last_atval v undef = v.
+Proof. by rewrite /last_atval /atval lastkey_undef find_undef. Qed.
+
+Lemma lastatvalPt v p x : p != 0 -> last_atval v (pts p x) = x.2.
 Proof.
 by move=>V; rewrite /last_atval /atval lastkeyPt // findPt /= V.
 Qed.
 
 Lemma lastatval_fresh v x h :
-        valid h -> last_atval v (fresh h \-> x \+ h) = x.2.
+        valid h -> last_atval v (pts (fresh h) x \+ h) = x.2.
 Proof.
-by move=>V; rewrite /last_atval /atval lastkey_fresh // findPtUn // valid_fresh.
+by move=>V; rewrite /last_atval /atval lastkeyPtUn // findPtUn // freshPtUnV.
 Qed.
 
 Lemma lastatvalUn v h1 h2 :
@@ -1804,18 +2175,17 @@ Proof.
 rewrite /last_atval /atval lastkeyUn maxnC /maxn.
 case: ifP; last by move/negbT/invalidE=>->; rewrite find_undef.
 case: (ltngtP (last_key h1) (last_key h2)) => N V.
-- by rewrite findUnR // (dom_lastkeyE N).
-- by rewrite findUnL // (dom_lastkeyE N).
+- by rewrite findUnR //; case: lastkeyP N.
+- by rewrite findUnL //; case: lastkeyP N.
 by rewrite !(lastkeyUn0 V N) unitL lastkey0 find0E.
 Qed.
 
 Lemma lastatval_freshUn v x h1 h2 :
         valid h1 -> [pcm h2 <= h1] ->
-        last_atval v (fresh h1 \-> x \+ h2) = x.2.
+        last_atval v (pts (fresh h1) x \+ h2) = x.2.
 Proof.
-move=>V H; rewrite /last_atval /atval.
-rewrite lastkey_freshUn // findPtUn // valid_freshUn //.
-by case: H V=>h -> /validL.
+move=>V H; move: (pleqV H V)=>V2; move: (fresh_mono (umpleq_subdom V H))=>N.
+by rewrite /last_atval /atval lastkeyPtUn // findPtUn // freshPtUnV.
 Qed.
 
 Lemma lastatval_indom v h :
@@ -1825,15 +2195,15 @@ Proof. by rewrite /last_atval /atval; case: dom_find=>// ->. Qed.
 End AtVal.
 
 (* in case A = bool *)
-Lemma lastatval_indomb h :
+Lemma lastatval_indomb (U : natmap (bool*bool)) (h : U) :
         last_atval false h -> last_key h \in dom h.
 Proof. by move=>H; apply: (lastatval_indom (v:=false)); rewrite H. Qed.
 
 (* Continuous maps with binary range *)
 
 Section Continuous.
-Variable A : Type.
-Implicit Type h : natmap (A * A).
+Variables (A : Type) (U : natmap (A * A)).
+Implicit Type h : U.
 
 Definition continuous v h :=
   forall k x, find k.+1 h = Some x -> oapp snd v (find k h) = x.1.
@@ -1846,24 +2216,24 @@ Proof. by move=>x w; rewrite find0E. Qed.
 
 Lemma cn_fresh v h x :
         valid h ->
-        continuous v (fresh h \-> x \+ h) <->
+        continuous v (pts (fresh h) x \+ h) <->
         continuous v h /\ last_atval v h = x.1.
 Proof.
-rewrite -(valid_fresh x (leqnn _))=>V; split; last first.
+rewrite -(freshPtUnV x (leqnn _))=>V; split; last first.
 - case=>C H k y; rewrite !findPtUn2 // eqSS; case: ltngtP=>N.
   - by rewrite ltn_eqF; [apply: C | apply: (ltn_trans N _)].
-  - by move/find_some /dom_ordfresh /(ltn_trans N); rewrite ltnn.
+  - by move/find_some/dom_fresh/(ltn_trans N); rewrite ltnn.
   by case=><-; rewrite N ltn_eqF.
 move=>C; split; last first.
 - move: (C (last_key h) x).
   by rewrite !findPtUn2 // eqxx ltn_eqF //; apply.
 move=>k w; case: (ltnP k (last_key h))=>N; last first.
-- by move/find_some /dom_ordfresh /(leq_ltn_trans N); rewrite ltnn.
+- by move/find_some/dom_fresh/(leq_ltn_trans N); rewrite ltnn.
 by move: (C k w); rewrite !findPtUn2 // eqSS !ltn_eqF // (ltn_trans N _).
 Qed.
 
 Lemma cn_sub v h x y k :
-        valid (k.+1 \-> (x, y) \+ h) -> continuous v (k.+1 \-> (x, y) \+ h) ->
+        valid (pts k.+1 (x, y) \+ h) -> continuous v (pts k.+1 (x, y) \+ h) ->
         oapp snd v (find k h) = x.
 Proof.
 by move=>V /(_ k (x, y)); rewrite !findPtUn2 // eqxx ltn_eqF //; apply.
@@ -1871,13 +2241,13 @@ Qed.
 
 End Continuous.
 
-Arguments cn_fresh [A][v][h][x] _.
+Arguments cn_fresh [A U][v][h][x] _.
 
 (* Complete natmaps with binary range *)
 
 Section Complete.
-Variable A : Type.
-Implicit Type h : natmap (A * A).
+Variables (A : Type) (U : natmap (A * A)).
+Implicit Type h : U.
 
 Definition complete v0 h vn :=
   [/\ valid h, gapless h, continuous v0 h & last_atval v0 h = vn].
@@ -1886,22 +2256,22 @@ Lemma cm_valid v0 h vn : complete v0 h vn -> valid h.
 Proof. by case. Qed.
 
 Lemma cm0 v : complete v Unit v.
-Proof. by split=>//; [apply: gp0 | apply: cn0 | rewrite lastatval0]. Qed.
+Proof. by split=>//; [apply: gp0|apply: cn0|rewrite lastatval0]. Qed.
 
 Lemma cm_fresh v0 vn h x :
-        complete v0 (fresh h \-> x \+ h) vn <-> vn = x.2 /\ complete v0 h x.1.
+        complete v0 (pts (fresh h) x \+ h) vn <-> vn = x.2 /\ complete v0 h x.1.
 Proof.
 split.
 - by case=>/validR V /gp_fresh G /(cn_fresh V) []; rewrite lastatval_fresh.
 case=>-> [V] /(gp_fresh x) G C E; split=>//;
-by [rewrite valid_fresh | apply/(cn_fresh V) | rewrite lastatval_fresh].
+by [rewrite freshPtUnV|apply/(cn_fresh V)| rewrite lastatval_fresh].
 Qed.
 
 Lemma cmPtUn v0 vn h k x :
-        complete v0 (k \-> x \+ h) vn -> last_key h < k -> k = fresh h.
+        complete v0 (pts k x \+ h) vn -> last_key h < k -> k = fresh h.
 Proof. by case=>V /(gpPtUn V). Qed.
 
-Lemma cmPt v0 vn k x : complete v0 (k \-> x) vn -> k = 1 /\ x = (v0, vn).
+Lemma cmPt v0 vn k x : complete v0 (pts k x) vn -> k = 1 /\ x = (v0, vn).
 Proof.
 case; rewrite validPt; case: k=>//= k _ /(_ 1).
 rewrite lastkeyPt //= domPt inE /= => /(_ (erefl _))/eqP ->.
@@ -1910,7 +2280,7 @@ by rewrite /last_atval lastkeyPt // /atval findPt /= => <-; case: x.
 Qed.
 
 Lemma cmCons v0 vn k x h :
-        complete v0 (k \-> x \+ h) vn -> last_key h < k ->
+        complete v0 (pts k x \+ h) vn -> last_key h < k ->
          [/\ k = fresh h, vn = x.2 & complete v0 h x.1].
 Proof. by move=>C H; move: {C} (cmPtUn C H) (C)=>-> /cm_fresh []. Qed.
 
@@ -1927,8 +2297,8 @@ Prenex Implicits cm_valid cmPt.
 (************************)
 (************************)
 
-Notation le t := [pts k _ | k <= t].
-Notation lt t := [pts k _ | k < t].
+Notation le t := (fun '(k, _) => k <= t).
+Notation lt t := (fun '(k, _) => k < t).
 
 Lemma pts_sub V t1 t2 : t1 <= t2 -> subpred (T:=nat*V) (le t1) (le t2).
 Proof. by move=>T [k v] /leq_trans; apply. Qed.
@@ -1936,46 +2306,57 @@ Proof. by move=>T [k v] /leq_trans; apply. Qed.
 Lemma pts_sub_lt V t1 t2 : t1 < t2 -> subpred (T:=nat*V) (le t1) (lt t2).
 Proof. by move=>T [k v] /leq_ltn_trans; apply. Qed.
 
-
 Lemma ptsD V t1 t2 :
-        t1 <= t2 -> predD (le t2) (le t1) =1 [pts k (v : V) | t1 < k <= t2].
+        t1 <= t2 -> 
+        predD (le t2) (le t1) =1 
+          (fun kv : (nat * V) =>
+           let '(k, v) := kv in t1 < k <= t2).  
 Proof. by move=>T [k v] /=; rewrite -ltnNge. Qed.
 
 Lemma ptsD_lt V t1 t2 :
-        t1 < t2 -> predD (lt t2) (le t1) =1 [pts k (v : V) | t1 < k < t2].
+        t1 < t2 -> 
+        predD (lt t2) (le t1) =1 
+          (fun kv : nat * V => 
+           let '(k, v) := kv in t1 < k < t2).
 Proof. by move=>T [k v] /=; rewrite -ltnNge. Qed.
 
-Lemma lastkey_umfilt_leq A (h : natmap A) t : last_key (um_filterk (leq^~ t) h) <= t.
+Lemma lastkey_umfilt_leq A (U : natmap A) (h : U) t : 
+        last_key (um_filterk (leq^~ t) h) <= t.
 Proof.
-case V : (valid h); last first.
-- by move/negbT/invalidE: V=>->; rewrite umfilt_undef lastkey_undef.
-have V' : valid (um_filterk (leq^~ t) h) by rewrite valid_umfilt.
-case E : (unitb (um_filterk (leq^~ t) h)).
-- by move/unitbP: E=>->; rewrite lastkey0.
-by case/dom_umfilt: (dom_lastkey V' (negbT E))=>v [].
+case: (normalP h)=>[->|V].
+- by rewrite pfundef lastkey_undef.
+set j := um_filterk _ _.
+have V' : valid j by rewrite pfV.
+case E : (unitb j); first by move/unitbP: E=>->; rewrite lastkey0.
+have : last_key j \in dom j by case: lastkeyP V' E.
+by case/In_dom_umfilt.
 Qed.
 
-Lemma lastkey_umfilt_dom A (h : natmap A) t :
+Lemma lastkey_umfilt_dom A (U : natmap A) (h : U) t :
         last_key (um_filterk (leq^~ t) h) <= last_key h.
-Proof. by apply: lastkey_mono; apply: dom_umfilt_subset. Qed.
+Proof. by apply: lastkey_mono; apply: omf_subdom. Qed.
 
-Lemma umfilt_le_last A (h : natmap A) t :
-        last_key h <= t -> um_filter (le t) h = h.
+Lemma umfilt_le_last A (U : natmap A) (h : U) t :
+        last_key h <= t -> 
+        um_filter (le t) h = h.
 Proof.
-case V : (valid h); last first.
-- by move/invalidE: (negbT V)=>->; rewrite umfilt_undef.
+case: (normalP h)=>[->|V]; first by rewrite pfundef.
 move=>N; rewrite -{2}[h]umfilt_predT; apply/eq_in_umfilt.
-by case=>k v /In_dom/lastkey_max/leq_trans; apply.
+by case=>k v /In_dom/dom_lastkey/leq_trans; apply.
 Qed.
 
-Lemma umfilt_last A (h : natmap A) : um_filter (le (last_key h)) h = h.
+Lemma umfilt_last A (U : natmap A) (h : U) : 
+        um_filter (le (last_key h)) h = h.
 Proof. by apply: umfilt_le_last. Qed.
 
-Lemma umfilt_le_fresh A (h : natmap A) : um_filter (le (fresh h)) h = h.
+Lemma umfilt_le_fresh A (U : natmap A) (h : U) : 
+        um_filter (le (fresh h)) h = h.
 Proof. by apply: umfilt_le_last; apply: ltnW. Qed.
 
-Lemma umfilt_le0 A (h : natmap A) t :
-        valid h -> {in dom h, forall k, t < k} -> um_filter (le t) h = Unit.
+Lemma umfilt_le0 A (U : natmap A) (h : U) t :
+        valid h -> 
+        {in dom h, forall k, t < k} -> 
+        um_filter (le t) h = Unit.
 Proof.
 move=>V D; rewrite -(umfilt_pred0 V).
 apply/eq_in_umfilt; case=>k v [/= _][z E]; subst h.
@@ -1983,10 +2364,10 @@ rewrite leqNgt; apply: contraTF (D k _)=>//.
 by rewrite domPtUn inE V eqxx.
 Qed.
 
-Lemma umfilt_le_split A (h : natmap A) t1 t2 :
+Lemma umfilt_le_split A (U : natmap A) (h : U) t1 t2 :
         t1 <= t2 ->
         um_filter (le t2) h =
-        um_filter (le t1) h \+ um_filter [pts k _ | t1 < k <= t2] h.
+        um_filter (le t1) h \+ um_filter (fun '(k, _) => t1 < k <= t2) h.
 Proof.
 move=>T; rewrite -umfilt_dpredU; last first.
 - by case=>x y /= N; rewrite negb_and -leqNgt N.
@@ -1994,11 +2375,11 @@ apply/eq_in_umfilt; case=>k v _ => /=.
 by case: (leqP k t1)=>//= /leq_trans; apply.
 Qed.
 
-Lemma umfilt_lt_split A (h : natmap A) t1 t2 k :
+Lemma umfilt_lt_split A (U : natmap A) (h : U) t1 t2 k :
         t1 <= k <= t2 ->
-        um_filter [pts x _ | t1 < x <= t2] h =
-        um_filter [pts x _ | t1 < x <= k] h \+
-        um_filter [pts x _ | k < x <= t2] h.
+        um_filter (fun '(x, _)=>t1 < x <= t2) h =
+        um_filter (fun '(x, _)=>t1 < x <= k) h \+
+        um_filter (fun '(x, _)=>k < x <= t2) h.
 Proof.
 move=>/andP [T1 T2]; rewrite -umfilt_dpredU; last first.
 - by case=>x y /andP [N1 N2]; rewrite /= negb_and -leqNgt N2.
@@ -2007,8 +2388,9 @@ case: (leqP k1 k)=>//=; last by move/(leq_ltn_trans T1)=>->.
 by move/leq_trans=>-> //; rewrite orbF.
 Qed.
 
-Lemma umfilt_pt_split A (h : natmap A) k v :
-        (k, v) \In h -> um_filter [pts x _ | k.-1 < x <= k] h = k \-> v.
+Lemma umfilt_pt_split A (U : natmap A) (h : U) k v :
+        (k, v) \In h -> 
+        um_filter (fun '(x, _)=>k.-1 < x <= k) h = pts k v.
 Proof.
 move=>H; have W : valid h by case: H.
 have N: 0 < k by move/In_dom/dom_cond: H; case: k.
@@ -2019,8 +2401,9 @@ move=>k1 v1 /InF [_ /=]; rewrite andbC; case: (ltngtP k k1) =>//=.
 by rewrite subX //; case: (ltngtP k1 k.-1).
 Qed.
 
-Lemma umfilt_leUn A (h1 h2 : natmap A) t :
-        valid (h1 \+ h2) -> t <= last_key h1 ->
+Lemma umfilt_leUn A (U : natmap A) (h1 h2 : U) t :
+        valid (h1 \+ h2) -> 
+        t <= last_key h1 ->
         {in dom h2, forall k, k > last_key h1} ->
         um_filter (le t) (h1 \+ h2) = um_filter (le t) h1.
 Proof.
@@ -2028,16 +2411,20 @@ move=>V K D; rewrite umfiltUn // (umfilt_le0 (validR V)) ?unitR //.
 by move=>k /D /(leq_ltn_trans K).
 Qed.
 
-Lemma umfilt_le_gapless A (h1 h2 : natmap A) t :
-        gapless h1 -> valid h2 -> [pcm h1 <= h2] -> t <= last_key h1 ->
+Lemma umfilt_le_gapless A (U : natmap A) (h1 h2 : U) t :
+        gapless h1 -> 
+        valid h2 -> 
+        [pcm h1 <= h2] -> 
+        t <= last_key h1 ->
         um_filter (le t) h2 = um_filter (le t) h1.
 Proof.
 move=>G V H K; case: (gapless_pleq G V H)=>h [? D].
 by subst h2; rewrite umfilt_leUn.
 Qed.
 
-Lemma dom_umfilt_le_eq A (h : natmap A) t1 t2 :
-        t1 \in 0::dom h -> t2 \in 0::dom h ->
+Lemma dom_umfilt_le_eq A (U : natmap A) (h : U) t1 t2 :
+        t1 \in 0::dom h -> 
+        t2 \in 0::dom h ->
         um_filter (le t1) h = um_filter (le t2) h ->
         t1 = t2.
 Proof.
@@ -2053,130 +2440,132 @@ move/eq_in_umfilt: (L)=>/(_ (t2, v2) T2) /=.
 by rewrite !leqnn; case: ltngtP.
 Qed.
 
-Lemma eval_leUn A R a (h1 h2 : [pcm of natmap A]) t (z0 : R) :
-        valid (h1 \+ h2) -> t <= last_key h1 ->
+Lemma eval_leUn A (U : natmap A) R a (h1 h2 : U) t (z0 : R) :
+        valid (h1 \+ h2) -> 
+        t <= last_key h1 ->
         {in dom h2, forall k, k > last_key h1} ->
         eval a (le t) (h1 \+ h2) z0 = eval a (le t) h1 z0.
 Proof. by move=>V K D; apply: eq_filt_eval; apply: umfilt_leUn. Qed.
 
-Lemma eval_le_gapless A R a (h1 h2 : [pcm of natmap A]) t (z0 : R) :
-        gapless h1 -> valid h2 -> [pcm h1 <= h2] -> t <= last_key h1 ->
+Lemma eval_le_gapless A (U : natmap A) R a (h1 h2 : U) t (z0 : R) :
+        gapless h1 -> 
+        valid h2 -> 
+        [pcm h1 <= h2] -> 
+        t <= last_key h1 ->
         eval a (le t) h2 z0 = eval a (le t) h1 z0.
 Proof. by move=>G V H K; apply: eq_filt_eval; apply: umfilt_le_gapless. Qed.
 
-Lemma eval_le0 A R a (h : natmap A) (z0 : R) : eval a (le 0) h z0 = z0.
+Lemma eval_le0 A (U : natmap A) R a (h : U) (z0 : R) : eval a (le 0) h z0 = z0.
 Proof.
-case W : (valid h); last first.
-- by move/negbT/invalidE: W=>->; rewrite eval_undef.
+case: (normalP h)=>[->|V]; first by rewrite eval_undef.
 rewrite eval_umfilt umfilt_mem0L ?eval0 //.
 by move=>k v /In_dom/dom_cond; rewrite /=; case: ltngtP.
 Qed.
 
-Lemma eval_le_split A R a (h : natmap A) t1 t2 (z0 : R) :
+Lemma eval_le_split A (U : natmap A) R a (h : U) t1 t2 (z0 : R) :
         t1 <= t2 ->
         eval a (le t2) h z0 =
-        eval a [pts k _ | t1 < k <= t2] h (eval a (le t1) h z0).
+        eval a (fun '(k, _)=>t1 < k <= t2) h (eval a (le t1) h z0).
 Proof.
-move=>T; case V : (valid h); last first.
-- by move/invalidE: (negbT V)=>->; rewrite !eval_undef.
+move=>T; case: (normalP h)=>[->|V]; first by rewrite !eval_undef.
 rewrite eval_umfilt (umfilt_predD h (pts_sub T)) evalUn; last first.
-- move=>x y /dom_umfilt [vx][X _] /dom_umfilt [wy][/= /andP][].
+- move=>x y /In_dom_umfilt [vx X _] /In_dom_umfilt [wy /= /andP][].
   by rewrite /= -ltnNge; move/(leq_ltn_trans X).
-- by rewrite -(umfilt_predD h (pts_sub T)) valid_umfilt.
-by rewrite -!eval_umfilt; apply: eq_in_eval=>kv _; apply: (ptsD T).
+- by rewrite -(umfilt_predD h (pts_sub T)) pfV.
+by rewrite -!eval_umfilt; apply: eq_in_eval; case=>k v _; apply: ptsD.
 Qed.
 
-Lemma eval_lt_split A R a (h : natmap A) t1 t2 (z0 : R) :
+Lemma eval_lt_split A (U : natmap A) R a (h : U) t1 t2 (z0 : R) :
         t1 < t2 ->
         eval a (lt t2) h z0 =
-        eval a [pts k v | t1 < k < t2] h (eval a (le t1) h z0).
+        eval a (fun '(k, _)=>t1 < k < t2) h (eval a (le t1) h z0).
 Proof.
-move=>T; case V : (valid h); last first.
-- by move/invalidE: (negbT V)=>->; rewrite !eval_undef.
+move=>T; case: (normalP h)=>[->|V]; first by rewrite !eval_undef.
 rewrite eval_umfilt (umfilt_predD h (pts_sub_lt T)) evalUn; last first.
-- move=>x y /dom_umfilt [vx][X _] /dom_umfilt [wy][/= /andP][].
+- move=>x y /In_dom_umfilt [vx X _] /In_dom_umfilt [wy /= /andP][].
   by rewrite /= -ltnNge; move/(leq_ltn_trans X).
-- by rewrite -(umfilt_predD h (pts_sub_lt T)) valid_umfilt.
-by rewrite -!eval_umfilt; apply: eq_in_eval=>kv _; apply: (ptsD_lt T).
+- by rewrite -(umfilt_predD h (pts_sub_lt T)) pfV.
+by rewrite -!eval_umfilt; apply: eq_in_eval; case=>k v _; apply: ptsD_lt.
 Qed.
 
-Lemma eval_le_lt_split A R a (h : natmap A) t (z0 : R) :
+Lemma eval_le_lt_split A (U : natmap A) R a (h : U) t (z0 : R) :
         eval a (le t) h z0 =
-        eval a [pts k v | k == t] h (eval a (lt t) h z0).
+        eval a (fun '(k, _)=>k == t) h (eval a (lt t) h z0).
 Proof.
-case V : (valid h); last first.
-- by move/invalidE: (negbT V)=>->; rewrite !eval_undef.
+case: (normalP h)=>[->|V]; first by rewrite !eval_undef.
 have D : subpred (T:=nat*A) (lt t) (le t) by case=>k v /ltnW.
 rewrite eval_umfilt (umfilt_predD h D) evalUn; last first.
-- move=>x y /dom_umfilt [vx][X _] /dom_umfilt [wy][/= /andP][].
+- move=>x y /In_dom_umfilt [vx X _] /In_dom_umfilt [wy /= /andP][].
   by rewrite /= -ltnNge; move/(leq_ltn_trans X).
-- by rewrite -(umfilt_predD h D) valid_umfilt.
+- by rewrite -(umfilt_predD h D) pfV.
 rewrite -!eval_umfilt; apply: eq_in_eval; case=>k v _ /=.
 by case: ltngtP.
 Qed.
 
-Lemma eval_eq A R a (h : natmap A) t v (z0 : R) :
-        (t, v) \In h -> eval a [pts k _ | k == t] h z0 = a z0 t v.
+Lemma eval_eq A (U : natmap A) R a (h : U) t v (z0 : R) :
+        (t, v) \In h -> 
+        eval a (fun '(k, _)=>k == t) h z0 = a z0 t v.
 Proof.
 move=>H; rewrite eval_umfilt; have N : t != 0 by move/In_dom/dom_cond: H.
-suff -> : um_filter [pts k _ | k == t] h = t \-> v by rewrite evalPt /= N.
-apply/umem_eq=>[||[k w]]; first by rewrite valid_umfilt; case: H.
+suff -> : um_filter (fun '(k, _)=>k == t) h = pts t v by rewrite evalPt /= N.
+apply/umem_eq=>[||[k w]]; first by rewrite pfV; case: H.
 - by rewrite validPt.
-rewrite In_umfilt; split; last by move/InPt =>[[->->]].
+rewrite In_umfiltX; split; last by move/InPt =>[[->->]].
 by move=>[/eqP -> H1]; rewrite (In_fun H H1); apply: In_condPt.
 Qed.
 
-Lemma eval_le_last A R a (h : natmap A) t (z0 : R) :
-        last_key h <= t -> eval a (le t) h z0 = eval a xpredT h z0.
+Lemma eval_le_last A (U : natmap A) R a (h : U) t (z0 : R) :
+        last_key h <= t -> 
+        eval a (le t) h z0 = eval a xpredT h z0.
 Proof.
-by move=>H; apply: eq_in_eval; case=>k v /In_dom/lastkey_max/leq_trans; apply.
+by move=>H; apply: eq_in_eval; case=>k v /In_dom/dom_lastkey/leq_trans; apply.
 Qed.
 
-Lemma eval_fresh_le A R a (h : natmap A) t v (z0 : R) :
-        eval a (le t) (fresh h \-> v \+ h) z0 =
+Lemma eval_fresh_le A (U : natmap A) R a (h : U) t v (z0 : R) :
+        eval a (le t) (pts (fresh h) v \+ h) z0 =
         if t <= last_key h then eval a (le t) h z0 else
           if valid h then a (eval a predT h z0) (fresh h) v else z0.
 Proof.
-case V: (valid h); last first.
-- by move/invalidE: (negbT V)=>->; rewrite join_undef !eval_undef; case: ifP.
+case: (normalP h)=>[->|V].
+- by rewrite join_undef !eval_undef; case: ifP.
 case: ifP=>H.
-- by rewrite eval_umfilt umfiltPtUn valid_fresh // V ltnNge H -eval_umfilt.
+- by rewrite eval_umfilt umfiltPtUn freshPtUnV // V ltnNge H -eval_umfilt.
 rewrite joinC evalUnPt; last first.
-- by apply/allP=>x; apply: lastkey_max.
-- by rewrite joinC valid_fresh.
+- by apply/allP=>x; apply: dom_lastkey.
+- by rewrite joinC freshPtUnV.
 rewrite ltnNge H; congr a; apply: eq_in_eval.
-case=>k w /In_dom/lastkey_max /=.
+case=>k w /In_dom/dom_lastkey /=.
 by case: ltngtP H=>// /ltnW H _ /leq_trans; apply.
 Qed.
 
-Lemma eval_fresh_lt A R a (h : natmap A) t v (z0 : R) :
-        eval a (lt t) (fresh h \-> v \+ h) z0 =
+Lemma eval_fresh_lt A (U : natmap A) R a (h : U) t v (z0 : R) :
+        eval a (lt t) (pts (fresh h) v \+ h) z0 =
         if t <= fresh h then eval a (lt t) h z0 else
           if valid h then a (eval a predT h z0) (fresh h) v else z0.
 Proof.
-case V: (valid h); last first.
-- by move/invalidE: (negbT V)=>->; rewrite join_undef !eval_undef; case: ifP.
+case: (normalP h)=>[->|V].
+- by rewrite join_undef !eval_undef; case: ifP.
 case: ifPn=>H.
 - by rewrite eval_umfilt umfiltPtUn valid_fresh // V ltnNge H -eval_umfilt.
 rewrite joinC evalUnPt; last first.
-- by apply/allP=>x; apply: lastkey_max.
+- by apply/allP=>x; apply: dom_lastkey.
 - by rewrite joinC valid_fresh.
 rewrite ltnNge H; congr a; apply: eq_in_eval.
-case=>k w /In_dom/lastkey_max /=; rewrite /fresh -ltnNge in H.
+case=>k w /In_dom/dom_lastkey /=; rewrite /fresh -ltnNge in H.
 by case: ltngtP H=>// /ltnW H _ /leq_ltn_trans; apply.
 Qed.
 
-Lemma eval_le_fresh A R a (h : natmap A) t v (z0 : R) :
+Lemma eval_le_fresh A (U : natmap A) R a (h : U) t v (z0 : R) :
         t <= last_key h ->
-        eval a (le t) (fresh h \-> v \+ h) z0 = eval a (le t) h z0.
+        eval a (le t) (pts (fresh h) v \+ h) z0 = eval a (le t) h z0.
 Proof. by move=>H; rewrite eval_fresh_le H. Qed.
 
-Lemma eval_lt_fresh A R a (h : natmap A) t v (z0 : R) :
+Lemma eval_lt_fresh A (U : natmap A) R a (h : U) t v (z0 : R) :
         t <= fresh h ->
-        eval a (lt t) (fresh h \-> v \+ h) z0 = eval a (lt t) h z0.
+        eval a (lt t) (pts (fresh h) v \+ h) z0 = eval a (lt t) h z0.
 Proof. by move=>H; rewrite eval_fresh_lt H. Qed.
 
-Lemma eval_le_ind A R a (P : R -> Prop) (h : natmap A) t1 t2 (z0 : R) :
+Lemma eval_le_ind A (U : natmap A) R a (P : R -> Prop) (h : U) t1 t2 (z0 : R) :
          t1 <= t2 ->
          P (eval a (le t1) h z0) ->
          (forall k v z0, (k, v) \In h -> t1 < k <= t2 -> P z0 -> P (a z0 k v)) ->
@@ -2185,7 +2574,7 @@ Proof.
 by move=>T P0 H; rewrite (eval_le_split a h z0 T); apply: eval_ind.
 Qed.
 
-Lemma eval_lt_ind A R a (P : R -> Prop) (h : natmap A) t1 t2 (z0 : R) :
+Lemma eval_lt_ind A (U : natmap A) R a (P : R -> Prop) (h : U) t1 t2 (z0 : R) :
          t1 < t2 ->
          P (eval a (le t1) h z0) ->
          (forall k v z0, (k, v) \In h -> t1 < k < t2 -> P z0 -> P (a z0 k v)) ->
@@ -2195,7 +2584,7 @@ by move=>T P0 H; rewrite (eval_lt_split a h z0 T); apply: eval_ind.
 Qed.
 
 (* common case: functional version of the above le_lemma *)
-Lemma eval_leF A R X a (f : R -> X) (h : natmap A) t1 t2 (z0 : R) :
+Lemma eval_leF A (U : natmap A) R X a (f : R -> X) (h : U) t1 t2 (z0 : R) :
          t1 <= t2 ->
          (forall k v z0, (k, v) \In h -> t1 < k <= t2 -> f (a z0 k v) = f z0) ->
          f (eval a (le t1) h z0) = f (eval a (le t2) h z0).
@@ -2206,7 +2595,7 @@ by move=>k v z1 H1 /H ->.
 Qed.
 
 (* common case: functional version of the above lt_lemma *)
-Lemma eval_ltF A R X a (f : R -> X) (h : natmap A) t1 t2 (z0 : R) :
+Lemma eval_ltF A (U : natmap A) R X a (f : R -> X) (h : U) t1 t2 (z0 : R) :
          t1 < t2 ->
          (forall k v z0, (k, v) \In h -> t1 < k < t2 -> f (a z0 k v) = f z0) ->
          f (eval a (le t1) h z0) = f (eval a (lt t2) h z0).
@@ -2216,54 +2605,59 @@ apply: (eval_lt_ind (P := fun x => f (eval a (le t1) h z0) = f x)) T _ _=>//.
 by move=>k v z1 H1 /H ->.
 Qed.
 
-Lemma umcnt_le_split A p (h : natmap A) t1 t2 :
+Lemma umcnt_le_split A (U : natmap A) p (h : U) t1 t2 :
         t1 <= t2 ->
         um_count (predI p (le t2)) h =
         um_count (predI p (le t1)) h +
-        um_count (predI p [pts k v | t1 < k <= t2]) h.
+        um_count (predI p (fun '(k, _)=>t1 < k <= t2)) h.
 Proof.
 move=>T; rewrite -!umcnt_umfilt !(umcnt_umfiltC p).
 by rewrite (umcnt_predD _ (pts_sub T)) (eq_in_umcnt2 _ (ptsD T)).
 Qed.
 
-Lemma umcnt_le0 A p (h : natmap A) t :
-        valid h -> {in dom h, forall k, t < k} ->
+Lemma umcnt_le0 A (U : natmap A) p (h : U) t :
+        valid h -> 
+        {in dom h, forall k, t < k} ->
         um_count (predI p (le t)) h = 0.
 Proof. by rewrite -umcnt_umfilt=>V /(umfilt_le0 V) ->; rewrite umcnt0. Qed.
 
-Lemma umcnt_leUn A p (h1 h2 : natmap A) t :
-        valid (h1 \+ h2) -> t <= last_key h1 ->
+Lemma umcnt_leUn A (U : natmap A) p (h1 h2 : U) t :
+        valid (h1 \+ h2) -> 
+        t <= last_key h1 ->
         {in dom h2, forall k, k > last_key h1} ->
         um_count (predI p (le t)) (h1 \+ h2) =
         um_count (predI p (le t)) h1.
 Proof. by move=>V K D; rewrite -!umcnt_umfilt umfilt_leUn. Qed.
 
-Lemma umcnt_le_gapless A p (h1 h2 : natmap A) t :
-        gapless h1 -> valid h2 -> [pcm h1 <= h2] -> t <= last_key h1 ->
+Lemma umcnt_le_gapless A (U : natmap A) p (h1 h2 : U) t :
+        gapless h1 -> 
+        valid h2 -> 
+        [pcm h1 <= h2] -> 
+        t <= last_key h1 ->
         um_count (predI p (le t)) h2 = um_count (predI p (le t)) h1.
 Proof. by move=>G V K D; rewrite -!umcnt_umfilt (umfilt_le_gapless G). Qed.
 
-Lemma umcnt_le_last A p (h : natmap A) t :
-        last_key h <= t -> um_count (predI p (le t)) h = um_count p h.
+Lemma umcnt_le_last A (U : natmap A) p (h : U) t :
+        last_key h <= t -> 
+        um_count (predI p (le t)) h = um_count p h.
 Proof. by move=>K; rewrite -!umcnt_umfilt umfilt_le_last. Qed.
 
-Lemma umcnt_fresh_le A p (h : natmap A) t v :
-        um_count (predI p (le t)) (fresh h \-> v \+ h) =
+Lemma umcnt_fresh_le A (U : natmap A) p (h : U) t v :
+        um_count (predI p (le t)) (pts (fresh h) v \+ h) =
         if t <= last_key h then um_count (predI p (le t)) h else
         if p (fresh h, v) && valid h then 1 + um_count p h else um_count p h.
 Proof.
-case V: (valid h); last first.
-- move/invalidE: (negbT V)=>->; rewrite join_undef !umcnt_undef.
-  by rewrite lastkey_undef andbF; case: ifP.
+case: (normalP h)=>[->|V].
+- by rewrite join_undef !umcnt_undef lastkey_undef andbF; case: ifP.
 case: ifP=>H.
 - by rewrite -!umcnt_umfilt umfiltPtUn valid_fresh // V ltnNge H.
 rewrite umcntPtUn ?valid_fresh //= ltnNge H /=.
 by rewrite umcnt_le_last; [case: ifP | case: ltngtP H].
 Qed.
 
-Lemma umcnt_le_fresh A p (h : natmap A) t v :
+Lemma umcnt_le_fresh A (U : natmap A) p (h : U) t v :
         t <= last_key h ->
-        um_count (predI p (le t)) (fresh h \-> v \+ h) =
+        um_count (predI p (le t)) (pts (fresh h) v \+ h) =
         um_count (predI p (le t)) h.
 Proof. by move=>H; rewrite umcnt_fresh_le H. Qed.
 
@@ -2286,9 +2680,9 @@ Notation exec a t h z0 := (evalv a (le t) h z0).
 Notation run a h z0 := (evalv a xpredT h z0).
 
 Section Exec.
-Variables (V R : Type).
+Variables (V R : Type) (U : natmap V).
 
-Lemma exec0 a (h : natmap V) (z0 : R) : exec a 0 h z0 = z0.
+Lemma exec0 a (h : U) (z0 : R) : exec a 0 h z0 = z0.
 Proof.
 have /(eq_in_eval _) -> : forall kv, kv \In h -> le 0 kv = pred0 kv.
 - by case=>k v /In_cond; case: k.
@@ -2298,10 +2692,10 @@ Qed.
 End Exec.
 
 Section Growing.
-Variables (V R : Type) (X : ordType) (a : R -> V -> R) (f : R -> X).
+Variables (V R : Type) (U : natmap V) (X : ordType) (a : R -> V -> R) (f : R -> X).
 Implicit Types p : pred (nat*V).
 
-Definition growing (h : natmap V) :=
+Definition growing (h : U) :=
   forall k v z0, (k, v) \In h -> oleq (f z0) (f (a z0 v)).
 
 Lemma growL h1 h2 : valid (h1 \+ h2) -> growing (h1 \+ h2) -> growing h1.
@@ -2322,27 +2716,27 @@ by apply: otrans (IH _ Gh); apply: (G k).
 Qed.
 
 Lemma helper1 p h z0 k v :
-        growing (k \-> v \+ h) ->
-        valid (k \-> v \+ h) ->
+        growing (pts k v \+ h) ->
+        valid (pts k v \+ h) ->
         all (ord k) (dom h) ->
         p (k, v) ->
-        f (evalv a p (k \-> v \+ h) z0) = f z0 ->
+        f (evalv a p (pts k v \+ h) z0) = f z0 ->
         f (a z0 v) = f z0.
 Proof.
 move=>G W D P; move: (growR W G)=>Gh.
-have K: (k, v) \In k \-> v \+ h by apply/InPtUnE=>//; left.
+have K: (k, v) \In pts k v \+ h by apply/InPtUnE=>//; left.
 rewrite evalPtUn // P => E; apply/eqP; case: ordP=>//.
 - by move/(G k v z0): K; rewrite /oleq eq_sym; case: ordP.
 by move: (helper0 p (a z0 v) Gh); rewrite -E /oleq eq_sym; case: ordP.
 Qed.
 
 Lemma helper2 p h1 h2 z0 k v :
-        growing (h1 \+ (k \-> v \+ h2)) ->
-        valid (h1 \+ (k \-> v \+ h2)) ->
+        growing (h1 \+ (pts k v \+ h2)) ->
+        valid (h1 \+ (pts k v \+ h2)) ->
         {in dom h1, forall x, x < k} ->
         all (ord k) (dom h2) ->
         p (k, v) ->
-        f (evalv a p (h1 \+ (k \-> v \+ h2)) z0) = f z0 ->
+        f (evalv a p (h1 \+ (pts k v \+ h2)) z0) = f z0 ->
         f (a (evalv a p h1 z0) v) = f (evalv a p h1 z0).
 Proof.
 move=>G W D1 D2 P E1; rewrite evalUn ?W // in E1; last first.
@@ -2364,9 +2758,9 @@ Proof.
 move=>G N; case W: (valid h); last first.
 - by move/negbT/invalidE: W=>->; rewrite !eval_undef.
 rewrite eval_umfilt [in X in oleq _ X]eval_umfilt (umfilt_le_split h N).
-rewrite evalUn; first by apply: helper0=>x y z /In_umfilt [_ /G].
-- by rewrite -(umfilt_le_split h N) valid_umfilt.
-by move=>??/dom_umfilt[?][/leq_ltn_trans Y _]/dom_umfilt[?][/andP[/Y]].
+rewrite evalUn; first by apply: helper0=>x y z /In_umfiltX [_ /G].
+- by rewrite -(umfilt_le_split h N) pfV.
+by move=>??/In_dom_umfilt[? /leq_ltn_trans Y _]/In_dom_umfilt[? /andP[/Y]].
 Qed.
 
 (* "eliminating" growth *)
@@ -2376,28 +2770,28 @@ Lemma growE h t1 t2 z0 k v :
         f (a (exec a k.-1 h z0) v) = f (exec a k.-1 h z0).
 Proof.
 move=>G H /andP [N1 N2] E; have W : valid h by case: H.
-pose h0 : natmap V := um_filter (le t1) h.
-pose h1 : natmap V := um_filter [pts x _ | t1 < x <= k.-1] h.
-pose h2 : natmap V := um_filter [pts x _ | k < x <= t2] h.
+pose h0 : U := um_filter (le t1) h.
+pose h1 : U := um_filter (fun '(x, _)=>t1 < x <= k.-1) h.
+pose h2 : U := um_filter (fun '(x, _)=>k < x <= t2) h.
 have subX : forall k m n, k < n -> (m < n) = (m <= n.-1) by move=>?? [].
 have K1 : k.-1 <= k by rewrite ltnW // (subX t1).
 have K2 : t1 <= k.-1 by rewrite -(subX t1).
 have K3 : k.-1 <= k <= t2 by rewrite K1 N2.
 have K4 : t1 <= k.-1 <= t2 by rewrite K2 (leq_trans K1 N2).
-have Eh: um_filter (le t2) h = h0 \+ (h1 \+ (k \-> v \+ h2)).
+have Eh: um_filter (le t2) h = h0 \+ (h1 \+ (pts k v \+ h2)).
 - rewrite (umfilt_le_split h N2) (umfilt_le_split h K1).
   by rewrite (umfilt_le_split h K2) (umfilt_pt_split H) -!joinA.
-have W1 : valid (h0 \+ (h1 \+ (k \-> v \+ h2))) by rewrite -Eh valid_umfilt.
+have W1 : valid (h0 \+ (h1 \+ (pts k v \+ h2))) by rewrite -Eh pfV.
 rewrite eval_umfilt (umfilt_le_split h K2) evalUn ?(validAL W1) //; last first.
-- by move=>??/dom_umfilt[?][/leq_ltn_trans Y] _ /dom_umfilt[?][] /andP [/Y].
+- by move=>??/In_dom_umfilt[?/leq_ltn_trans Y] _ /In_dom_umfilt[?] /andP [/Y].
 rewrite -(eval_umfilt (le t1)); apply: helper2 (validR W1) _ _ _ _ =>//.
-- by apply: growR W1 _; rewrite -Eh=>k1 v1 z1 /In_umfilt [] _ /G.
-- by move=>x /dom_umfilt; rewrite (subX t1 x) //; case=>v0 [] /andP [].
-- by apply/allP=>x /dom_umfilt; case=>v0 [] /andP [].
+- by apply: growR W1 _; rewrite -Eh=>k1 v1 z1 /In_umfiltX [] _ /G.
+- by move=>x /In_dom_umfilt; rewrite (subX t1 x) //; case=>v0 /andP [].
+- by apply/allP=>x /In_dom_umfilt; case=>v0 /andP [].
 rewrite eval_umfilt Eh evalUn ?(validX W1) -?eval_umfilt // in E.
-move=>x y /dom_umfilt; case=>v1 [/leq_ltn_trans Y _].
+move=>x y /In_dom_umfilt; case=>v1 /leq_ltn_trans Y _.
 rewrite -(umfilt_pt_split H) -(umfilt_lt_split h K3).
-by rewrite -(umfilt_lt_split h K4) =>/dom_umfilt; case=>v0 [/andP][/Y].
+by rewrite -(umfilt_lt_split h K4) =>/In_dom_umfilt; case=>v0 /andP [/Y].
 Qed.
 
 End Growing.
@@ -2405,18 +2799,21 @@ End Growing.
 (* The common case of growI and growE is when X = nat. *)
 
 Section GrowingNat.
-Variables (V R : Type) (X : ordType) (a : R -> V -> R) (f : R -> nat).
+Variables (V R : Type) (U : natmap V) (X : ordType) (a : R -> V -> R) (f : R -> nat).
 Implicit Types p : pred (nat*V).
 
-Lemma growIn h t1 t2 z0 :
-        growing a f h -> t1 <= t2 ->
+Lemma growIn (h : U) t1 t2 z0 :
+        growing a f h -> 
+        t1 <= t2 ->
         f (exec a t1 h z0) <= f (exec a t2 h z0).
 Proof.
 by move=>G N; move: (growI z0 G N); rewrite leq_eqVlt /oleq/ord orbC.
 Qed.
 
-Lemma growEn h t1 t2 z0 k v :
-        growing a f h -> (k, v) \In h -> t1 < k <= t2 ->
+Lemma growEn (h : U) t1 t2 z0 k v :
+        growing a f h -> 
+        (k, v) \In h -> 
+        t1 < k <= t2 ->
         f (exec a t2 h z0) = f (exec a t1 h z0) ->
         f (a (exec a k.-1 h z0) v) = f (exec a k.-1 h z0).
 Proof. by apply: growE. Qed.

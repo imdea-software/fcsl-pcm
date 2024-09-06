@@ -22,6 +22,7 @@ limitations under the License.
 (******************************************************************************)
 
 From Coq Require Import ssreflect ssrfun Eqdep ClassicalFacts.
+From mathcomp Require Import eqtype.
 From pcm Require Import options.
 
 (*****************************)
@@ -37,7 +38,7 @@ Axiom fext : forall A (B : A -> Type) (f1 f2 : forall x, B x),
                (forall x, f1 x = f2 x) -> f1 = f2.
 
 Lemma pf_irr (P : Prop) (p1 p2 : P) : p1 = p2.
-Proof. by apply/ext_prop_dep_proof_irrel_cic/pext. Qed.
+Proof. by apply/ext_prop_dep_proof_irrel_cic/@pext. Qed.
 
 Lemma sval_inj A P : injective (@sval A P).
 Proof.
@@ -93,12 +94,19 @@ End Cast.
 Arguments cast {T} interp [A][B] pf v.
 Arguments jmeq {T} interp [A][B] v w.
 
-#[export]
-Hint Resolve jm_refl : core.
+#[export] Hint Resolve jm_refl : core.
 
 (* special notation for the common case when interp = id *)
 Notation icast pf v := (@cast _ id _ _ pf v).
 Notation ijmeq v w := (@jmeq _ id _ _ v w).
+
+(* in case of eqTypes StreicherK not needed *)
+Section EqTypeCast.
+Variable (T : eqType) (interp : T -> Type).
+Lemma eqd a (pf : a = a) (v : interp a) : cast interp pf v = v.
+Proof. by rewrite eq_axiomK. Qed.
+End EqTypeCast.
+
 
 (* type dynamic is sigT *)
 

@@ -16,8 +16,10 @@ limitations under the License.
 (* are not included in the other libraries.                                   *)
 (******************************************************************************)
 
-From Coq Require Import ssreflect ssrbool ssrfun Eqdep.
-From mathcomp Require Import ssrnat seq eqtype choice fintype.
+From HB Require Import structures.
+From Coq Require Import ssreflect ssrfun Eqdep. 
+From mathcomp Require Import ssrbool ssrnat seq eqtype choice path.
+From mathcomp Require Import fintype finset finfun tuple perm fingroup.
 From pcm Require Import options axioms.
 
 (***********)
@@ -29,23 +31,25 @@ From pcm Require Import options axioms.
 
 (* export inj_pair without exporting the whole Eqdep library *)
 Definition inj_pair2 := @inj_pair2.
-Arguments inj_pair2 [U P p x y] _.
-Prenex Implicits inj_pair2.
+Arguments inj_pair2 {U P p x y}.
 
 (* Because of a bug in inversion and injection tactics *)
 (* we occasionally have to destruct pair by hand, else we *)
 (* lose the second equation. *)
 Lemma inj_pair A B (a1 a2 : A) (b1 b2 : B) :
-         (a1, b1) = (a2, b2) -> (a1 = a2) * (b1 = b2).
+         (a1, b1) = (a2, b2) -> 
+         (a1 = a2) * (b1 = b2).
 Proof. by case. Qed.
-Arguments inj_pair [A B a1 a2 b1 b2].
-Prenex Implicits inj_pair.
+
+Arguments inj_pair {A B a1 a2 b1 b2}.
 
 (* eta laws for pairs and units *)
 Notation prod_eta := surjective_pairing.
 
 (* eta law often used with injection *)
-Lemma prod_inj A B (x y : A * B) : x = y <-> (x.1, x.2) = (y.1, y.2).
+Lemma prod_inj A B (x y : A * B) : 
+        x = y <-> 
+        (x.1, x.2) = (y.1, y.2).
 Proof. by case: x y=>x1 x2 []. Qed.
 
 Lemma idfunE (U : Type) (x : U) : idfun x = x.
@@ -56,7 +60,10 @@ Lemma idfun0E (U V : Type) (f : U -> V):
         (idfun \o f = f) * (f \o idfun = f).
 Proof. by []. Qed.
 
-Lemma trans_eq A (x y z : A) : x = y -> x = z -> y = z.
+Lemma trans_eq A (x y z : A) : 
+        x = y -> 
+        x = z -> 
+        y = z.
 Proof. by move/esym; apply: eq_trans. Qed.
 
 (* Triples *)
@@ -64,26 +71,123 @@ Section TripleLemmas.
 Variables (A B C : Type).
 Implicit Types (a : A) (b : B) (c : C).
 
-Lemma t1P a1 a2 b1 b2 c1 c2 : (a1, b1, c1) = (a2, b2, c2) -> a1 = a2.
+Lemma t1P a1 a2 b1 b2 c1 c2 : 
+        (a1, b1, c1) = (a2, b2, c2) -> 
+        a1 = a2.
 Proof. by case. Qed.
 
-Lemma t2P a1 a2 b1 b2 c1 c2 : (a1, b1, c1) = (a2, b2, c2) -> b1 = b2.
+Lemma t2P a1 a2 b1 b2 c1 c2 : 
+        (a1, b1, c1) = (a2, b2, c2) -> 
+        b1 = b2.
 Proof. by case. Qed.
 
-Lemma t3P a1 a2 b1 b2 c1 c2 : (a1, b1, c1) = (a2, b2, c2) -> c1 = c2.
+Lemma t3P a1 a2 b1 b2 c1 c2 : 
+        (a1, b1, c1) = (a2, b2, c2) -> 
+        c1 = c2.
 Proof. by case. Qed.
 
-Lemma t12P a1 a2 b1 b2 c1 c2 : (a1, b1, c1) = (a2, b2, c2) -> (a1 = a2) * (b1 = b2).
+Lemma t12P a1 a2 b1 b2 c1 c2 : 
+        (a1, b1, c1) = (a2, b2, c2) -> 
+        (a1 = a2) * (b1 = b2).
 Proof. by case. Qed.
 
-Lemma t13P a1 a2 b1 b2 c1 c2 : (a1, b1, c1) = (a2, b2, c2) -> (a1 = a2) * (c1 = c2).
+Lemma t13P a1 a2 b1 b2 c1 c2 : 
+        (a1, b1, c1) = (a2, b2, c2) -> 
+        (a1 = a2) * (c1 = c2).
 Proof. by case. Qed.
 
-Lemma t23P a1 a2 b1 b2 c1 c2 : (a1, b1, c1) = (a2, b2, c2) -> (b1 = b2) * (c1 = c2).
+Lemma t23P a1 a2 b1 b2 c1 c2 : 
+        (a1, b1, c1) = (a2, b2, c2) -> 
+        (b1 = b2) * (c1 = c2).
 Proof. by case. Qed.
 
 End TripleLemmas.
+
 Prenex Implicits t1P t2P t3P t12P t13P t23P.
+
+(************)
+(* Products *)
+(************)
+
+Inductive Prod3 U1 U2 U3 := 
+  mk3 {proj31 : U1; proj32 : U2; proj33 : U3}.
+Inductive Prod4 U1 U2 U3 U4 := 
+  mk4 {proj41 : U1; proj42 : U2; proj43 : U3; proj44 : U4}.
+Inductive Prod5 U1 U2 U3 U4 U5 := 
+  mk5 {proj51 : U1; proj52 : U2; proj53 : U3; proj54 : U4; proj55 : U5}.
+Inductive Prod6 U1 U2 U3 U4 U5 U6 := 
+  mk6 {proj61 : U1; proj62 : U2; proj63 : U3; 
+       proj64 : U4; proj65 : U5; proj66 : U6}.
+Inductive Prod7 U1 U2 U3 U4 U5 U6 U7 := 
+  mk7 {proj71 : U1; proj72 : U2; proj73 : U3; 
+       proj74 : U4; proj75 : U5; proj76 : U6; proj77 : U7}.
+Prenex Implicits proj31 proj32 proj33.
+Prenex Implicits proj41 proj42 proj43 proj44.
+Prenex Implicits proj51 proj52 proj53 proj54 proj55.
+Prenex Implicits proj61 proj62 proj63 proj64 proj65 proj66.
+Prenex Implicits proj71 proj72 proj73 proj74 proj75 proj76 proj77.
+
+Definition eq3 (U1 U2 U3 : eqType) (x y : Prod3 U1 U2 U3) := 
+ [&& proj31 x == proj31 y, proj32 x == proj32 y & proj33 x == proj33 y].
+Definition eq4 (U1 U2 U3 U4 : eqType) (x y : Prod4 U1 U2 U3 U4) := 
+ [&& proj41 x == proj41 y, proj42 x == proj42 y, proj43 x == proj43 y & 
+     proj44 x == proj44 y].
+Definition eq5 (U1 U2 U3 U4 U5 : eqType) (x y : Prod5 U1 U2 U3 U4 U5) := 
+ [&& proj51 x == proj51 y, proj52 x == proj52 y, proj53 x == proj53 y,
+     proj54 x == proj54 y & proj55 x == proj55 y].
+Definition eq6 (U1 U2 U3 U4 U5 U6 : eqType) (x y : Prod6 U1 U2 U3 U4 U5 U6) := 
+ [&& proj61 x == proj61 y, proj62 x == proj62 y, proj63 x == proj63 y,
+     proj64 x == proj64 y, proj65 x == proj65 y & proj66 x == proj66 y].
+Definition eq7 (U1 U2 U3 U4 U5 U6 U7 : eqType) (x y : Prod7 U1 U2 U3 U4 U5 U6 U7) := 
+ [&& proj71 x == proj71 y, proj72 x == proj72 y, proj73 x == proj73 y,
+     proj74 x == proj74 y, proj75 x == proj75 y, proj76 x == proj76 y & 
+     proj77 x == proj77 y].
+
+Lemma eq3P U1 U2 U3 : 
+        Equality.axiom (@eq3 U1 U2 U3).
+Proof.
+rewrite /eq3; case=>x1 x2 x3 [y1 y2 y3] /=. 
+by do ![case: eqP=>[->|]]; constructor=>//; case.
+Qed.
+
+Lemma eq4P U1 U2 U3 U4 : 
+        Equality.axiom (@eq4 U1 U2 U3 U4).
+Proof.
+rewrite /eq4; case=>x1 x2 x3 x4 [y1 y2 y3 y4] /=. 
+by do ![case: eqP=>[->|]]; constructor=>//; case.
+Qed.
+
+Lemma eq5P U1 U2 U3 U4 U5 : 
+        Equality.axiom (@eq5 U1 U2 U3 U4 U5).
+Proof.
+rewrite /eq5; case=>x1 x2 x3 x4 x5 [y1 y2 y3 y4 y5] /=. 
+by do ![case: eqP=>[->|]]; constructor=>//; case.
+Qed.
+
+Lemma eq6P U1 U2 U3 U4 U5 U6 : 
+        Equality.axiom (@eq6 U1 U2 U3 U4 U5 U6).
+Proof.
+rewrite /eq6; case=>x1 x2 x3 x4 x5 x6 [y1 y2 y3 y4 y5 y6] /=. 
+by do ![case: eqP=>[->|]]; constructor=>//; case.
+Qed.
+
+Lemma eq7P U1 U2 U3 U4 U5 U6 U7 : 
+        Equality.axiom (@eq7 U1 U2 U3 U4 U5 U6 U7).
+Proof.
+rewrite /eq7; case=>x1 x2 x3 x4 x5 x6 x7 [y1 y2 y3 y4 y5 y6 y7] /=. 
+by do ![case: eqP=>[->|]]; constructor=>//; case.
+Qed.
+
+HB.instance Definition _ (U1 U2 U3 : eqType) := 
+  hasDecEq.Build (Prod3 U1 U2 U3) (@eq3P U1 U2 U3).
+HB.instance Definition _ (U1 U2 U3 U4 : eqType) := 
+  hasDecEq.Build (Prod4 U1 U2 U3 U4) (@eq4P U1 U2 U3 U4).
+HB.instance Definition _ (U1 U2 U3 U4 U5 : eqType) := 
+  hasDecEq.Build (Prod5 U1 U2 U3 U4 U5) (@eq5P U1 U2 U3 U4 U5).
+HB.instance Definition _ (U1 U2 U3 U4 U5 U6 : eqType) := 
+  hasDecEq.Build (Prod6 U1 U2 U3 U4 U5 U6) (@eq6P U1 U2 U3 U4 U5 U6).
+HB.instance Definition _ (U1 U2 U3 U4 U5 U6 U7 : eqType) := 
+  hasDecEq.Build (Prod7 U1 U2 U3 U4 U5 U6 U7) (@eq7P U1 U2 U3 U4 U5 U6 U7).
 
 (***************************)
 (* operations on functions *)
@@ -100,12 +204,17 @@ Lemma compA A B C D (h : A -> B) (g : B -> C) (f : C -> D) :
         (f \o g) \o h = f \o (g \o h).
 Proof. by []. Qed.
 
+Lemma compE A B C (g : B -> C) (f : A -> B) x : 
+        g (f x) = (g \o f) x.
+Proof. by []. Qed.
+
 Definition fprod A1 A2 B1 B2 (f1 : A1 -> B1) (f2 : A2 -> B2) :=
   fun (x : A1 * A2) => (f1 x.1, f2 x.2).
 
-Notation "f1 \* f2" := (fprod f1 f2) (at level 42, left associativity) : fun_scope.
+Notation "f1 \* f2" := (fprod f1 f2) 
+  (at level 42, left associativity) : fun_scope.
 
-(* product morphism, a.k.a. fork or fanout or fsplice *)
+(* product morphism, aka. fork/fanout/fsplice *)
 Definition pmorphism A B1 B2 (f1 : A -> B1) (f2 : A -> B2) :=
   fun x : A => (f1 x, f2 x).
 Arguments pmorphism {A B1 B2} f1 f2 x /.
@@ -115,6 +224,11 @@ Notation "f1 \** f2 " := (pmorphism f1 f2)
 (* product with functions *)
 Lemma prod_feta (A B : Type) : @idfun (A * B) = fst \** snd.
 Proof. by apply: fext=>x; rewrite /pmorphism -prod_eta. Qed.
+
+(* composing relation and function *)
+Definition rel_app A B (S : rel A) f : rel B := 
+  fun x y => S (f x) (f y).
+Arguments rel_app {A B} S f _ _ /.
 
 Reserved Notation "[ ** f1 & f2 ]" (at level 0).
 Reserved Notation "[ ** f1 , f2 & f3 ]" (at level 0, format
@@ -129,42 +243,26 @@ Notation "[ ** f1 , f2 & f3 ]" := ((f1 \** f2) \** f3) : fun_scope.
 Notation "[ ** f1 , f2 , f3 & f4 ]" := (((f1 \** f2) \** f3) \** f4) : fun_scope.
 Notation "[ ** f1 , f2 , f3 , f4 & f5 ]" := ((((f1 \** f2) \** f3) \** f4) \** f5) : fun_scope.
 
-(* composing relation and function *)
-
-Definition relfuncomp A B (D : rel A) (f : B -> A) : rel B :=
-  fun x y => D (f x) (f y).
-
-Notation "D \\o f" := (@relfuncomp _ _ D f) (at level 42, left associativity).
-
 (************************)
 (* extension to ssrbool *)
 (************************)
 
 Reserved Notation "[ /\ P1 , P2 , P3 , P4 , P5 & P6 ]" (at level 0, format
   "'[hv' [ /\ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 , '/'  P5 ']' '/ '  &  P6 ] ']'").
-
 Reserved Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 & P7 ]" (at level 0, format
   "'[hv' [ /\ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 , '/'  P5 , '/'  P6 ']' '/ '  &  P7 ] ']'").
-
 Reserved Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 & P7 ]" (at level 0, format
   "'[hv' [ /\ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 , '/'  P5 , '/'  P6 ']' '/ '  &  P7 ] ']'").
-
 Reserved Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 & P8 ]" (at level 0, format
   "'[hv' [ /\ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 , '/'  P5 , '/'  P6 , '/'  P7 ']' '/ '  &  P8 ] ']'").
-
 Reserved Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 , P8 & P9 ]" (at level 0, format
   "'[hv' [ /\ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 , '/'  P5 , '/'  P6 , '/'  P7 , '/'  P8 ']' '/ '  &  P9 ] ']'").
-
 Reserved Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 , P8 , P9 & P10 ]" (at level 0, format
   "'[hv' [ /\ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 , '/'  P5 , '/'  P6 , '/'  P7 , '/'  P8 , '/' P9 ']' '/ '  &  P10 ] ']'").
-
 Reserved Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 , P8 , P9 , P10 & P11 ]" (at level 0, format
   "'[hv' [ /\ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 , '/'  P5 , '/'  P6 , '/'  P7 , '/'  P8 , '/' P9 , '/' P10 ']' '/ '  &  P11 ] ']'").
-
 Reserved Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 , P8 , P9 , P10 , P11 & P12 ]" (at level 0, format
   "'[hv' [ /\ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 , '/'  P5 , '/'  P6 , '/'  P7 , '/'  P8 , '/' P9 , '/' P10 , '/' P11 ']' '/ '  &  P12 ] ']'").
-
-
 Reserved Notation "[ \/ P1 , P2 , P3 , P4 | P5 ]" (at level 0, format
   "'[hv' [ \/ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 ']' '/ '  |  P5 ] ']'").
 Reserved Notation "[ \/ P1 , P2 , P3 , P4 , P5 | P6 ]" (at level 0, format
@@ -207,6 +305,7 @@ Notation "[ \/ P1 , P2 , P3 , P4 , P5 | P6 ]" := (or6 P1 P2 P3 P4 P5 P6) : type_
 Notation "[ \/ P1 , P2 , P3 , P4 , P5 , P6 | P7 ]" := (or7 P1 P2 P3 P4 P5 P6 P7) : type_scope.
 
 (** Add the ability to rewrite with [<->] for the custom logical connectives *)
+
 
 From Coq Require Import Classes.Morphisms Program.Basics Program.Tactics.
 From Coq Require Import Relations.
@@ -433,18 +532,61 @@ case: b1 b2 N; case=>//= _.
 by case=>_ /(_ erefl).
 Qed.
 
+Lemma implyb_trans a b c : 
+        a ==> b -> 
+        b ==> c -> 
+        a ==> c.
+Proof. by case: a=>//=->. Qed.
+
 Lemma iffE (b1 b2 : bool) : b1 = b2 <-> (b1 <-> b2).
 Proof. by split=>[->|] //; move/iffPb/eqP. Qed.
+
+(* subsets *)
+
+Lemma subsetC T (p q : mem_pred T) :
+        {subset p <= q} -> 
+        {subset predC q <= predC p}.
+Proof. by move=>H x; apply: contra (H x). Qed.
+
+Lemma subsetR T (p q : mem_pred T) :
+        {subset p <= predC q} -> 
+        {subset q <= predC p}.
+Proof. by move=>H x; apply: contraL (H x). Qed.
+
+Lemma subsetL T (p q : mem_pred T) :
+        {subset predC p <= q} -> 
+        {subset predC q <= p}.
+Proof. by move=>H x; apply: contraR (H x). Qed.
+
+Lemma subsetLR T (p q : mem_pred T) :
+        {subset predC p <= predC q} -> 
+        {subset q <= p}.
+Proof. by move=>H x; apply: contraLR (H x). Qed.
+
+Lemma subset_disj T (p q r : mem_pred T) :
+        {subset p <= q} -> 
+        (forall x, x \in q -> x \in r -> false) ->
+        (forall x, x \in p -> x \in r -> false).
+Proof. by move=>H D x /H/D. Qed.
+
+Lemma subset_disj2 T (p p1 q q1 : mem_pred T) :
+        {subset p1 <= p} -> 
+        {subset q1 <= q} -> 
+        (forall x, x \in p -> x \in q -> false) ->
+        (forall x, x \in p1 -> x \in q1 -> false).
+Proof. 
+move=>H1 H2 D1; apply: subset_disj H1 _ => x H /H2.
+by apply: D1 H.
+Qed.
 
 (**************)
 (* empty type *)
 (**************)
 
-Lemma false_eqP : Equality.axiom (fun _ _ : False => true).
+Lemma False_eqP : Equality.axiom (fun _ _ : False => true).
 Proof. by case. Qed.
 
-Definition false_EqMixin := EqMixin false_eqP.
-Canonical false_EqType := Eval hnf in EqType False false_EqMixin.
+HB.instance Definition _ := hasDecEq.Build False False_eqP. 
 
 (*************)
 (* sum types *)
@@ -467,9 +609,39 @@ End InvertingSumTags.
 
 Prenex Implicits lft rgt.
 
-#[export]
-Hint Extern 0 (ocancel _ _) =>
+#[export] Hint Extern 0 (ocancel _ _) =>
  (apply: lft_inl_ocanc || apply: rgt_inr_ocanc) : core.
+
+(****************)
+(* option types *)
+(****************)
+
+(* Alternative mechanism for manipulating *)
+(* properties of the form isSome X. *)
+(* To use a lemma of the form isSome X *)
+(* one tyoically has to explicitly put the conclusion *)
+(* of that lemma onto the context, and then case on X. *)
+(* If such lemma is restated using is_some X *)
+(* then it suffices to case on the lemma's name. *)
+(* This saves typing X explicitly, which *)
+(* may be significant if X is large. *)
+
+Inductive is_some_spec A x : option A -> Prop := 
+| is_some_case v of x = Some v : is_some_spec x (Some v).
+
+Hint Resolve is_some_case : core.
+
+Notation is_some x := (is_some_spec x x).
+
+Lemma is_someP A (x : option A) : reflect (is_some x) (isSome x).
+Proof. by case: x=>[a|]; constructor=>//; case. Qed.
+
+(* some simplifications *)
+Lemma oapp_some A (x : option A) : oapp [eta Some] None x = x.
+Proof. by case: x. Qed.
+
+Lemma obind_some A (x : option A) : obind [eta Some] x = x.
+Proof. exact: oapp_some. Qed.
 
 (********)
 (* nats *)
@@ -487,6 +659,215 @@ Proof. by elim: n. Qed.
 Lemma neqnS n : n != n.+1.
 Proof. by elim: n. Qed.
 
+Lemma subn_eq0P m n : reflect (m - n = 0) (m <= n).
+Proof. by rewrite -subn_eq0; apply/eqP. Qed.
+ 
+(**************************************)
+(* Inhabited (non-empty) finite types *)
+(**************************************)
+
+(* if a type is non-empty, one can pick an element *)
+
+Lemma inhabF {T : finType} : 
+        0 < #|T| -> ~ @predT T =1 xpred0.
+Proof. by case/card_gt0P=>x _ /(_ x). Qed.
+
+Definition inhab0 {T : finType} (pf : 0 < #|T|) : T := 
+  match pickP predT with 
+  | Pick x _ => x
+  | Nopick qf => False_rect T (inhabF pf qf)
+  end.
+
+(* variant of nth that needs no seed value *)
+Definition ith {T : finType} i (pf : i < #|T|) : T := 
+  nth (inhab0 (leq_ltn_trans (leq0n i) pf)) (enum T) i.
+
+Arguments ith {T}.
+
+(* dually, variant of index that doesn't overflow *)
+Definition indx {T : finType} (x : T) := index x (enum T).
+
+(* lemmas associated with ith/indx *)
+
+Lemma indx_card {T : finType} (i : T) : indx i < #|T|.
+Proof. by rewrite cardT index_mem mem_enum. Qed.
+
+Lemma indx_ith {T : finType} i (pf : i < #|T|) : 
+         indx (ith i pf) = i.
+Proof. by rewrite /indx/ith index_uniq ?enum_uniq -?cardE. Qed.
+
+Lemma ith_indx {T : finType} (i : T) (pf : indx i < #|T|) : 
+         ith (indx i) pf = i.
+Proof. by rewrite /ith/indx nth_index // mem_enum. Qed.
+
+Lemma indx_inj {T} : injective (@indx T). 
+Proof.
+rewrite /indx=>x1 x2.
+have [] : x1 \in enum T /\ x2 \in enum T by rewrite !mem_enum.
+elim: (enum T)=>[|x xs IH]  //=; rewrite !inE !(eq_sym x).
+case: (x1 =P x)=>[<-|] _ /=; first by case: (x2 =P x1).
+by case: (x2 =P x)=>//= _ X1 X2 []; apply: IH X1 X2.
+Qed.
+
+Lemma ith_inj {T : finType} i1 i2 (pf1 : i1 < #|T|) (pf2 : i2 < #|T|) : 
+        ith i1 pf1 = ith i2 pf2 -> 
+        i1 = i2.
+Proof.
+rewrite /ith; move: (inhab0 _) (inhab0 _)=>o1 o2 H.
+rewrite cardE in pf1 pf2.
+elim: (enum T) i1 i2 pf1 pf2 o1 o2 H (enum_uniq T)=>[|x xs IH] //=.
+case=>[|i1][|i2] //= pf1 pf2 o1 o2.
+- by move=>->; rewrite mem_nth.
+- by move=><-; rewrite mem_nth.
+by move=>H /andP [_ U]; rewrite (IH _ _ pf1 pf2 o1 o2).
+Qed.
+
+Lemma indx_injE {T : finType} s i (pf : i < #|T|) : 
+        (s == ith i pf) = (indx s == i).
+Proof.
+apply/eqP/eqP=>[->|E]; first by rewrite indx_ith.
+by rewrite -E in pf *; rewrite ith_indx.
+Qed.
+
+Lemma map_indx {T : finType} : map indx (enum T) = iota 0 #|T|.
+Proof.
+rewrite cardE /indx. 
+elim: (enum T) (enum_uniq T)=>[|x xs IH] //.
+set f := index^~(x :: xs)=>/= /andP [H1 H2].
+rewrite {1}/f /= eqxx; congr (0 :: _).
+case: (eq_in_map f (fun x=>(index x xs).+1) xs)=>E _. 
+rewrite E; last first.
+- by move=>z R; rewrite /f /=; case: (x =P z) R H1=>//= ->->.
+by rewrite -add1n iotaDl -IH // -map_comp. 
+Qed.
+
+Lemma take_enum {T : finType} x i : 
+        x \in take i (enum T) = (indx x < i).
+Proof.
+pose f x := indx x.
+rewrite -(mem_map indx_inj) map_take map_indx take_iota.
+case: (leqP i #|T|)=>H; rewrite mem_iota /=; first by rewrite add0n.
+rewrite add0n cardE index_mem mem_enum inE /=; apply: sym_eq.
+apply: (@ltn_trans #|T|) H.
+by rewrite cardE index_mem mem_enum.
+Qed.
+
+Lemma drop_enum {T : finType} x i : 
+        x \in drop i (enum T) = (i <= indx x).
+Proof.
+pose f x := index x (enum T).
+rewrite -(mem_map indx_inj) map_drop map_indx drop_iota mem_iota add0n.
+case H : (i <= indx x)=>//=; rewrite subnKC ?indx_card //. 
+by apply/(leq_trans H)/ltnW/indx_card.
+Qed.
+
+Lemma take_enum_filter {T : finType} k : 
+        filter (preim indx [pred x | x < k]) (enum T) = 
+        take k (enum T).
+Proof.
+apply: (inj_map indx_inj).
+rewrite map_take map_indx -filter_map map_indx.
+apply: (sorted_eq leq_trans anti_leq).
+- by apply/(sorted_filter leq_trans)/iota_sorted.
+- by apply/take_sorted/iota_sorted.
+apply: uniq_perm.
+- by rewrite filter_uniq // iota_uniq.
+- by rewrite take_uniq // iota_uniq.
+move=>x; rewrite mem_filter take_iota cardE.
+case: (leqP k (size _))=>H1; rewrite !mem_iota !add0n /=.
+- by case: (ltnP x k)=>H2 //=; apply: leq_trans H1.
+case: (ltnP x (size _))=>H2 //=; last by rewrite andbF.
+by rewrite andbT; apply: ltn_trans H1.
+Qed.
+
+Lemma drop_enum_filter {T : finType} k : 
+       filter (preim indx [pred x | x >= k]) (enum T) = 
+       drop k (enum T).
+Proof.
+apply: (inj_map indx_inj).
+rewrite map_drop map_indx -filter_map map_indx.
+apply: (sorted_eq leq_trans anti_leq).
+- by apply/(sorted_filter leq_trans)/iota_sorted.
+- by apply/drop_sorted/iota_sorted.
+apply: uniq_perm.
+- by rewrite filter_uniq // iota_uniq.
+- by rewrite drop_uniq // iota_uniq.
+move=>x; rewrite mem_filter drop_iota cardE !add0n inE.
+case: (leqP k (size (enum T)))=>H1; rewrite !mem_iota add0n.
+- by rewrite subnKC.
+case: subn_eq0P (ltnW H1)=>// -> _; rewrite addn0 leq0n /=.
+by case: (leqP k x)=>//= K1; case: ltngtP (leq_trans H1 K1).
+Qed.
+
+Lemma enum_split {T : finType} k :
+        enum T = take (indx k) (enum T) ++ k :: drop (indx k).+1 (enum T).
+Proof.
+rewrite -{2}(@nth_index T k k (enum T)) ?mem_enum //.
+by rewrite -drop_nth ?index_mem ?mem_enum // cat_take_drop.
+Qed.
+
+Lemma takeord {I : finType} T k x (f : {ffun I -> T}) :
+        take (indx k) (fgraph [ffun y => [eta f with k |-> x] y]) =
+        take (indx k) (fgraph f).
+Proof.
+set f' := (finfun _).
+suff E: {in take (indx k) (enum I), f =1 f'}.
+- by rewrite !fgraph_codom /= !codomE -2!map_take; move/eq_in_map: E.
+move: (enum_uniq I); rewrite {1}(enum_split k) cat_uniq /= =>H4.
+move=>y H5; rewrite /f' /= !ffunE /=; case: eqP H5 H4=>// -> ->.
+by rewrite andbF.
+Qed.
+
+Lemma dropord {I : finType} T k x (f : {ffun I -> T}) :
+        drop (indx k).+1 (fgraph [ffun y => [eta f with k |->x] y]) =
+        drop (indx k).+1 (fgraph f).
+Proof.
+set f' := (finfun _).
+suff E: {in drop (indx k).+1 (enum I), f =1 f'}.
+- by rewrite !fgraph_codom /= !codomE -2!map_drop; move/eq_in_map: E.
+move: (enum_uniq I); rewrite {1}(enum_split k) cat_uniq /= => H4.
+move=>y H5; rewrite /f' /= !ffunE /=; case: eqP H5 H4=>// -> ->.
+by rewrite !andbF.
+Qed.
+
+Lemma size_fgraph {I : finType} T1 T2 
+          (r1 : {ffun I -> T1}) (r2 : {ffun I -> T2}) :
+        size (fgraph r1) = size (fgraph r2).
+Proof. by rewrite !fgraph_codom /= !codomE !size_map. Qed.
+
+Lemma fgraphE {I : finType} T (r1 r2 : {ffun I -> T}) :
+        fgraph r1 = fgraph r2 -> 
+        r1 = r2.
+Proof.
+move=> eq_r12; apply/ffunP=> x.
+by rewrite -[x]enum_rankK -!tnth_fgraph eq_r12.
+Qed.
+
+(* building inhabited finite types *)
+
+Lemma inhabits (T : finType) (t : T) : 0 < #|T|.
+Proof. by apply/card_gt0P; exists t. Qed.
+
+Lemma inhabits_irr (T : finType) (t1 t2 : T) : 
+        inhabits t1 = inhabits t2.
+Proof. by apply: bool_irrelevance. Qed.
+
+Definition inhabited_axiom (T : finType) := 0 < #|T|.
+
+HB.mixin Record isInhabited T of Finite T := {
+  card_inhab : inhabited_axiom T}.
+
+#[short(type="ifinType")]
+HB.structure Definition Inhabited := {T of isInhabited T & Finite T}.
+
+HB.instance Definition _ := isInhabited.Build unit (inhabits tt).
+HB.instance Definition _ := isInhabited.Build bool (inhabits false).
+HB.instance Definition _ n := isInhabited.Build 'I_n.+1 (inhabits ord0).
+HB.instance Definition _ (T : finType) := 
+  isInhabited.Build (option T) (inhabits None).
+
+Definition inhab {I : ifinType} : I := inhab0 card_inhab.
+
 (*************************************)
 (* A copy of booleans with mnemonics *)
 (* LL and RR for working with sides  *)
@@ -495,81 +876,79 @@ Proof. by elim: n. Qed.
 Inductive Side := LL | RR.
 Definition Side_eq x y :=
   match x, y with LL, LL => true | RR, RR => true | _, _ => false end.
-Lemma Side_eqP : Equality.axiom Side_eq.
-Proof. by case; case; constructor. Qed.
-Definition Side_EqMix := EqMixin Side_eqP.
-Canonical Side_EqType := Eval hnf in EqType Side Side_EqMix.
-Definition nat2Side x := if odd x then LL else RR.
-Definition Side2nat x := if x is RR then 0 else 1.
-Lemma ssrcanc : ssrfun.cancel Side2nat nat2Side. Proof. by case. Qed.
-Definition Side_choiceMixin := CanChoiceMixin ssrcanc.
-Canonical Side_choiceType := Eval hnf in ChoiceType Side Side_choiceMixin.
-Definition Side_countMixin := CanCountMixin ssrcanc.
-Canonical Side_countType := Eval hnf in CountType Side Side_countMixin.
+
+Coercion nat_of_side x := if x is LL then 0 else 1.
+Definition side_of_nat x := if odd x then RR else LL.
+Lemma ssrcanc : ssrfun.cancel nat_of_side side_of_nat. Proof. by case. Qed.
+HB.instance Definition _ : isCountable Side := CanIsCountable ssrcanc.
+
 Lemma Side_enumP : Finite.axiom [:: LL; RR]. Proof. by case. Qed.
-Definition Side_finMixin := Eval hnf in FinMixin Side_enumP.
-Canonical Side_finType := Eval hnf in FinType Side Side_finMixin.
+HB.instance Definition _ : isFinite Side := isFinite.Build Side Side_enumP.
+HB.instance Definition _ := isInhabited.Build Side (inhabits LL).
+
+Definition flip x := if x is LL then RR else LL.
 
 (*************)
-(* sequences *)
+(* Sequences *)
 (*************)
 
+(* folds *)
 (* TODO upstream to mathcomp *)
-Section Fold.
 
 Lemma map_foldr {T1 T2} (f : T1 -> T2) xs :
-  map f xs = foldr (fun x ys => f x :: ys) [::] xs.
+        map f xs = foldr (fun x ys => f x :: ys) [::] xs.
 Proof. by []. Qed.
 
 Lemma fusion_foldr {T R Q} (g : R -> Q) f0 f1 z0 z1 (xs : seq T) :
-  (forall x y, g (f0 x y) = f1 x (g y)) -> g z0 = z1 ->
-  g (foldr f0 z0 xs) = foldr f1 z1 xs.
+        (forall x y, g (f0 x y) = f1 x (g y)) -> 
+        g z0 = z1 ->
+        g (foldr f0 z0 xs) = foldr f1 z1 xs.
 Proof. by move=>Hf Hz; elim: xs=>//= x xs <-. Qed.
 
 Lemma fusion_foldl {T R Q} (g : R -> Q) f0 f1 z0 z1 (xs : seq T) :
-  (forall x y, g (f0 x y) = f1 (g x) y) -> g z0 = z1 ->
-  g (foldl f0 z0 xs) = foldl f1 z1 xs.
+        (forall x y, g (f0 x y) = f1 (g x) y) -> 
+        g z0 = z1 ->
+        g (foldl f0 z0 xs) = foldl f1 z1 xs.
 Proof.
 move=>Hf Hz; elim: xs z0 z1 Hz =>//= x xs IH z0 z1 Hz.
 by apply: IH; rewrite Hf Hz.
 Qed.
 
 Lemma foldl_foldr {T R} (f : R -> T -> R) z xs :
-  foldl f z xs = foldr (fun b g x => g (f x b)) id xs z.
+        foldl f z xs = foldr (fun b g x => g (f x b)) id xs z.
 Proof. by elim: xs z=>/=. Qed.
 
 Lemma foldr_foldl {T R} (f : T -> R -> R) z xs :
-  foldr f z xs = foldl (fun g b x => g (f b x)) id xs z.
+        foldr f z xs = foldl (fun g b x => g (f b x)) id xs z.
 Proof.
 elim/last_ind: xs z=>//= xs x IH z.
 by rewrite foldl_rcons -IH foldr_rcons.
 Qed.
 
-End Fold.
-
+(* pmap *)
 (* TODO upstream to mathcomp *)
-Lemma pmap_pcomp {S T U} (f : T -> option U) (g : S -> option T) s :
+Lemma pmap_pcomp {S T U} (f : T -> option U) (g : S -> option T) s : 
         pmap (pcomp f g) s = pmap f (pmap g s).
 Proof. by elim: s=>//= x s ->; rewrite /pcomp; case: (g x). Qed.
 
 (* sequence prefixes *)
 
 (* Two helper concepts for searching in sequences:                       *)
-(*                                                                       *)
 (* - onth: like nth, but returns None when the element is not found      *)
-(* - prefix: a prefix relation on sequences, used for growing            *)
+(* - Prefix: a prefix relation on sequences, used for growing            *)
 (*   interpretation contexts                                             *)
 
-Section SeqPrefix.
-Variable A : Type.
-
-Fixpoint onth (s : seq A) n : option A :=
+Fixpoint onth A (s : seq A) n : option A :=
   if s is x::sx then if n is nx.+1 then onth sx nx else Some x else None.
 
-Definition prefix s1 s2 : Prop :=
+Definition Prefix A (s1 s2 : seq A) : Prop :=
   forall n x, onth s1 n = some x -> onth s2 n = some x.
 
 (* Lemmas *)
+
+Section SeqPrefix.
+Variable A : Type.
+Implicit Type s : seq A.
 
 Variant onth_spec s n : bool -> Type :=
 | onth_none   : onth s n = None   -> onth_spec s n false
@@ -608,79 +987,92 @@ elim: s n=>/= [|a s IH] n /=; first by apply: nth_nil.
 by case: n.
 Qed.
 
-Lemma onth_nth x0 n s : n < size s -> onth s n = Some (nth x0 s n).
+Lemma onth_nth x0 n s : 
+        n < size s -> 
+        onth s n = Some (nth x0 s n).
 Proof.
 elim: s n=>//= a s IH n.
 by rewrite ltnS; case: n.
 Qed.
 
-Lemma prefix_refl s : prefix s s.
+Lemma Prefix_refl s : Prefix s s.
 Proof. by move=>n x <-. Qed.
 
-Lemma prefix_trans s2 s1 s3 : prefix s1 s2 -> prefix s2 s3 -> prefix s1 s3.
+Lemma Prefix_trans s2 s1 s3 : 
+        Prefix s1 s2 -> Prefix s2 s3 -> Prefix s1 s3.
 Proof. by move=>H1 H2 n x E; apply: H2; apply: H1. Qed.
 
-Lemma prefix_cons x s1 s2 : prefix (x :: s1) (x :: s2) <-> prefix s1 s2.
+Lemma Prefix_cons x s1 s2 : Prefix (x :: s1) (x :: s2) <-> Prefix s1 s2.
 Proof. by split=>E n; [apply: (E n.+1) | case: n]. Qed.
 
-Lemma prefix_cons' x y s1 s2 :
-        prefix (x :: s1) (y :: s2) -> x = y /\ prefix s1 s2.
-Proof. by move=>H; case: (H 0 x (erefl _)) (H)=>-> /prefix_cons. Qed.
+Lemma Prefix_cons' x y s1 s2 :
+        Prefix (x :: s1) (y :: s2) -> x = y /\ Prefix s1 s2.
+Proof. by move=>H; case: (H 0 x (erefl _)) (H)=>-> /Prefix_cons. Qed.
 
-Lemma prefix_rcons x s : prefix s (rcons s x).
-Proof. by elim: s=>//= y ys IH; apply/prefix_cons; apply: IH. Qed.
+Lemma Prefix_rcons x s : Prefix s (rcons s x).
+Proof. by elim: s=>//= y ys IH; apply/Prefix_cons; apply: IH. Qed.
 
-Lemma prefix_cat s1 s2 : prefix s1 (s1 ++ s2).
+Lemma Prefix_cat s1 s2 : Prefix s1 (s1 ++ s2).
 Proof.
 elim: s2 s1=>[|x xs IH] s1; first by rewrite cats0.
-rewrite -cat_rcons; apply: prefix_trans (IH _).
-by apply: prefix_rcons.
+rewrite -cat_rcons; apply: Prefix_trans (IH _).
+by apply: Prefix_rcons.
 Qed.
 
-Lemma prefix_size s1 s2 : prefix s1 s2 -> size s1 <= size s2.
+Lemma Prefix_size s1 s2 : Prefix s1 s2 -> size s1 <= size s2.
 Proof.
 elim: s1 s2=>[//|a s1 IH] [|b s2] H; first by move: (H 0 a (erefl _)).
-by rewrite ltnS; apply: (IH _ (proj2 (prefix_cons' H))).
+by rewrite ltnS; apply: (IH _ (proj2 (Prefix_cons' H))).
 Qed.
 
-Lemma prefix_onth s t x : x < size s -> prefix s t -> onth s x = onth t x.
+Lemma Prefix_onth s t x : 
+        x < size s -> 
+        Prefix s t -> onth s x = onth t x.
 Proof.
 elim:s t x =>[//|a s IH] [|b t] x H1 H2; first by move: (H2 0 a (erefl _)).
-by case/prefix_cons': H2=><- H2; case: x H1=>[|n] //= H1; apply: IH.
+by case/Prefix_cons': H2=><- H2; case: x H1=>[|n] //= H1; apply: IH.
 Qed.
 
-Lemma prefixE s1 s2 : prefix s1 s2 <-> exists s3, s2 = s1 ++ s3.
+Lemma PrefixE s1 s2 : Prefix s1 s2 <-> exists s3, s2 = s1 ++ s3.
 Proof.
-split; last by case=>s3 ->; apply: prefix_cat.
+split; last by case=>s3 ->; apply: Prefix_cat.
 elim: s1 s2=>[|x xs IH] s2; first by exists s2.
-case: s2=>[/(_ 0 x erefl)//|y ys /prefix_cons' [?]].
+case: s2=>[/(_ 0 x erefl)//|y ys /Prefix_cons' [?]].
 by subst y=>/IH [s3 ->]; exists s3.
 Qed.
 
 End SeqPrefix.
 
-#[export]
-Hint Resolve prefix_refl : core.
+#[export] Hint Resolve Prefix_refl : core.
 
-Lemma onth_mem (A : eqType) (s : seq A) n x :
-        onth s n = Some x ->
+(* when A : eqType *)
+
+Section SeqPrefixEq.
+Variable A : eqType.
+Implicit Type s : seq A.
+
+Lemma onth_mem s n x :
+        onth s n = Some x -> 
         x \in s.
 Proof.
 by elim: s n=>//= a s IH [[->]|n /IH]; rewrite inE ?eq_refl // orbC =>->.
 Qed.
 
-Lemma onth_index (A : eqType) (s : seq A) x :
-        onth s (index x s) = if x \in s then Some x else None.
+Lemma onth_index (s : seq A) x :
+        onth s (index x s) = 
+          if x \in s then Some x else None.
 Proof.
 by elim: s=>//=h s IH; rewrite inE eq_sym; case: eqP=>//= ->.
 Qed.
 
-Lemma prefixP (A : eqType) (s1 s2 : seq A) :
-        reflect (prefix s1 s2) (seq.prefix s1 s2).
+Lemma PrefixP (s1 s2 : seq A) :
+        reflect (Prefix s1 s2) (prefix s1 s2).
 Proof.
-apply/(equivP (seq.prefixP (s1:=s1) (s2:=s2))).
-by apply: iff_sym; exact: prefixE.
+apply/(equivP (prefixP (s1:=s1) (s2:=s2))).
+by apply: iff_sym; exact: PrefixE.
 Qed.
+
+End SeqPrefixEq.
 
 (******************************)
 (* Some commuting conversions *)
@@ -732,126 +1124,262 @@ Proof. by case/andP. Qed.
 Lemma lqt23 a b c : a <= b < c -> b < c.
 Proof. by case/andP. Qed.
 
-(*******************)
-(* Finite products *)
-(*******************)
+(********************)
+(* Finite functions *)
+(********************)
 
-(* It's easy to define finite (aka. tagged) products as functions *)
-(* but this requires assuming function extensionality. *)
-(* Here, we define finite products somewhat more cheaply *)
-(* without extensionality, though with proof irrelevance. *)
+Section FinFun.
+Variables (T : finType) (Us : T -> Type).
+Implicit Type f : {dffun forall t, Us t}.
 
-Fixpoint FinProd' A (T : A -> Type) (xs : seq A) : Type :=
-  if xs is x :: xs' then prod (T x) (FinProd' T xs') else unit.
+(* Explicit name for finite function application. *)
+(* Will be used to hang canonical projections onto. *)
+(* The function/argument order is reversed to facilitate rewriting. *)
+Definition sel tg f : Us tg := f tg.
 
-Fixpoint finprod' A (T : A -> Type) (xs : seq A)
-                  (fs : forall x, T x) : FinProd' T xs :=
-  if xs is x :: xs' then (fs x, finprod' xs' fs) else tt.
-
-Section FinProdEqType.
-Variables (A : eqType) (T : A -> Type).
-
-Lemma mem_nil (a : A) : a \in [::] -> T a.
-Proof. by []. Qed.
-
-Lemma mem_cdr (a x : A) (xs : seq A) : a \in x :: xs -> a <> x -> a \in xs.
-Proof. by rewrite inE; case/orP=>// /eqP ->. Qed.
-
-Fixpoint sel' (a : A) (xs : seq A) :=
-  if xs is x :: xs' as xs return a \in xs -> FinProd' T xs -> T a then
-    fun pf '(f, fs) =>
-      match decP (a =P x) with
-        left eqf => cast T eqf f
-      | right neqf => sel' a xs' (mem_cdr pf neqf) fs
-      end
-  else fun pf _ => mem_nil pf.
-
-Lemma finprod_beta' (f : forall x, T x) a xs :
-        forall pf : a \in xs, sel' pf (finprod' xs f) = f a.
-Proof.
-by elim: xs=>[|x xs IH] //= pf; case: decP=>// {}pf; subst x; rewrite eqc.
-Qed.
-
-Lemma finprod_ext' (xs : seq A) (fs1 fs2 : FinProd' T xs) :
-        uniq xs ->
-        fs1 = fs2 <-> forall a (pf : a \in xs), sel' pf fs1 = sel' pf fs2.
-Proof.
-move=>U; split=>[->|] //.
-elim: xs U fs1 fs2=>[_ [][]//|x xs IH /= /andP [Ux U][f1 fs1][f2 fs2] H].
-case: decP (H x)=>// eqf; rewrite !eqc => ->; last by rewrite inE eq_refl.
-rewrite (IH U fs1 fs2) // => a pf.
-have N : a <> x by move=>E; rewrite -E pf in Ux.
-have xpf : a \in x :: xs by rewrite inE pf orbT.
-case: decP (H a xpf)=>// qf; move: {qf} (mem_cdr _ _)=>qf.
-by rewrite (pf_irr pf qf).
-Qed.
-
-End FinProdEqType.
-
-(* Now we instaniate the helper defs with a finite type *)
-
-Section FinProd.
-Variables (A : finType) (T : A -> Type).
-
-Definition FinProd := FinProd' T (enum A).
-Definition finprod (f : forall x, T x) : FinProd := finprod' (enum A) f.
-Definition sel (a : A) (fs : FinProd) := sel' (mem_enum A a) fs.
+Lemma ffinP f1 f2 : (forall t, sel t f1 = sel t f2) <-> f1 = f2.
+Proof. by rewrite ffunP. Qed. 
 
 (* beta equality *)
-Lemma sel_fin f a : sel a (finprod f) = f a.
-Proof. by rewrite /sel finprod_beta'. Qed.
-
-(* extensionality *)
-Lemma fin_ext (fs1 fs2 : FinProd) :
-        (forall a, sel a fs1 = sel a fs2) -> fs1 = fs2.
-Proof.
-move=>H; rewrite (finprod_ext' _ _ (enum_uniq _))=>a pf.
-by move: (H a); rewrite /sel (pf_irr (mem_enum _ _) pf).
-Qed.
+Lemma sel_fin t (f : forall t, Us t) : sel t (finfun f) = f t.
+Proof. by rewrite /sel ffunE. Qed.
 
 (* eta equality *)
-Lemma fin_eta (fs : FinProd) : fs = finprod (sel^~ fs).
-Proof. by apply: fin_ext=>a; rewrite sel_fin. Qed.
+Lemma fin_eta f : f = finfun (sel^~ f).
+Proof. by apply/ffinP=>t; rewrite sel_fin. Qed.
 
-End FinProd.
+(* function *)
+Definition splice tg f (v : Us tg) : {dffun _} := 
+  finfun (fun x => 
+    if decP (x =P tg) is left pf then cast Us pf v 
+    else sel x f).
 
-(* Splicing a value into a given tag *)
+Lemma sel_splice t f x (v : Us x) : 
+        sel t (splice f v) = 
+        if decP (t =P x) is left pf then cast Us pf v
+        else sel t f.
+Proof. by rewrite sel_fin. Qed.
 
-Section Splice.
-Variables (A : finType) (T : A -> Type).
+Lemma sel_spliceE t f v : sel t (splice f v) = v. 
+Proof. by rewrite sel_fin; case: eqP=>//= pf; rewrite eqd. Qed.
 
-Definition splice (fs : FinProd T) (a : A) (ta : T a) :=
-  finprod (fun t =>
-    if decP (t =P a) is left pf then cast T pf ta else sel t fs).
+Lemma sel_spliceN t x f (w : Us x) :
+        t <> x -> sel t (splice f w) = sel t f.
+Proof. by move=>N; rewrite sel_fin; case: eqP. Qed.
 
-Lemma sel_spliceE fs a ta : sel a (splice fs ta) = ta.
-Proof. by rewrite sel_fin; case: decP=>// pf; rewrite eqc. Qed.
-
-Lemma sel_spliceN fs a b (tb : T b) :
-        a <> b -> sel a (splice fs tb) = sel a fs.
-Proof. by move=>N; rewrite sel_fin; case: decP. Qed.
-
-Lemma splice_eta fs a : splice fs (sel a fs) = fs.
+Lemma splice_eta t f : splice f (sel t f) = f.
 Proof.
-apply: fin_ext=>x; rewrite sel_fin.
-by case: decP=>// ?; subst x; rewrite eqc.
+apply/ffinP=>x; rewrite sel_fin; case: eqP=>//=.
+by move/[dup]=>-> pf; rewrite eqd.
 Qed.
 
-End Splice.
+End FinFun.
 
-Arguments splice [A T] fs a ta.
+Arguments sel {T Us} tg f.
+Arguments splice {T Us tg} f v.
 
-(* Special notation for boolean predicates over K*V *)
+(* notation for building finfuns *)
 
-Notation "[ 'pts' k v | E ]" :=
- (fun kv => let '(k, v) := kv in E%B)
- (at level 0, k name, v name, format "[ 'pts'  k  v  |  E ]").
-Notation "[ 'pts' k ( v : V ) | E ]" :=
- (fun kv : _*V =>let '(k, v) := kv in E%B)
- (at level 0, k name, v name, only parsing).
-Notation "[ 'pts' ( k : K ) v | E ]" :=
- (fun kv : K*_ => let '(k, v) := kv in E%B)
- (at level 0, k name, v name, only parsing).
-Notation "[ 'pts' ( k : K ) ( v : V ) | E ]" :=
- (fun kv : K*V => let '(k, v) := kv in E%B)
- (at level 0, k name, v name, only parsing).
+Notation "[ 'ffun' x : aT => E ]" := (finfun (fun x : aT => E))
+  (at level 0, x name, format "[ 'ffun'  x  :  aT  =>  E ]") : fun_scope.
+
+Notation "[ 'ffun' x => E ]" := (@finfun _ (fun=> _) (fun x => E))
+  (at level 0, x name, format "[ 'ffun'  x  =>  E ]") : fun_scope.
+
+Notation "[ 'ffun' => E ]" := [ffun _ => E]
+  (at level 0, format "[ 'ffun'  =>  E ]") : fun_scope.
+
+Section IteratedNotation.
+Variables (T : finType) (Us : T -> Type).
+
+Variant dfun_delta : Type := DFunDelta t of Us t.
+
+(* for iteration that starts with function ends with function *)
+Definition dapp_fdelta df (f : forall t, Us t) z :=
+  let: DFunDelta t v := df in 
+    if decP (z =P t) is left pf then cast Us pf v 
+    else f z.
+
+(* for iteration that starts with finfun ends with function *)
+Definition splice' df (f : {ffun forall t, Us t}) z := 
+  dapp_fdelta df f z.
+
+End IteratedNotation.
+
+Delimit Scope fun_delta_scope with FUN_DELTA.
+Arguments dapp_fdelta {T Us} df%_FUN_DELTA f.
+
+Notation "y \\ x" := (@DFunDelta _ _ x y) (at level 1).
+
+(* notation for simultaneous update of f with d1,..,dn *)
+(* rewrite by sel_fin peels all layers *)
+Notation "[ 'ext' f 'with' d1 , .. , dn ]" :=
+  (finfun (
+     dapp_fdelta d1%_FUN_DELTA .. (dapp_fdelta dn%_FUN_DELTA f) ..))
+  (at level 0, format
+  "'[hv' [ '[' 'ext' '/ '  f ']' '/'  'with'  '[' d1 , '/'  .. , '/'  dn ']' ] ']'"
+  ) : fun_scope.
+
+(* notation for iterated update of f with d1, then d2, ... *)
+(* rewrite by sel_fin peels top layer only *)
+Notation "[ 'splice' F 'with' d1 , .. , dn ]" :=
+  (finfun (splice'
+     d1%_FUN_DELTA .. (finfun (splice' dn%_FUN_DELTA (finfun F))) ..))
+  (at level 0, format
+  "'[hv' [ '[' 'splice' '/ '  F ']' '/'  'with'  '[' d1 , '/'  .. , '/'  dn ']' ] ']'"
+  ) : fun_scope.
+
+Section TestingNotation.
+Variables (T : finType) (Us : T -> Type).
+Variables (f : {dffun forall t, Us t}) (t1 t2 : T) (v1 : Us t1) (v2 : Us t2).
+
+(* we have three different options in displaying splices *)
+(* splice, [splice], and [ext] *)
+Lemma test :
+  [/\ sel t2 [splice f with v1 \\ t1, v2 \\ t2] = v2,
+      sel t2 (splice (splice f v1) v2) = v2,
+      sel t2 [ext f with v1 \\ t1, v2 \\ t2] = v2 &
+(* and we can use underscores to elide some info *)
+      sel t2 [ext f with v1 \\ _, v2 \\ _] = v2].   
+Abort.
+End TestingNotation.
+
+(* mapping over simply-typed finite functions *)
+
+Section FinFunMap.
+Variables (T : finType) (A B : Type).
+Implicit Types (f : A -> B) (x : {ffun T -> A}).
+
+Definition fmap f x := [ffun tg => f (sel tg x)].
+               
+Lemma sel_fmap f x tg : sel tg (fmap f x) = f (sel tg x).
+Proof. exact: sel_fin. Qed.
+
+Lemma fmap_splice f x tg (v : A) :
+        fmap f (splice (tg:=tg) x v) = splice (tg:=tg) (fmap f x) (f v).
+Proof.
+apply/ffinP=>t; rewrite !sel_fin; case: eqP=>//= ?; subst t.
+by rewrite !eqc.
+Qed.
+
+End FinFunMap.
+
+(* surgery on tuples and finfuns *)
+
+Section OnthCodom.
+Variable A : Type.
+
+Lemma onth_tnth {n} (s : n.-tuple A) (i : 'I_n) : 
+        onth s i = Some (tnth s i).
+Proof.
+elim: n s i =>[|n IH] s i; first by case: i.
+case/tupleP: s=>/=x s; case: (unliftP ord0 i)=>[j|]-> /=.
+- by rewrite tnthS.
+by rewrite tnth0.
+Qed.
+
+Lemma onth_codom {n} (i : 'I_n) (f: {ffun 'I_n -> A}) : 
+        onth (fgraph f) i = Some (f i).
+Proof.
+pose i' := cast_ord (esym (card_ord n)) i.
+move: (@tnth_fgraph _ _ f i'); rewrite (enum_val_ord) {2}/i' cast_ordKV=><-.
+by rewrite (onth_tnth (fgraph f) i').
+Qed.
+
+End OnthCodom.
+
+(* ffun and permutation *)
+Section PermFfun.
+Variables (I : finType) (A : Type).
+
+Definition pffun (p : {perm I}) (f : {ffun I -> A}) :=
+  [ffun i => f (p i)].
+
+Lemma pffunE1 (f : {ffun I -> A}) : pffun 1%g f = f.
+Proof. by apply/ffunP=>i; rewrite !ffunE permE. Qed.
+
+Lemma pffunEM (p p' : {perm I}) (f : {ffun I -> A}) :
+  pffun (p * p') f = pffun p (pffun p' f).
+Proof. by apply/ffunP => i; rewrite !ffunE permM. Qed.
+
+End PermFfun.
+
+(* Finite sets *)
+
+Lemma enum_T (I : finType) : enum setT = enum I.
+Proof. by rewrite enum_setT enumT. Qed.
+
+Lemma enum_0 (I : finType) (s : {set I}) : 
+        s =i set0 ->
+        enum s = [::].
+Proof. by move/eq_enum=>->; rewrite enum_set0. Qed.
+
+Lemma setTE (I : finType) (p : pred I) : 
+         p =1 xpredT ->
+         [set x | p x] = setT :> {set I}.
+Proof. by move=>H; apply/setP=>x; rewrite !inE H. Qed.
+
+Lemma set0E (I : finType) (p : pred I) : 
+         p =1 xpred0 ->
+         [set x | p x] = set0 :> {set I}.
+Proof. by move=>H; apply/setP=>x; rewrite !inE H. Qed.
+
+(* streamlining for ordinals *)
+
+Lemma set_ord0N m (p : pred nat) :  
+        (forall x, x < m -> ~~ p x) ->
+        [set x | p (\val x)] = set0 :> {set 'I_m}.
+Proof. by move=>H; apply: set0E; case=>z pf; rewrite (negbTE (H z pf)). Qed.
+
+Lemma set_ord0 m (p : pred nat) :  
+        (forall x, p x -> m <= x) ->
+        [set x | p (\val x)] = set0 :> {set 'I_m}.
+Proof. 
+move=>H; apply: set_ord0N=>x; rewrite ltnNge.
+by apply/contra/H.
+Qed.
+
+Lemma set_ordT m (p : pred nat) :  
+        (forall x, x < m -> p x) ->
+        [set x | p (\val x)] = setT :> {set 'I_m}.
+Proof. by move=>H; apply: setTE; case=>z pf; rewrite H. Qed.
+
+Lemma set_ordTN m (p : pred nat) :  
+        (forall x, ~~ p x -> m <= x) ->
+        [set x | p (\val x)] = setT :> {set 'I_m}.
+Proof. 
+move=>H; apply/set_ordT=>x; rewrite ltnNge.
+by apply/contraR/H.
+Qed.
+
+(* Tagging *)
+
+Notation Tag := (@existT _ _).
+
+Lemma Tag_inj T Us (t1 t2 : T) i1 i2 : 
+        Tag t1 i1 = Tag t2 i2 -> 
+        t1 = t2 /\ jmeq Us i1 i2.
+Proof. by case=>?; subst t2=>/inj_pair2 ->. Qed.
+Arguments Tag_inj {T Us t1 t2 i1 i2}.
+
+(* tagged union of equality types is equality type *)
+
+Section TaggedEq.
+Variables (T : eqType) (Us : T -> eqType).
+
+Definition tag_eq : sigT Us -> sigT Us -> bool :=
+  fun '(Tag tx opx) '(Tag ty opy) =>
+    if decP (tx =P ty) is left pf then opx == cast Us pf opy
+    else false.
+
+Lemma tag_eqP : Equality.axiom tag_eq.
+Proof.
+case=>tx opx [ty opy] /=; case: (tx =P ty)=>pf; last first. 
+- by constructor; case=>/pf.
+subst ty; rewrite /= eqc; case: eqP=>pf; constructor; 
+by [rewrite pf|case=>/inj_pair2/pf].
+Qed.
+
+HB.instance Definition _ := hasDecEq.Build (sigT Us) tag_eqP.
+End TaggedEq.
+

@@ -13,9 +13,8 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq.
-From pcm Require Import options pred prelude.
+From pcm Require Import options pred prelude pcm.
 From pcm Require Export auto.
-From pcm Require Import pcm.
 
 (**************************************************************************)
 (**************************************************************************)
@@ -47,13 +46,13 @@ Definition empx := Context [::].
 (* because contexts grow during computation, we need a notion of sub-context *)
 
 Definition sub_ctx (i j : ctx) :=
-  prefix (expx i) (expx j).
+  Prefix (expx i) (expx j).
 
 Lemma sc_refl i : sub_ctx i i.
 Proof. by []. Qed.
 
 Lemma sc_trans i j k : sub_ctx i j -> sub_ctx j k -> sub_ctx i k.
-Proof. by apply: prefix_trans. Qed.
+Proof. by apply: Prefix_trans. Qed.
 
 End ReflectionContexts.
 
@@ -122,7 +121,7 @@ Definition wf i t :=
 
 Lemma sc_wf i j ts : sub_ctx i j -> all (wf i) ts -> all (wf j) ts.
 Proof.
-move/prefix_size=>H; elim: ts=>[|t ts IH] //=.
+move/Prefix_size=>H; elim: ts=>[|t ts IH] //=.
 case/andP=>Hi /IH ->; rewrite andbT.
 by case: t Hi=>v /= Hi; apply: leq_trans H.
 Qed.
@@ -131,7 +130,7 @@ Lemma sc_interp i j ts :
         sub_ctx i j -> all (wf i) ts -> interp i ts = interp j ts.
 Proof.
 move=>H; elim: ts=>[|t ts IH] //= /andP [H0] /IH ->.
-by case: t H0=>n /= /prefix_onth <-.
+by case: t H0=>n /= /Prefix_onth <-.
 Qed.
 
 Lemma wf_efree i n ts : all (wf i) ts -> all (wf i) (efree n ts).

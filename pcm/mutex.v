@@ -19,6 +19,7 @@ limitations under the License.
 (* excludes others, but it may require more steps to fully acquire the lock.  *)
 (******************************************************************************)
 
+From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun.
 From Coq Require Setoid.
 From mathcomp Require Import ssrnat eqtype seq.
@@ -29,78 +30,65 @@ From pcm Require Import pcm morphism natmap.
 (* Generalized mutexes *)
 (***********************)
 
-Module GeneralizedMutex.
+(* T encodes mutex stages, excluding undef and unit *)
+
+Inductive mutex T := mx_undef | nown | mx of T.
+
+Arguments mx_undef {T}.
+Arguments nown {T}.
+Prenex Implicits mx_undef nown.
+
 Section GeneralizedMutex.
-Variable T : Type. (* the mutex stages, excluding undef and unit *)
-
-Inductive mutex := undef | nown | mx of T.
-
-Definition join' x y :=
+Variable T : Type.
+Definition def_mx_valid := [fun x : mutex T =>
+  if x is mx_undef then false else true].
+Definition def_mx_join := [fun x y : mutex T =>
   match x, y with
-    undef, _ => undef
-  | _, undef => undef
+    mx_undef, _ => mx_undef
+  | _, mx_undef => mx_undef
   | nown, x => x
   | x, nown => x
-  | mx _, mx _ => undef
-  end.
+  | mx _, mx _ => mx_undef
+  end].
+Definition def_mx_unitb := [fun x : mutex T =>
+  if x is nown then true else false].
 
-Definition valid' x := if x is undef then false else true.
+Lemma mutex_is_pcm : pcm_axiom def_mx_valid def_mx_join nown def_mx_unitb.
+Proof. 
+by split=>[[||x][||y]|[||x][||y][||z]|[]|[]||[||x]] //; constructor.
+Qed.
+HB.instance Definition _ : isPCM (mutex T) := 
+  isPCM.Build (mutex T) mutex_is_pcm.
 
-Lemma joinC : commutative join'.
-Proof. by case=>[||x]; case=>[||y]. Qed.
-
-Lemma joinA : associative join'.
-Proof. by case=>[||x]; case=>[||y]; case=>[||z]. Qed.
-
-Lemma unitL : left_id nown join'.
-Proof. by case. Qed.
-
-Lemma validL x y : valid' (join' x y) -> valid' x.
-Proof. by case: x. Qed.
-
-Lemma valid_unit : valid' nown.
-Proof. by []. Qed.
-
-Definition mutexPCMMix := PCMMixin joinC joinA unitL validL valid_unit.
-Canonical mutexPCM := Eval hnf in PCM mutex mutexPCMMix.
-
-(* cancelativity *)
-
-Lemma joinmK (m1 m2 m : mutexPCM) : valid (m1 \+ m) -> m1 \+ m = m2 \+ m -> m1 = m2.
-Proof. by case: m m1 m2=>[||m][||m1][||m2]; rewrite !pcmE. Qed.
-
-Definition mutexCPCMMix := CPCMMixin joinmK.
-Canonical mutexCPCM := Eval hnf in CPCM mutex mutexCPCMMix.
+(* cancellativity *)
+Lemma mutex_is_cpcm : cpcm_axiom (mutex T).
+Proof. by case=>[||m][||m1][||m2]; rewrite !pcmE. Qed.
+HB.instance Definition _ : isCPCM (mutex T) := 
+  isCPCM.Build (mutex T) mutex_is_cpcm.
 
 (* topped structure *)
+Definition def_mx_undefb (x : mutex T) : bool := 
+  if x is mx_undef then true else false.
 
-Lemma unitb (x : mutex) : reflect (x = Unit) (if x is nown then true else false).
-Proof. by case: x=>[||x]; constructor; rewrite !pcmE. Qed.
+Lemma mutex_is_tpcm : tpcm_axiom mx_undef def_mx_undefb. 
+Proof. by split=>//; case=>[||x]; constructor. Qed.
+HB.instance Definition _ : isTPCM (mutex T) :=
+  isTPCM.Build (mutex T) mutex_is_tpcm.
 
-Lemma join0E (x y : mutex) : x \+ y = Unit -> x = Unit /\ y = Unit.
-Proof. by case: x y=>[||x][||y]. Qed.
-
-Lemma valid3 (x y z : mutex) : valid (x \+ y \+ z) =
-        [&& valid (x \+ y), valid (y \+ z) & valid (x \+ z)].
-Proof. by case: x y z=>[||x][||y][||z]. Qed.
-
-Lemma valid_undef : ~~ valid undef.
-Proof. by []. Qed.
-
-Lemma undef_join x : undef \+ x = undef.
-Proof. by []. Qed.
-
-Definition mutexTPCMMix := TPCMMixin unitb valid_undef undef_join.
-Canonical mutexTPCM := Eval hnf in TPCM mutex mutexTPCMMix.
-
+(* normality *)
+Lemma mutex_is_normal : normal_tpcm_axiom (mutex T).
+Proof. by case; [right|rewrite valid_unit; left|move=>t; left]. Qed.
+HB.instance Definition _ : isNormal_TPCM (mutex T) :=
+  isNormal_TPCM.Build (mutex T) mutex_is_normal.
 End GeneralizedMutex.
 
+(* if T is eqType, so is mutex T *)
 Section Equality.
 Variable T : eqType.
 
 Definition mutex_eq (x y : mutex T) :=
   match x, y with
-    undef, undef => true
+    mx_undef, mx_undef => true
   | nown, nown => true
   | mx x', mx y' => x' == y'
   | _, _ => false
@@ -112,27 +100,8 @@ case=>[||x]; case=>[||y] /=; try by constructor.
 by case: eqP=>[->|H]; constructor=>//; case=>/H.
 Qed.
 
-Definition mutexEqMix := EqMixin mutex_eqP.
-Canonical mutexEqType := Eval hnf in EqType (mutex T) mutexEqMix.
-Canonical mutexEQPCM := Eval hnf in EQPCM (mutex T) (mutexPCMMix T).
-
+HB.instance Definition _ := hasDecEq.Build (mutex T) mutex_eqP.
 End Equality.
-
-Module Exports.
-Canonical mutexPCM.
-Canonical mutexCPCM.
-Canonical mutexEqType.
-Canonical mutexTPCM.
-Canonical mutexEQPCM.
-Notation mutex := mutex.
-Notation mx_undef := undef.
-Notation nown := nown.
-Notation mx := mx.
-Notation mutexPCM := mutexPCM.
-Notation mutexTPCM := mutexTPCM.
-Arguments mx_undef {T}.
-Arguments nown {T}.
-Arguments mx [T].
 
 (* mutexes with distingusihed own element *)
 Notation mtx T := (mutex (option T)).
@@ -141,10 +110,6 @@ Notation mtx3 := (mtx unit).
 Notation own := (mx None).
 Notation auth x := (mx (Some x)).
 Notation auth1 := (mx (Some tt)).
-End Exports.
-End GeneralizedMutex.
-
-Export GeneralizedMutex.Exports.
 
 (* some lemmas for generalized mutexes *)
 
@@ -153,7 +118,7 @@ Variable T : Type.
 Implicit Types (t : T) (x y : mutex T).
 
 Variant mutex_spec x : mutex T -> Type :=
-| mutex_undef of x = mx_undef : mutex_spec x mx_undef
+| mutex_undef of x = undef : mutex_spec x undef
 | mutex_nown of x = Unit : mutex_spec x Unit
 | mutex_mx t of x = mx t : mutex_spec x (mx t).
 
@@ -161,7 +126,7 @@ Lemma mxP x : mutex_spec x x.
 Proof. by case: x=>[||t]; constructor. Qed.
 
 Lemma mxE0 x y : x \+ y = Unit -> (x = Unit) * (y = Unit).
-Proof. exact: GeneralizedMutex.join0E. Qed.
+Proof. by case: x; case: y. Qed.
 
 (* a form of cancelativity, more useful than the usual form *)
 Lemma cancelMx t1 t2 x : (mx t1 \+ x = mx t2) <-> (t1 = t2) * (x = Unit).
@@ -191,9 +156,9 @@ Proof. by rewrite joinAC=>/mxMx. Qed.
 (* inversion principle for join *)
 (* own and mx are prime elements, and unit does not factor *)
 Variant mxjoin_spec (x y : mutex T) : mutex T -> mutex T -> mutex T -> Type :=
-| bothnown of x = nown & y = nown : mxjoin_spec x y nown nown nown
-| leftmx t of x = mx t & y = nown : mxjoin_spec x y (mx t) (mx t) nown
-| rightmx t of x = nown & y = mx t : mxjoin_spec x y (mx t) nown (mx t)
+| bothnown of x = Unit & y = Unit : mxjoin_spec x y Unit Unit Unit
+| leftmx t of x = mx t & y = Unit : mxjoin_spec x y (mx t) (mx t) Unit
+| rightmx t of x = Unit & y = mx t : mxjoin_spec x y (mx t) Unit (mx t)
 | invalid of ~~ valid (x \+ y) : mxjoin_spec x y undef x y.
 
 Lemma mxPJ x y : mxjoin_spec x y (x \+ y) x y.
@@ -230,10 +195,10 @@ Prenex Implicits  mxOx mxxO mxxyO mxOxy mxxOy mxyOx.
 
 (* specific lemmas for binary mutexes *)
 
-Lemma mxON (x : mtx2) : valid x -> x != own -> x = nown.
+Lemma mxON (x : mtx2) : valid x -> x != own -> x = Unit.
 Proof. by case: x=>//; case. Qed.
 
-Lemma mxNN (x : mtx2) : valid x -> x != nown -> x = own.
+Lemma mxNN (x : mtx2) : valid x -> x != Unit -> x = own.
 Proof. by case: x=>//; case=>//; case. Qed.
 
 (* the next batch of lemmas is for automatic simplification *)
@@ -242,20 +207,20 @@ Section MutexRewriting.
 Variable T : eqType.
 Implicit Types (t : T) (x : mutex T).
 
-Lemma mxE1 :  (((@mx_undef T == nown) = false) *
-               ((@nown T == mx_undef) = false)).
+Lemma mxE1 :  (((undef == Unit :> mutex T) = false) *
+               ((Unit == undef :> mutex T) = false)).
 Proof. by []. Qed.
 
-Lemma mxE2 t : (((mx t == nown) = false) *
-                ((nown == mx t) = false)) *
-               (((mx t == mx_undef) = false) *
-                ((mx_undef == mx t) = false)).
+Lemma mxE2 t : (((mx t == Unit) = false) *
+                ((Unit == mx t) = false)) *
+               (((mx t == undef) = false) *
+                ((undef == mx t) = false)).
 Proof. by []. Qed.
 
-Lemma mxE3 t x : ((((mx t \+ x == nown) = false) *
-                   ((x \+ mx t == nown) = false)) *
-                  (((nown == mx t \+ x) = false) *
-                   ((nown == x \+ mx t) = false))).
+Lemma mxE3 t x : ((((mx t \+ x == Unit) = false) *
+                   ((x \+ mx t == Unit) = false)) *
+                  (((Unit == mx t \+ x) = false) *
+                   ((Unit == x \+ mx t) = false))).
 Proof. by case: x. Qed.
 
 Lemma mxE5 t1 t2 x :
@@ -269,6 +234,7 @@ have L : forall t1 t2 x, (mx t1 \+ x == mx t2) = (t1 == t2) && (x == Unit).
 by do !split=>//; rewrite ?L // eq_sym L eq_sym.
 Qed.
 
+
 Lemma mx_valid t : valid (mx t).
 Proof. by []. Qed.
 
@@ -278,57 +244,70 @@ Proof. by []. Qed.
 Definition mxE := ((((mxE1, mxE2), (mxE3)), ((mxE5, mx_injE),
                    (mx_valid))),
                    (* plus a bunch of safe simplifications *)
-                   (((unitL, unitR), (valid_unit, eq_refl)),
+                   (((@unitL, @unitR), (@valid_unit, eq_refl)),
                    ((valid_undef, undef_join), join_undef))).
 
 End MutexRewriting.
 
 (* function mapping all mx's to own *)
-Definition mxown T (x : mutex T) : mtx2 :=
+Definition mxown {T} (x : mutex T) : mtx2 :=
   match x with
-    mx_undef => mx_undef
-  | nown => nown
+    mx_undef => undef
+  | nown => Unit
   | _ => own
   end.
 
 (* this is a morphism under full domain *)
-Lemma mxown_morph_ax T : morph_axiom (@sepT _) (@mxown T).
-Proof. by split=>[|x y] //; case: x=>//; case: y. Qed.
-
-Canonical mxown_pmorph T := Morphism' (@mxown T) (mxown_morph_ax T).
+Lemma mxown_is_pcm_morph {T} : pcm_morph_axiom relT (@mxown T).
+Proof. by split=>[|x y] //; case: x; case: y. Qed.
+HB.instance Definition _ T := 
+  isPCM_morphism.Build (mutex T) mtx2 mxown mxown_is_pcm_morph.
+HB.instance Definition _ T := 
+  isFull_PCM_morphism.Build (mutex T) mtx2 (@mxown T) (fun _ _ => erefl _).
+HB.instance Definition _ T := 
+  isTPCM_morphism.Build (mutex T) mtx2 mxown (erefl undef).
+Lemma mxown_is_binormal {T} : binorm_pcm_morph_axiom (@mxown T).
+Proof. by case=>[||x][||y]. Qed.
+HB.instance Definition _ T := 
+  isBinorm_PCM_morphism.Build (mutex T) mtx2 mxown mxown_is_binormal.
 
 (* the key inversion property is the following *)
 (* we could use simple case analysis in practice *)
 (* but this appears often, so we might just as well have a lemma for it *)
-Lemma mxownP T (x : mutex T) : mxown x = nown -> x = nown.
+Lemma mxownP T (x : mutex T) : mxown x = Unit -> x = Unit.
 Proof. by case: x. Qed.
 
-Definition mxundef T (x : mtx T) : mtx2 :=
+Definition mxundef {T} (x : mtx T) : mtx2 :=
   match x with
-  | nown => nown
+  | nown => Unit
   | mx None => own
   | _ => undef
   end.
 
-Definition sep_mxundef T (x y : mtx T) :=
+Definition sep_mxundef {T} (x y : mtx T) :=
   if x \+ y is (nown | mx None) then true else false.
 
-Lemma mxundef_seprel_ax T : seprel_axiom (@sep_mxundef T).
+Lemma sep_mxundef_is_seprel {T} : seprel_axiom (@sep_mxundef T).
 Proof. by split=>//; case=>[||x] // [||y] // [||[]] //=; case: y. Qed.
+HB.instance Definition _ T := 
+  isSeprel.Build (mtx T) sep_mxundef sep_mxundef_is_seprel.
 
-Canonical mxundef_seprel T :=
-  Eval hnf in seprel (@sep_mxundef T) (mxundef_seprel_ax T).
-
-Lemma mxundef_ax T : morph_axiom (@sep_mxundef T) (@mxundef T).
+Lemma mxundef_is_pcm_morph {T} : pcm_morph_axiom (@sep_mxundef T) mxundef.
 Proof. by split=>//; case=>[||x] // [||[]] //; case: x. Qed.
-
-Canonical mxundef_pmorph T := Morphism' (@mxundef T) (mxundef_ax T).
+HB.instance Definition _ T := 
+  isPCM_morphism.Build (mtx T) mtx2 mxundef mxundef_is_pcm_morph.
+HB.instance Definition _ T := 
+  isTPCM_morphism.Build (mtx T) mtx2 mxundef (erefl undef).
+Lemma mxundef_is_binormal {T} : binorm_pcm_morph_axiom (@mxundef T).
+Proof. by case=>[||[x|]][||[y|]]. Qed.
+HB.instance Definition _ T := 
+  isBinorm_PCM_morphism.Build (mtx T) mtx2 mxundef mxundef_is_binormal.
 
 Prenex Implicits mxown mxundef.
 
 (* inversion principle for mxundef *)
 Variant mxundef_spec T (x : mtx T) : mtx2 -> mtx T -> Type :=
-| mxundef_nown of x = nown : mxundef_spec x nown nown
+| mxundef_nown of x = nown : mxundef_spec x Unit Unit
 | mxundef_own of x = own : mxundef_spec x own own
 | mxundef_undef of x = undef : mxundef_spec x undef undef
 | mxundef_mx t of x = auth t : mxundef_spec x undef (auth t).
@@ -338,17 +317,17 @@ Proof. by case: x=>[||[t|]]; constructor. Qed.
 
 (* nats into mtx *)
 (* notice this is not a morphism *)
-Definition nxown n : mtx2 := if n is 0 then nown else own.
+Definition nxown n : mtx2 := if n is 0 then Unit else own.
 
 Variant nxown_spec n : mtx2 -> Type :=
-| nxZ of n = 0 : nxown_spec n nown
+| nxZ of n = 0 : nxown_spec n Unit
 | nxS m of n = m.+1 : nxown_spec n own.
 
 Lemma nxP n : nxown_spec n (nxown n).
 Proof. by case: n=>[|n]; [apply: nxZ | apply: (@nxS _ n)]. Qed.
 
 Variant nxownjoin_spec n1 n2 : mtx2 -> Type :=
-| nxjZ of n1 = 0 & n2 = 0 : nxownjoin_spec n1 n2 nown
+| nxjZ of n1 = 0 & n2 = 0 : nxownjoin_spec n1 n2 Unit
 | nxjS m of n1 + n2 = m.+1 : nxownjoin_spec n1 n2 own.
 
 Lemma nxPJ n1 n2 : nxownjoin_spec n1 n2 (nxown (n1 \+ n2)).
@@ -370,19 +349,19 @@ Qed.
 (* Because the morphism just looks into the last history entry *)
 (* we call it *omega*, or omg for short. *)
 
-
 Section OmegaMorph.
-Let U := nat_mapPCM (bool * bool).
+Variable U : natmap (bool * bool).
 
-Definition omg_s := fun x y : U =>
+Definition omg_sep := fun x y : U =>
   [&& last_atval false x ==> (last_key y < last_key x) &
       last_atval false y ==> (last_key x < last_key y)].
 
-Lemma omg_sep_ax : seprel_axiom omg_s.
+Lemma omg_is_seprel : seprel_axiom omg_sep.
 Proof.
-rewrite /omg_s; split=>[|x y|x y|x y z] /=; first by rewrite lastatval0.
+rewrite /omg_sep; split=>[|x y|x y|x y z] /=. 
+- by rewrite lastatval0.
 - by rewrite andbC.
-- move=>V /andP [H _]; rewrite lastkey0 lastatval0.
+- move=>V /andP [H _]; rewrite lastkey0 lastatval0 /=. 
   by case: (x in x ==> _) H=>// /(leq_trans _) ->.
 move=>V /andP [X Y] /andP [].
 rewrite !lastkeyUn !lastatvalUn !(validLE3 V).
@@ -392,133 +371,169 @@ case: (ltngtP (last_key x) (last_key y)) X Y=>H X Y Kx Kz;
 by case: (x in x ==> _) Kz=>// /(ltn_trans H) ->.
 Qed.
 
-Canonical omg_seprel := Eval hnf in seprel omg_s omg_sep_ax.
+HB.instance Definition _ := isSeprel.Build U omg_sep omg_is_seprel.
 
-Definition omg (x : U) : mtx2 := if last_atval false x then own else nown.
+Definition omg (x : U) : mtx2 := 
+  if undefb x then undef else
+    if last_atval false x then own else nown.
 
-Lemma omg_morph_ax : morph_axiom omg_seprel omg.
+
+Lemma omg_is_pcm_morph : pcm_morph_axiom omg_sep omg.
 Proof.
-rewrite /omg; split=>[|x y V /andP [X Y]]; first by rewrite lastatval0.
-rewrite lastatvalUn V; case: ltngtP X Y=>H X Y;
+rewrite /omg; split=>[|x y V /andP [X Y]] /=.
+- by rewrite undefb0 lastatval0.
+rewrite !undefNV !(validE2 V) /= lastatvalUn V; case: ltngtP X Y=>H X Y;
 by rewrite ?(negbTE X) ?(negbTE Y) //; case: ifP.
 Qed.
+HB.instance Definition _ := isPCM_morphism.Build U mtx2 omg omg_is_pcm_morph.
 
-Canonical omg_morph := Morphism' omg omg_morph_ax.
+Lemma omg_is_tpcm_morph : tpcm_morph_axiom omg.
+Proof. by rewrite /tpcm_morph_axiom/omg undefb_undef. Qed.
+HB.instance Definition _ := isTPCM_morphism.Build U mtx2 omg omg_is_tpcm_morph.
+
+Lemma omg_is_norm : norm_pcm_morph_axiom omg.
+Proof.
+move=>/= x; rewrite /sepx/=/omg/omg_sep lastkey0 lastatval0.
+case: (normalP x)=>// Vx; case: ifP=>H _ //=.
+by case: lastkeyP (lastatval_indomb H).
+Qed.
+HB.instance Definition _ := isNorm_PCM_morphism.Build U mtx2 omg omg_is_norm.
 
 (* transfer lemmas *)
 
-Lemma omgPos (V : pcm) (v : V) (ht : V -> natmap (bool * bool)) :
-        last_atval false (ht v) = (omg (ht v) == own).
-Proof. by rewrite /omg /=; case: ifP. Qed.
+(* omg isn't full, but admits valid h -> valid (omg h) *)
+Lemma valid_omg h : valid (omg h) = valid h.
+Proof.
+apply/idP/idP=>[/fpV//|V].
+rewrite pfV //= /sepx/= /omg_sep /= lastatval0 andbT lastkey0.
+case N: (last_key h); last by apply/implyP. 
+by rewrite /last_atval /atval /= cond_find // N.
+Qed.
 
-Lemma omgPosMorph (V : pcm) (v1 v2 : V) (D : sep_rel V) (ht : @morphism V U D):
-        valid (v1 \+ v2) -> 'preim ht omg_s v1 v2 ->
-        last_atval false (ht v1 \+ ht v2) = (omg (ht v1) \+ omg (ht v2) == own).
+Lemma omgPos (V : pcm) (v : V) (ht : V -> U) :
+        last_atval false (ht v) = (omg (ht v) == own).
+Proof. 
+rewrite /omg; case: normalP=>[->//|]; last by case: ifP.
+by rewrite lastatval_undef.  
+Qed.
+
+Lemma omgPosMorph (V : pcm) (v1 v2 : V) (ht : pcm_morph V U):
+        valid (v1 \+ v2) -> 
+        preim ht omg_sep v1 v2 ->
+        last_atval false (ht v1 \+ ht v2) = 
+          (omg (ht v1) \+ omg (ht v2) == own).
 Proof.
 move=>W /andP [G] /andP []; rewrite /omg /= in G *.
-rewrite lastatvalUn (pfVf ht W G); case: ltngtP=>H H1 H2;
-by rewrite ?(negbTE H1) ?(negbTE H2) //; case: ifP.
+rewrite !undefNV !(validE2 (pfV2 _ _ _ W G)) lastatvalUn pfV2 //=.
+by case: ltngtP=>H H1 H2; rewrite ?(negbTE H1) ?(negbTE H2) //; case: ifP.
 Qed.
 
-Lemma omgNeg (V : pcm) (v : V) (ht : V -> natmap (bool * bool)) :
+Lemma omgNeg' (V : pcm) (v : V) (ht : V -> U) :
+       ~~ last_atval false (ht v) = 
+       (omg (ht v) == nown) || undefb (omg (ht v)).
+Proof. by rewrite omgPos; case: (omg _)=>//; case. Qed.
+
+Lemma omgNeg (V : pcm) (v : V) (ht : V -> U) :
+       valid (ht v) ->
        ~~ last_atval false (ht v) = (omg (ht v) == nown).
-Proof. by rewrite /omg /=; case: ifP. Qed.
+Proof. by move=>W; rewrite omgNeg' undefNV valid_omg W; case: (omg _). Qed.
 
-Lemma omgNegMorph (V : pcm) (v1 v2 : V) (D : sep_rel V) (ht : @morphism V U D) :
-         valid (v1 \+ v2) ->'preim ht omg_s v1 v2 ->
-         ~~ last_atval false (ht v1 \+ ht v2) = (omg (ht v1) \+ omg (ht v2) == nown).
-Proof.
-move=>W /andP [G] /andP []; rewrite /= /omg in G *.
-rewrite lastatvalUn (pfVf ht W G); case: ltngtP=>H H1 H2;
-by rewrite ?(negbTE H1) ?(negbTE H2) //; case: ifP.
+Lemma omgNegMorph (V : pcm) (v1 v2 : V) (ht : pcm_morph V U) :
+         valid (v1 \+ v2) -> preim ht omg_sep v1 v2 ->
+         ~~ last_atval false (ht v1 \+ ht v2) = 
+         (omg (ht v1) \+ omg (ht v2) == nown).
+Proof. 
+move=>W /andP [H1 H2].
+have W' : valid (ht (v1 \+ v2)) by rewrite pfV // (sepU0 W H1).
+by rewrite -!pfjoin //= omgNeg.
 Qed.
 
-Lemma omgidPos (v : U) :
-        last_atval false v = (omg v == own).
+Lemma omgidPos (v : U) : last_atval false v = (omg v == own).
 Proof. by rewrite (omgPos _ id). Qed.
 
 Lemma omgidPosMorph (v1 v2 : U) :
-        valid (v1 \+ v2) -> omg_s v1 v2 ->
+        valid (v1 \+ v2) -> omg_sep v1 v2 ->
         last_atval false (v1 \+ v2) = (omg v1 \+ omg v2 == own).
-Proof. by move=> W S; rewrite (@omgPosMorph _ _ _ _ (id_morph _)). Qed.
+Proof. by move=>W S; rewrite (omgPosMorph (ht:=idfun)). Qed.
 
 Lemma omgidNeg (v : U) :
-        ~~ last_atval false v = (omg v == nown).
-Proof. by rewrite (omgNeg _ id). Qed.
+       valid v ->
+        ~~ last_atval false v = (omg v == Unit).
+Proof. exact: (@omgNeg _ _ id). Qed.
 
 Lemma omgidNegMorph (v1 v2 : U) :
-        valid (v1 \+ v2) -> omg_s v1 v2 ->
-         ~~last_atval false (v1 \+ v2) = (omg v1 \+ omg v2 == nown).
-Proof. by move=>W S; rewrite (@omgNegMorph _ _ _ _ (id_morph _)). Qed.
+        valid (v1 \+ v2) -> omg_sep v1 v2 ->
+         ~~ last_atval false (v1 \+ v2) = 
+         (omg v1 \+ omg v2 == Unit).
+Proof. by move=>W S; rewrite (omgNegMorph (ht:=idfun)). Qed.
 
-Definition omgP := ((omgidNegMorph, omgidPosMorph, omgPosMorph, omgNegMorph), (omgidPos, omgidNeg, omgPos, omgNeg)).
+Definition omgP := 
+  (valid_omg,
+   (omgidNegMorph, omgidPosMorph, omgPosMorph, omgNegMorph), 
+   (omgidPos, omgidNeg, omgPos, omgNeg)).
 
-Canonical omg_seprel.
-Canonical omg_morph.
-
-Lemma omg_fresh_val (V : pcm) (v1 v2 : V) (D : sep_rel V) (ht : @morphism V U D) :
+Lemma omg_fresh_val (V : pcm) (v1 v2 : V) (ht : pcm_morph V U) :
       valid (v1 \+ v2) ->
-      D v1 v2 ->
-      (omg (fresh (ht v1 \+ ht v2) \-> (false, true) \+ ht v1) = own) *
-      (omg (fresh (ht v1 \+ ht v2) \-> (true, false) \+ ht v1) = nown) *
-      (omg (fresh (ht v1 \+ ht v2) \-> (false, true) \+ ht v2) = own) *
-      (omg (fresh (ht v1 \+ ht v2) \-> (true, false) \+ ht v2) = nown).
+      sep ht v1 v2 ->
+      (omg (pts (fresh (ht v1 \+ ht v2)) (false, true) \+ ht v1) = own) *
+      (omg (pts (fresh (ht v1 \+ ht v2)) (true, false) \+ ht v1) = nown) *
+      (omg (pts (fresh (ht v1 \+ ht v2)) (false, true) \+ ht v2) = own) *
+      (omg (pts (fresh (ht v1 \+ ht v2)) (true, false) \+ ht v2) = nown).
 Proof.
-move=>A O; have Vh : valid (ht v1 \+ ht v2).
-- by move/pfV2: O; move/(_ _ ht A).
-by rewrite /omg !lastatval_freshUn.
+move=>A O; have Vh : valid (ht v1 \+ ht v2) by rewrite pfV2.
+rewrite /omg !undefNV !validPtUn /= !(validE2 Vh) !negbK /=.
+by rewrite !lastatval_freshUn // !(negbTE (fresh_dom _)) ?(freshUnL,freshUnR).
 Qed.
 
-Lemma omg_fresh_sep (V : pcm) (v1 v2 : V) (D : sep_rel V) (ht : @morphism V U D) op :
+Lemma omg_fresh_sep (V : pcm) (v1 v2 : V) (ht : pcm_morph V U) op :
         valid (v1 \+ v2) ->
-        D v1 v2 ->
-        (omg (ht v2) = nown ->
-          omg_s (fresh (ht v1 \+ ht v2) \-> op \+ ht v1) (ht v2)) *
-        (omg (ht v1) = nown ->
-          omg_s (ht v1) (fresh (ht v1 \+ ht v2) \-> op \+ ht v2)).
+        sep ht v1 v2 ->
+        (omg (ht v2) = Unit ->
+          omg_sep (pts (fresh (ht v1 \+ ht v2)) op \+ ht v1) (ht v2)) *
+        (omg (ht v1) = Unit ->
+          omg_sep (ht v1) (pts (fresh (ht v1 \+ ht v2)) op \+ ht v2)).
 Proof.
-move=>A O; have Vh : valid (ht v1 \+ ht v2).
-- by move/pfV2: O; move/(_ _ ht A).
-rewrite /omg_s lastatval_freshUn // lastkey_freshUn //.
-split=>N; first by rewrite omgP N /fresh lastkeyUn Vh ltnS leq_maxr implybT.
-by rewrite omgP N lastkey_freshUn //= ltnS lastkeyUn Vh leq_maxl implybT.
+move=>A O; have Vh : valid (ht v1 \+ ht v2) by rewrite pfV2.
+rewrite /omg_sep lastatval_freshUn //.
+rewrite !lastkeyPtUn ?(validE2 Vh,freshUnL,freshUnR) //.
+by split=>N; rewrite implybT omgP N.
 Qed.
 
 Definition omg_fresh := (omg_fresh_val, omg_fresh_sep).
 
-Lemma omg_eta (h : natmap (bool * bool)):
+Lemma omg_eta (h : U):
         valid h -> omg h = own ->
         exists h' v, [/\ h' = free h (last_key h),
-          h = last_key h \-> (v, true) \+ h',
+          h = pts (last_key h) (v, true) \+ h',
           last_key h != 0,
           last_key h \in dom h,
           last_key h \notin dom h' &
           last_key h' < last_key h].
 Proof.
-rewrite /omg; case: ifP=>// N V _; set k := last_key h.
+move=>V; rewrite /omg /=; rewrite undefNV V /=.
+case: ifP=>// N _; set k := last_key h.
 have D : k \in dom h.
 - rewrite /last_atval /atval /oapp in N.
-  by case: dom_find N=>[->//|].
+  by case: dom_find N.
 have K : k != 0 by apply: dom_cond D.
 case: (um_eta D); case=>v1 v2 [Ef Eh].
-set h' := free h k in Eh *; set q := k \-> (v1, true).
+set h' := free h k in Eh *; set q := k \-> (v1 , true).
 have Nd : k \notin dom h'.
 - rewrite Eh in V; case: validUn V=>// _ _ X _; apply: X.
   by rewrite domPt inE /= K eq_refl.
 exists h', v1; split=>//.
 - by rewrite /last_atval /atval Ef /= in N; rewrite -N.
 have: last_key h' <= k.
-- by rewrite /k Eh; apply: lastkeyUnf; rewrite -Eh.
+- by rewrite /k Eh lastkeyPtUnE -Eh V leq_maxr.
 rewrite leq_eqVlt; case/orP=>// /eqP E.
-rewrite -E in Nd; apply: contraR Nd=>/= _.
-by apply: (dom_lastkeyE (a:=0)); rewrite E; case: (k) K.
+by rewrite -E in Nd K; case: lastkeyP K Nd.
 Qed.
 
 (* specialize to alternating histories *)
-Lemma omg_eta_all (h : natmap (bool * bool)) :
+Lemma omg_eta_all (h : U) :
         valid h -> omg h = own -> um_all (fun k v => v.2 = ~~ v.1) h ->
         exists h', [/\ h' = free h (last_key h),
-          h = last_key h \-> (false, true) \+ h',
+          h = pts (last_key h) (false, true) \+ h',
           last_key h != 0,
           last_key h \in dom h,
           last_key h \notin dom h' &
@@ -530,15 +545,20 @@ by case: v {A} V H2.
 Qed.
 
 Lemma omg_lastkey x y :
-        (omg x = own -> valid (x \+ y) -> omg_s x y ->
+        (omg x = own -> valid (x \+ y) -> omg_sep x y ->
            last_key (x \+ y) = last_key x) *
-        (omg y = own -> valid (x \+ y) -> omg_s x y ->
+        (omg y = own -> valid (x \+ y) -> omg_sep x y ->
            last_key (x \+ y) = last_key y).
 Proof.
-rewrite /omg_s /omg; split=>L V S; case: ifP L=>L // _;
+rewrite /omg_sep /omg !undefNV. 
+split=>L V S; rewrite (validE2 V) /= in L; case: ifP L=>L // _;
 rewrite L /= in S; rewrite lastkeyUn V; case/andP: S=>S1 S2.
  by rewrite maxnC /maxn S1.
 by rewrite /maxn S2.
 Qed.
 
 End OmegaMorph.
+
+Arguments omg {U}.
+Arguments omg_sep {U}.
+

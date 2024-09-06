@@ -1,3 +1,16 @@
+(*
+Copyright 2013 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq eqtype.
 From pcm Require Import options prelude.
@@ -50,6 +63,7 @@ Variable A : Type.
 
 Structure tagged_elem := XTag {xuntag :> A}.
 
+
 Definition extend_tag := XTag.
 Definition recurse_tag := extend_tag.
 Canonical found_tag x := recurse_tag x.
@@ -61,7 +75,7 @@ Canonical found_tag x := recurse_tag x.
 (* - i : output index of pivot in xs2                               *)
 
 Definition axiom xs1 xs2 i (pivot : tagged_elem) :=
-  onth xs2 i = Some (xuntag pivot) /\ prefix xs1 xs2.
+  onth xs2 i = Some (xuntag pivot) /\ Prefix xs1 xs2.
 Structure xfind (xs1 xs2 : seq A) (i : nat) :=
   Form {pivot :> tagged_elem; _ : axiom xs1 xs2 i pivot}.
 
@@ -73,7 +87,7 @@ Canonical found_form x t := Form (@found_pf x t).
 (* recurse *)
 Lemma recurse_pf i x xs1 xs2 (f : xfind xs1 xs2 i) :
         axiom (x :: xs1) (x :: xs2) i.+1 (recurse_tag (xuntag f)).
-Proof. by case: f=>pv [H1 H2]; split=>//; apply/prefix_cons. Qed.
+Proof. by case: f=>pv [H1 H2]; split=>//; apply/Prefix_cons. Qed.
 Canonical recurse_form i x xs1 xs2 f := Form (@recurse_pf i x xs1 xs2 f).
 
 (* failed to find; attach the element to output *)
