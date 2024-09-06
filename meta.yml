@@ -40,23 +40,23 @@ license:
   file: LICENSE
 
 supported_coq_versions:
-  text: Coq 8.15 to 8.17
-  opam: '{ (>= "8.15" & < "8.19~") | (= "dev") }'
+  text: Coq 8.16 to 8.19
+  opam: '{ (>= "8.16" & < "8.20~") | (= "dev") }'
 
 tested_coq_opam_versions:
-- version: '1.15.0-coq-8.15'
+- version: '2.2.0-coq-8.16'
   repo: 'mathcomp/mathcomp'
-- version: '1.17.0-coq-8.18'
+- version: '2.2.0-coq-8.19'
   repo: 'mathcomp/mathcomp'
-- version: 'coq-dev'
+- version: 'latest-coq-dev'
   repo: 'mathcomp/mathcomp-dev'
 
 dependencies:
 - opam:
     name: coq-mathcomp-ssreflect
-    version: '{ (>= "1.15.0" & < "1.18~") | (= "dev") }'
+    version: '{ (>= "2.2.0" & < "2.3~") | (= "dev") }'
   description: |-
-    [MathComp ssreflect 1.15 to 1.17](https://math-comp.github.io)
+    [MathComp ssreflect 2.2](https://math-comp.github.io)
 - opam:
     name: coq-mathcomp-algebra
   description: |-
