@@ -29,7 +29,7 @@ This library relies on propositional and functional extentionality axioms.
   - Anton Trunov
   - Alexander Gryzlov
 - License: [Apache-2.0](LICENSE)
-- Compatible Coq versions: Coq 8.18 to 8.19
+- Compatible Coq versions: Coq 8.19 to 8.20
 - Additional dependencies:
   - [MathComp ssreflect 2.2](https://math-comp.github.io)
   - [MathComp algebra](https://math-comp.github.io)
