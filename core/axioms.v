@@ -21,7 +21,7 @@ limitations under the License.
 (* Jonh Major equality via equality cast.                                     *)
 (******************************************************************************)
 
-From Coq Require Import ssreflect ssrfun Eqdep ClassicalFacts.
+From Stdlib Require Import ssreflect ssrfun Eqdep ClassicalFacts.
 From mathcomp Require Import eqtype.
 From pcm Require Import options.
 

@@ -15,7 +15,7 @@ limitations under the License.
 (* This file re-implements some of ssrbool's entities in Prop universe        *)
 (******************************************************************************)
 
-From Coq Require Import ssreflect ssrbool ssrfun Setoid Basics.
+From Stdlib Require Import ssreflect ssrbool ssrfun Setoid Basics.
 From mathcomp Require Import ssrnat seq eqtype.
 From pcm Require Import options.
 
@@ -1521,7 +1521,7 @@ Definition id_rel : Rel A := fun x y => y = x.
 Lemma id_rel_refl : forall x, id_rel x x.
 Proof. by []. Qed.
 Lemma id_rel_sym : Symmetric id_rel.
-Proof. by []. Qed.
+Proof. by split. Qed.
 Lemma id_rel_trans : Transitive id_rel.
 Proof. by move=> x y z ->->. Qed.
 Lemma id_rel_func : functional id_rel.
@@ -1537,7 +1537,6 @@ Definition pre_rel P R := fun x y => P x /\ R x y.
 Lemma pre_rel_func R P : functional R -> functional (pre_rel P R).
 Proof. by move=> funcR x y1 y2 [_ Rxy1] [_ /(funcR _ _ _ Rxy1)]. Qed.
 End PreConditionalRelation.
-
 
 (** Imposing "postcondition" on a relation *)
 Section PostConditionalRelation.

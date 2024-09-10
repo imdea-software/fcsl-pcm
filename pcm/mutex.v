@@ -20,8 +20,8 @@ limitations under the License.
 (******************************************************************************)
 
 From HB Require Import structures.
-From Coq Require Import ssreflect ssrbool ssrfun.
-From Coq Require Setoid.
+From Stdlib Require Import ssreflect ssrbool ssrfun.
+From Stdlib Require Setoid.
 From mathcomp Require Import ssrnat eqtype seq.
 From pcm Require Import options prelude pred.
 From pcm Require Import pcm morphism natmap.
