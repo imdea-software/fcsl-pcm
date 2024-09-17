@@ -19,7 +19,7 @@ limitations under the License.
 (******************************************************************************)
 
 From HB Require Import structures.
-From Stdlib Require Import ssreflect ssrbool ssrfun.
+From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path fintype.
 From pcm Require Import options seqext.
 

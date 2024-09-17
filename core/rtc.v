@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 *)
 
-From Stdlib Require Import ssreflect ssrbool ssrfun.
+From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq choice fintype path fingraph.
 From pcm Require Import options axioms pred prelude finmap seqext.
 

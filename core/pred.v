@@ -15,7 +15,7 @@ limitations under the License.
 (* This file re-implements some of ssrbool's entities in Prop universe        *)
 (******************************************************************************)
 
-From Stdlib Require Import ssreflect ssrbool ssrfun Setoid Basics.
+From Coq Require Import ssreflect ssrbool ssrfun Setoid Basics.
 From mathcomp Require Import ssrnat seq eqtype.
 From pcm Require Import options.
 
@@ -1537,6 +1537,7 @@ Definition pre_rel P R := fun x y => P x /\ R x y.
 Lemma pre_rel_func R P : functional R -> functional (pre_rel P R).
 Proof. by move=> funcR x y1 y2 [_ Rxy1] [_ /(funcR _ _ _ Rxy1)]. Qed.
 End PreConditionalRelation.
+
 
 (** Imposing "postcondition" on a relation *)
 Section PostConditionalRelation.

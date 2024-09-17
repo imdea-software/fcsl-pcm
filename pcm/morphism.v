@@ -12,7 +12,7 @@ limitations under the License.
 *)
 
 From HB Require Import structures.
-From Stdlib Require Import ssreflect ssrbool ssrfun.
+From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype fintype finfun.
 From pcm Require Import options pred axioms prelude.
 From pcm Require Import pcm.
@@ -1571,22 +1571,26 @@ HB.instance Definition _ :=
   isFull_PCM_morphism.Build U W (g \o f) comp_is_full_morphism.
 End FullCompIsFull.
 
-(* instances for combinations must be declared explicitly *)
+(* instances for combinations must declare PCM_morphism.on *)
+(* before declaring fullness structure. *)
 
-HB.instance Definition _ (f : full_norm_pcm_morph U V) 
-                         (g : full_norm_pcm_morph V W) :=
-  Full_Norm_PCM_morphism.copy (g \o f) 
-    (Full_Norm_PCM_morphism.pack_ 
-       (Norm_PCM_morphism.class (g \o f))
-       (Full_PCM_morphism.class (g \o f))).
+HB.instance Definition _  
+    (f : full_norm_pcm_morph U V) 
+    (g : full_norm_pcm_morph V W) := 
+  PCM_morphism.on (g \o f).
+HB.instance Definition _ 
+    (f : full_norm_pcm_morph U V) 
+    (g : full_norm_pcm_morph V W) := 
+  Full_Norm_PCM_morphism.on (g \o f).
 
-HB.instance Definition _ (f : full_binorm_pcm_morph U V) 
-                         (g : full_binorm_pcm_morph V W) :=
-  Full_Binorm_PCM_morphism.copy (g \o f) 
-    (Full_Binorm_PCM_morphism.pack_ 
-       (Norm_PCM_morphism.class (g \o f))
-       (Binorm_PCM_morphism.class (g \o f))
-       (Full_PCM_morphism.class (g \o f))).
+HB.instance Definition _ 
+    (f : full_binorm_pcm_morph U V) 
+    (g : full_binorm_pcm_morph V W) :=
+  PCM_morphism.on (g \o f).
+HB.instance Definition _ 
+    (f : full_binorm_pcm_morph U V) 
+    (g : full_binorm_pcm_morph V W) :=
+  Full_Binorm_PCM_morphism.on (g \o f).
 
 End CompMorphism.
 
@@ -1811,43 +1815,49 @@ End CompTPCM.
 (* combinations declared explicitly *)
 
 HB.instance Definition _ 
-  (f : norm_tpcm_morph U V) (g : norm_tpcm_morph V W) :=
-  Norm_TPCM_morphism.copy (g \o f) 
-    (Norm_TPCM_morphism.pack_ 
-       (TPCM_morphism.class (g \o f))
-       (Norm_PCM_morphism.class (g \o f))).
+    (f : norm_tpcm_morph U V) 
+    (g : norm_tpcm_morph V W) :=
+  PCM_morphism.on (g \o f).
+HB.instance Definition _ 
+    (f : norm_tpcm_morph U V) 
+    (g : norm_tpcm_morph V W) :=
+  Norm_TPCM_morphism.on (g \o f).
 
 HB.instance Definition _ 
-  (f : binorm_tpcm_morph U V) (g : binorm_tpcm_morph V W) :=
-  Binorm_TPCM_morphism.copy (g \o f) 
-    (Binorm_TPCM_morphism.pack_ 
-       (TPCM_morphism.class (g \o f))
-       (Norm_PCM_morphism.class (g \o f))
-       (Binorm_PCM_morphism.class (g \o f))).
+    (f : binorm_tpcm_morph U V) 
+    (g : binorm_tpcm_morph V W) :=
+  PCM_morphism.on (g \o f).
+HB.instance Definition _ 
+    (f : binorm_tpcm_morph U V) 
+    (g : binorm_tpcm_morph V W) :=
+  Binorm_TPCM_morphism.on (g \o f).
 
 HB.instance Definition _ 
-  (f : full_tpcm_morph U V) (g : full_tpcm_morph V W) :=
-  Full_TPCM_morphism.copy (g \o f) 
-    (Full_TPCM_morphism.pack_ 
-       (TPCM_morphism.class (g \o f))
-       (Full_PCM_morphism.class (g \o f))).
+    (f : full_tpcm_morph U V) 
+    (g : full_tpcm_morph V W) :=
+  PCM_morphism.on (g \o f).
+HB.instance Definition _ 
+    (f : full_tpcm_morph U V) 
+    (g : full_tpcm_morph V W) :=
+  Full_TPCM_morphism.on (g \o f).
 
 HB.instance Definition _ 
-  (f : full_norm_tpcm_morph U V) (g : full_norm_tpcm_morph V W) :=
-  Full_Norm_TPCM_morphism.copy (g \o f) 
-    (Full_Norm_TPCM_morphism.pack_ 
-       (TPCM_morphism.class (g \o f))
-       (Full_PCM_morphism.class (g \o f))
-       (Norm_PCM_morphism.class (g \o f))).
-
+    (f : full_norm_tpcm_morph U V) 
+    (g : full_norm_tpcm_morph V W) :=
+  PCM_morphism.on (g \o f).
 HB.instance Definition _ 
-  (f : full_binorm_tpcm_morph U V) (g : full_binorm_tpcm_morph V W) :=
-  Full_Binorm_TPCM_morphism.copy (g \o f) 
-    (Full_Binorm_TPCM_morphism.pack_ 
-       (TPCM_morphism.class (g \o f))
-       (Full_PCM_morphism.class (g \o f))
-       (Norm_PCM_morphism.class (g \o f))
-       (Binorm_PCM_morphism.class (g \o f))).
+    (f : full_norm_tpcm_morph U V) 
+    (g : full_norm_tpcm_morph V W) :=
+  Full_Norm_TPCM_morphism.on (g \o f).
+
+HB.instance Definition _  
+    (f : full_binorm_tpcm_morph U V) 
+    (g : full_binorm_tpcm_morph V W) :=
+  PCM_morphism.on (g \o f).
+HB.instance Definition _ 
+    (f : full_binorm_tpcm_morph U V) 
+    (g : full_binorm_tpcm_morph V W) :=
+  Full_Binorm_TPCM_morphism.on (g \o f).
 
 End Comp. 
 

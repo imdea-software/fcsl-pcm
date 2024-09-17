@@ -16,7 +16,7 @@ limitations under the License.
 (* separating relations.                                                      *)
 (******************************************************************************)
 
-From Stdlib Require Import ssreflect ssrbool ssrfun.
+From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype.
 From pcm Require Import options axioms prelude.
 From pcm Require Import pcm morphism.

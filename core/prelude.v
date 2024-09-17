@@ -17,7 +17,7 @@ limitations under the License.
 (******************************************************************************)
 
 From HB Require Import structures.
-From Stdlib Require Import ssreflect ssrfun Eqdep. 
+From Coq Require Import ssreflect ssrfun Eqdep. 
 From mathcomp Require Import ssrbool ssrnat seq eqtype choice path.
 From mathcomp Require Import fintype finset finfun tuple perm fingroup.
 From pcm Require Import options axioms.
@@ -307,8 +307,8 @@ Notation "[ \/ P1 , P2 , P3 , P4 , P5 , P6 | P7 ]" := (or7 P1 P2 P3 P4 P5 P6 P7)
 (** Add the ability to rewrite with [<->] for the custom logical connectives *)
 
 
-From Stdlib Require Import Classes.Morphisms Program.Basics Program.Tactics.
-From Stdlib Require Import Relations.
+From Coq Require Import Classes.Morphisms Program.Basics Program.Tactics.
+From Coq Require Import Relations.
 
 Local Obligation Tactic := try solve [simpl_relation | firstorder auto].
 
@@ -1274,7 +1274,7 @@ Lemma onth_tnth {n} (s : n.-tuple A) (i : 'I_n) :
 Proof.
 elim: n s i =>[|n IH] s i; first by case: i.
 case/tupleP: s=>/=x s; case: (unliftP ord0 i)=>[j|]-> /=.
-- by rewrite tnthS add0n.
+- by rewrite tnthS ?add0n.
 by rewrite tnth0.
 Qed.
 

@@ -18,7 +18,7 @@ limitations under the License.
 (******************************************************************************)
 
 From HB Require Import structures.
-From Stdlib Require Import ssreflect ssrbool ssrfun Eqdep.
+From Coq Require Import ssreflect ssrbool ssrfun Eqdep.
 From mathcomp Require Import ssrnat eqtype fintype tuple finfun seq path bigop.
 From pcm Require Import options axioms prelude pred finmap.
 From pcm Require Import pcm unionmap natmap.
