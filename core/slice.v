@@ -20,7 +20,7 @@ Open Scope order_scope.
 Import Order.Theory.
 
 Section BSimp_Extension.
-Variables (disp : unit) (T : porderType disp).
+Context disp (T : porderType disp).
 Implicit Types (x y : T) (b c : bool).
 
 Lemma binf_inf b c : (BInfty T b == BInfty T c) = (b == c).
