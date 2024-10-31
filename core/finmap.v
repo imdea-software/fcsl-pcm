@@ -1056,7 +1056,7 @@ Section MapDef.
 Variables (A B : ordType) (V : Type).
 
 Variable (f: A -> B).
-Hypothesis Hf : forall x y, strictly_increasing f x y.
+Hypothesis Hf : forall x y, @strictly_increasing A B f x y.
 
 Definition mapk (m : finMap A V) : finMap B V :=
   foldfmap (fun p s => ins (f (key p)) (value p) s) nil m.
@@ -1087,7 +1087,7 @@ End MapDef.
 Arguments mapk {A B V} f m.
 
 Variables (A B C : ordType) (V : Type) (f : A -> B) (g : B -> C).
-Hypothesis Hf : forall x y, strictly_increasing f x y.
+Hypothesis Hf : forall x y, @strictly_increasing A B f x y.
 
 Lemma mapk_id m : @mapk A A V id m = m.
 Proof.
@@ -1095,7 +1095,7 @@ by elim/fmap_ind': m=>// k v s L IH; rewrite -{2}IH /mapk foldf_ins //.
 Qed.
 
 Lemma mapk_comp m:
-       mapk g (@mapk A B V f m) = mapk (comp g f) m.
+       @mapk B C V g (mapk f m) = mapk (comp g f) m.
 Proof.
 elim/fmap_ind': m  =>//= k v s P IH.
 rewrite [mapk (g \o f) _]mapk_ins //.
@@ -1134,7 +1134,7 @@ Fixpoint zip' (s1 s2 : seq (K * V)) :=
   | _, _ => None
   end.
 
-Definition zip_unit' (s : seq (K * V)) := mapf' unit_f s.
+Definition zip_unit' (s : seq (K * V)) := @mapf' K _ _ unit_f s.
 
 Lemma zipC' s1 s2 : zip' s1 s2 = zip' s2 s1.
 Proof.

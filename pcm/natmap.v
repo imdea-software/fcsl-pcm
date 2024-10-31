@@ -2696,7 +2696,7 @@ Variables (V R : Type) (U : natmap V) (X : ordType) (a : R -> V -> R) (f : R -> 
 Implicit Types p : pred (nat*V).
 
 Definition growing (h : U) :=
-  forall k v z0, (k, v) \In h -> oleq (f z0) (f (a z0 v)).
+  forall k v z0, (k, v) \In h -> @oleq X (f z0) (f (a z0 v)).
 
 Lemma growL h1 h2 : valid (h1 \+ h2) -> growing (h1 \+ h2) -> growing h1.
 Proof. by move=>W G k v z0 H; apply: (G k); apply/InL. Qed.
