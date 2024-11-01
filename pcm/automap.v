@@ -79,7 +79,7 @@ Implicit Type i : @ctx K _ _ U.
 
 Inductive term := Pts of nat & T | Var of nat.
 
-(* interpretjtion function for elements *)
+(* interpretation function for elements *)
 Definition interp' i t :=
   match t with
     Pts n v => if onth (keyx i) n is Some k then @pts K _ _ _ k v else undef

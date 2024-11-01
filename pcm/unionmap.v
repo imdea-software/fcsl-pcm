@@ -518,7 +518,6 @@ Proof. by split=>//; split=>[|[]]. Qed.
 HB.instance Definition _ := isUnion_map.Build K xpredT V (umap K V) umap_is_umc. 
 End UmapUMC.
 
-Set Printing All.
 (* if V is eqtype so is umap K V *)
 HB.instance Definition _ (K : ordType) (V : eqType) := 
   hasDecEq.Build (umap K V) (@union_map_eqP K xpredT V (umap K V)).
