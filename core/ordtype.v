@@ -20,7 +20,7 @@ limitations under the License.
 
 From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import ssrnat eqtype seq path fintype.
+From mathcomp Require Import ssrnat eqtype seq path choice fintype.
 From pcm Require Import options seqext.
 
 Definition connected (T : eqType) (ord : rel T) := 
@@ -43,8 +43,8 @@ HB.mixin Record isOrdered T of Equality T := {
 (* In this file in particular, the canonicals for each instance *)
 (* must be declared by hand as HB.instance does that *)
 (* only if Ordered is declared by HB.structure *)
-(*
-#[log(raw)]
+
+(* #[log(raw)] 
 #[short(type="ordType")]
 HB.structure Definition Ordered := 
   {T of Equality T & isOrdered T}.
@@ -198,7 +198,6 @@ Global Arguments ordtype_subproof {_}.
 
 Notation Ordered X1 := (Ordered.axioms_ X1). 
 (* end of generated and changed code *)
-
 
 (* Repacking *)
 
@@ -471,7 +470,8 @@ case: (x =P y)=>[-> H|/eqP/connex //].
 by apply: IH; apply: contra H=>/eqP ->.
 Qed.
 
-HB.instance Definition seq_ord_mix := isOrdered.Build (seq T) seq_is_ordtype.
+HB.instance Definition seq_ord_mix := 
+  isOrdered.Build (seq T) seq_is_ordtype.
 (* manual canonical declaration, as HB fails to declare it *)
 Canonical seq_ordType : ordType :=
   Ordered.Pack (sort:=seq T) (Ordered.Class seq_ord_mix).

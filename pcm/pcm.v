@@ -19,7 +19,7 @@ limitations under the License.
 
 From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun Setoid.
-From mathcomp Require Import ssrnat eqtype seq bigop fintype finset finfun.
+From mathcomp Require Import ssrnat eqtype seq bigop choice fintype finset finfun.
 From pcm Require Import options axioms prelude seqperm pred seqext.
 
 Declare Scope pcm_scope.
@@ -415,12 +415,14 @@ HB.instance Definition natPCM : isPCM nat := isPCM.Build nat nat_is_pcm.
 (* but the instance isn't declared canonical as natPCM already is *)
 Lemma nat_is_mulpcm : pcm_axiom xpredT mult 1 (eq_op^~ 1).
 Proof. by split=>//; [apply:mulnC|apply:mulnA|apply:mul1n|apply:(@eqP _^~_)]. Qed.
-HB.instance Definition nat_mulPCM : isPCM nat := isPCM.Build nat nat_is_mulpcm.
+(* HB.instance Definition nat_mulPCM : isPCM nat := 
+  isPCM.Build nat nat_is_mulpcm. *)
 
 (* nats with max too *)
 Lemma nat_is_maxpcm : pcm_axiom xpredT maxn 0 (eq_op^~ 0).
 Proof. by split=>//; [apply:maxnC|apply:maxnA|apply:max0n|apply:(@eqP _^~_)]. Qed.
-HB.instance Definition nat_maxPCM : isPCM nat := isPCM.Build nat nat_is_maxpcm. 
+(* HB.instance Definition nat_maxPCM : isPCM nat := 
+  isPCM.Build nat nat_is_maxpcm. *)
 
 (* bools with conjunction *)
 (* eqpcm automatically inferred *)
@@ -433,8 +435,8 @@ HB.instance Definition boolPCM : isPCM bool := isPCM.Build bool bool_is_pcm.
 (* but the instance isn't declared canonical as boolPCM alread is *)
 Lemma bool_is_disjpcm : pcm_axiom xpredT orb false (eq_op^~ false).
 Proof. by split=>//; [apply:orbC|apply:orbA|apply:(@eqP _^~_)]. Qed.
-HB.instance Definition bool_disjPCM : isPCM bool := 
-  isPCM.Build bool bool_is_disjpcm.
+(* HB.instance Definition bool_disjPCM : isPCM bool := 
+  isPCM.Build bool bool_is_disjpcm. *)
 
 (* positive nats under max *)
 Section PosNatMax.

@@ -13,7 +13,7 @@ limitations under the License.
 
 From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import ssrnat eqtype fintype finfun.
+From mathcomp Require Import ssrnat eqtype choice fintype finfun.
 From pcm Require Import options pred axioms prelude.
 From pcm Require Import pcm.
 
