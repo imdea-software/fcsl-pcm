@@ -22,7 +22,7 @@ jobs:
           - 'mathcomp/mathcomp:latest-coq-dev'
       fail-fast: false
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: coq-community/docker-coq-action@v1
         with:
           opam_file: 'coq-fcsl-pcm.opam'
