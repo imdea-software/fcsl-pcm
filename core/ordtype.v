@@ -20,7 +20,7 @@ limitations under the License.
 
 From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import ssrnat eqtype seq path fintype.
+From mathcomp Require Import ssrnat eqtype seq path choice fintype.
 From pcm Require Import options seqext.
 
 Definition connected (T : eqType) (ord : rel T) := 
