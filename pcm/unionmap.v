@@ -444,7 +444,7 @@ have [k H3] : exists k, k \in supp fx.
 - case: (supp fx) {E1 E} E2=>[|k s _] //.
   by exists k; rewrite inE eqxx. 
 suff : k \in supp (fcat fx fy) by rewrite E1. 
-by rewrite supp_fcat inE H3.
+by rewrite supp_fcat inE /= H3.
 Qed.
 
 HB.instance Definition _ := isPCMC.Build T union_map_is_conical.
