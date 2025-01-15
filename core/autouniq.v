@@ -65,7 +65,7 @@ Inductive term := Pts of nat | Var of nat.
 Definition eq_term t1 t2 : bool :=
   match t1, t2 with 
   | Pts n1, Pts n2 => n1 == n2
-  | Var v1, Var v2 => v1 == v2
+  | Var x1, Var x2 => x1 == x2
   | _, _ => false
   end.
 Lemma eq_termP : Equality.axiom eq_term.
