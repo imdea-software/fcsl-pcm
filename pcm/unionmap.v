@@ -104,7 +104,7 @@ From pcm Require Import pcm morphism.
 (****************************)
 
 (* UM.base type is reference implementation of union_maps. *)
-(* Type has @union_map K structure if it exhibits isomorphism with UM.base. *)
+(* Type has union_map structure if it exhibits isomorphism with UM.base. *)
 (* Tying to reference implementation is alternative to axiomatizing *)
 (* union maps, which seems unwieldy. *)
 (* Thus, the underlying type of all union_maps instances will be *)
@@ -277,7 +277,7 @@ End UM.
 (***********************)
 (***********************)
 
-(* type T has @union_map K structure is it's cancellative TPCM *)
+(* type T has union_map structure is it's cancellative TPCM *)
 (* with an isomorphism to UM.base *)
 
 Definition union_map_axiom (K : ordType) (C : pred K) V T 
@@ -304,7 +304,7 @@ Definition union_map_axiom (K : ordType) (C : pred K) V T
 HB.mixin Record isUnionMap_helper (K : ordType) (C : pred K) V T of 
   Normal_CTPCM T := {
     upd : K -> V -> T -> T;
-    dom : T -> seq K;
+    dom_op : T -> seq K;
     assocs : T -> seq (K * V);
     free : T -> K -> T;
     find : K -> T -> option V;
@@ -312,26 +312,28 @@ HB.mixin Record isUnionMap_helper (K : ordType) (C : pred K) V T of
     UMC_from : T -> @UM.base K C V;
     UMC_to : UM.base C V -> T;
     union_map_helper_subproof : 
-      union_map_axiom valid Unit undef upd dom assocs 
+      union_map_axiom valid Unit undef upd dom_op assocs 
                       free find join unitb undefb pts_op UMC_from UMC_to}.
 
-(* embed cancellative topped PCM structure to enable inheritance *)
+(* embed cancellative topped conical PCM structure to enable inheritance *)
 (* we prove later that this isn't needed *)
 #[short(type="union_map")]
 HB.structure Definition UMC K C V := 
-  {T of @isUnionMap_helper K C V T & Normal_TPCM T & CTPCM T}.
+  {T of @isUnionMap_helper K C V T & Normal_TPCM T & CTPCMC T}.
 
-Lemma ftE K C V (U : @union_map K C V) b : UMC_from (UMC_to b : U) = b.
+Arguments union_map : clear implicits.
+
+Lemma ftE K C V (U : union_map K C V) b : UMC_from (UMC_to b : U) = b.
 Proof. by rewrite union_map_helper_subproof. Qed.
 
-Lemma tfE K C V (U : @union_map K C V) b : UMC_to (UMC_from b) = b :> U.
+Lemma tfE K C V (U : union_map K C V) b : UMC_to (UMC_from b) = b :> U.
 Proof. by rewrite union_map_helper_subproof. Qed.
 
-Lemma eqE K C V (U : @union_map K C V) (b1 b2 : UM.base C V) :
+Lemma eqE K C V (U : union_map K C V) (b1 b2 : UM.base C V) :
         UMC_to b1 = UMC_to b2 :> U <-> b1 = b2.
 Proof. by split=>[E|->//]; rewrite -(ftE U b1) -(ftE U b2) E. Qed.
 
-Definition umEX K C V (U : @union_map K C V) := 
+Definition umEX K C V (U : union_map K C V) := 
   (@union_map_helper_subproof K C V U, eqE, UM.umapE).
 
 (* Build CTCPM structure from the rest *)
@@ -431,10 +433,28 @@ Qed.
 
 HB.instance Definition _ := isNormal_TPCM.Build T union_map_is_normal.
 HB.instance Definition _ := isUnionMap_helper.Build K C V T union_map_subproof.
+
+Lemma union_map_is_conical : pcmc_axiom T.
+Proof.
+move=>/= x y; rewrite /unitb pcmE /= !umEX ftE /UM.empb/UM.union. 
+case: (um_from x) (um_from y)=>[|fx Fx][|fy Fy] //=; case: ifP=>E //. 
+case: (supp (fcat fx fy) =P [::])=>// E1 _; case: (supp fx =P [::])=>E2 /=.
+- by move/supp_nilE: E2 E1=>-> /eqP; rewrite fcat0s. 
+have [k H3] : exists k, k \in supp fx.
+- case: (supp fx) {E1 E} E2=>[|k s _] //.
+  by exists k; rewrite inE eqxx. 
+suff : k \in supp (fcat fx fy) by rewrite E1. 
+by rewrite supp_fcat inE H3.
+Qed.
+
+HB.instance Definition _ := isPCMC.Build T union_map_is_conical.
 HB.end.
 
-(* Making pts infer @union_map K structure *)
-Definition ptsx K C V (U : @union_map K C V) k v of phant U : U := 
+(* Notation for pts and dom that infers union_map structure. *)
+(* Different structures can use different syntax for pts and dom *) 
+
+(* Making pts infer union_map structure *)
+Definition ptsx K C V (U : union_map K C V) k v of phant U : U := 
   @pts_op K C V U k v.
 
 (* use ptsT to pass map type explicitly *)
@@ -445,6 +465,19 @@ Notation "@ 'pts' K C V U k v" := (@ptsx K C V U%type k v (Phant U))
   (at level 10, K at level 8, C at level 8, V at level 8,
   U at level 8, k at level 8, v at level 8, only parsing).
 
+(* Making dom infer union_map structure *)
+Definition domx K C V (U : union_map K C V) f of phant U : seq K := 
+  @dom_op K C V U f.
+
+(* use domT to pass map type explicitly *)
+(* use dom when type inferrable or for printing *)
+Notation domT U f := (domx f (Phant U)) (only parsing).
+Notation dom f := (domT _ f). 
+Notation "@ 'dom' K C V U f" := (@domx K C V U%type f (Phant U))
+  (at level 10, K at level 8, C at level 8, V at level 8,
+  U at level 8, f at level 8, only parsing).
+
+
 (*************************************)
 (* Union map with decidable equality *)
 (*************************************)
@@ -453,7 +486,7 @@ Notation "@ 'pts' K C V U k v" := (@ptsx K C V U%type k v (Phant U))
 
 Section UnionMapEq.
 Variables (K : ordType) (C : pred K) (V : eqType).
-Variable (U : @union_map K C V).
+Variables U : union_map K C V.
 
 Definition union_map_eq (f1 f2 : U) := 
   match (UMC_from f1), (UMC_from f2) with
@@ -575,29 +608,45 @@ Abort.
 (* dom *)
 (*******)
 
-Notation "[ 'dom' f ]" := [mem (dom f)] : fun_scope.
+Notation "[ 'dom' f ]" := 
+  [mem (dom f)] (format "[ 'dom'  f ]") : fun_scope.
 
 Section DomLemmas.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Types (k : K) (v : V) (f g : U).
 
 Lemma dom_undef : dom (undef : U) = [::].
-Proof. by rewrite !umEX. Qed.
+Proof. by rewrite /domx !umEX. Qed.
 
 Lemma dom0 : dom (Unit : U) = [::].
-Proof. by rewrite !umEX. Qed.
+Proof. by rewrite /domx !umEX. Qed.
+
+Lemma sorted_dom f : sorted (@ord K) (dom f).
+Proof. by rewrite /domx !umEX; case: (UMC_from f)=>[|[]]. Qed.
+
+Lemma sorted_dom_oleq f : sorted (@oleq K) (dom f).
+Proof. by apply: sorted_oleq (sorted_dom f). Qed.
+
+Lemma uniq_dom f : uniq (dom f).
+Proof.
+apply: sorted_uniq (sorted_dom f);
+by [apply: ordtype.trans | apply: ordtype.irr].
+Qed.
 
 Lemma dom0E f : 
         valid f -> 
         dom f =i pred0 -> 
         f = Unit.
 Proof.
-rewrite !umEX /UM.valid /UM.dom /UM.empty -{3}[f]tfE !eqE UM.umapE.
+rewrite /domx !umEX /UM.valid /UM.dom /UM.empty -{3}[f]tfE !eqE UM.umapE.
 case: (UMC_from f)=>[|f' S] //= _; rewrite fmapE /= {S}.
 by case: f'; case=>[|kv s] //= P /= /(_ kv.1); rewrite inE eq_refl.
 Qed.
 
-Lemma domNE f : reflect (dom f = [::]) (unitb f || undefb f).
+Lemma all_dom f : all C (dom f).
+Proof. by rewrite /domx !umEX; case: (UMC_from f). Qed.
+
+Lemma domNE f : reflect (dom f = [::]) (unitb f || undefb f). 
 Proof.
 case: (normalP0 f)=>[->|->|W N]; constructor; rewrite ?dom0 ?dom_undef //.
 by move=>M; apply: N; apply: dom0E W _; rewrite M.
@@ -614,29 +663,41 @@ Lemma domU k v f :
         dom (upd k v f) =i
         [pred x | C k & if x == k then valid f else x \in dom f].
 Proof.
-rewrite !umEX /UM.dom /UM.upd /UM.valid /=. 
+rewrite /domx !umEX /UM.dom /UM.upd /UM.valid /=. 
 case: (UMC_from f)=>[|f' H] /= x.
 - by rewrite !inE andbC; case: ifP.
 case: decP=>[->|/(introF idP)->//].
 by rewrite supp_ins.
 Qed.
 
-Lemma domF k f :
+Lemma domFF k f :
         dom (free f k) =i
         [pred x | if k == x then false else x \in dom f].
 Proof.
-rewrite !umEX; case: (UMC_from f)=>[|f' H] x; rewrite inE /=;
+rewrite /domx !umEX; case: (UMC_from f)=>[|f' H] x; rewrite inE /=;
 by case: ifP=>// E; rewrite supp_rem inE /= eq_sym E.
 Qed.
 
+Lemma domFE k f : 
+        dom (free f k) = filter (predC1 k) (dom f).
+Proof.
+apply/ord_sorted_eq; first by apply/sorted_dom.
+- by apply/sorted_filter=>//; apply/sorted_dom.
+by move=>z; rewrite mem_filter domFF inE /= eq_sym; case: eqP.
+Qed.
+
+Lemma domF k x f :
+        x \in dom (free f k) = (x != k) && (x \in dom f).
+Proof. by rewrite domFE mem_filter. Qed.
+
 Lemma subdomF k f : {subset dom (free f k) <= dom f}.
-Proof. by move=>x; rewrite domF inE; case: eqP. Qed.
+Proof. by move=>x; rewrite domF=>/andP []. Qed.
 
 Lemma domUn f1 f2 :
         dom (f1 \+ f2) =i
         [pred x | valid (f1 \+ f2) & (x \in dom f1) || (x \in dom f2)].
 Proof.
-rewrite !umEX /UM.dom /UM.valid /UM.union.
+rewrite /domx !umEX /UM.dom /UM.valid /UM.union.
 case: (UMC_from f1) (UMC_from f2)=>[|f1' H1] // [|f2' H2] // x.
 by case: ifP=>E //; rewrite supp_fcat.
 Qed.
@@ -648,10 +709,10 @@ Lemma domUnE f1 f2 x :
 Proof. by move=>W; rewrite domUn inE W. Qed.
 
 Lemma dom_valid k f : k \in dom f -> valid f.
-Proof. by rewrite !umEX; case: (UMC_from f). Qed.
+Proof. by rewrite /domx !umEX; case: (UMC_from f). Qed.
 
 Lemma dom_cond k f : k \in dom f -> C k.
-Proof. by rewrite !umEX; case: (UMC_from f)=>[|f' F] // /(allP F). Qed.
+Proof. by rewrite /domx !umEX; case: (UMC_from f)=>[|f' F] // /(allP F). Qed.
 
 Lemma cond_dom k f : ~~ C k -> k \in dom f = false.
 Proof. by apply: contraTF=>/dom_cond ->. Qed.
@@ -674,7 +735,7 @@ Proof. by move=> D; apply/contra/dom_inIR. Qed.
 
 Lemma dom_free k f : k \notin dom f -> free f k = f.
 Proof.
-rewrite -{3}[f]tfE !umEX /UM.dom /UM.free /=.
+rewrite /domx -{3}[f]tfE !umEX /UM.dom /UM.free /=.
 by case: (UMC_from f)=>[|f' H] //; apply: rem_supp.
 Qed.
 
@@ -685,7 +746,7 @@ Variant dom_find_spec k f : option V -> bool -> Type :=
 
 Lemma dom_find k f : dom_find_spec k f (find k f) (k \in dom f).
 Proof.
-rewrite !umEX /UM.dom -{1}[f]tfE.
+rewrite /domx !umEX /UM.dom -{1}[f]tfE.
 case: (UMC_from f)=>[|f' H].
 - by apply: dom_find_none''; rewrite !umEX.
 case: suppP (allP H k)=>[v|] /[dup] H1 /= -> I; last first.
@@ -710,7 +771,7 @@ Lemma dom_prec f1 f2 g1 g2 :
         f1 \+ g1 = f2 \+ g2 ->
         dom f1 =i dom f2 -> f1 = f2.
 Proof.
-rewrite -{4}[f1]tfE -{3}[f2]tfE /= !umEX.
+rewrite /domx -{4}[f1]tfE -{3}[f2]tfE /= !umEX.
 rewrite /UM.valid /UM.union /UM.dom; move=>D E.
 case: (UMC_from f1) (UMC_from f2) (UMC_from g1) (UMC_from g2) E D=>
 [|f1' F1][|f2' F2][|g1' G1][|g2' G2] //;
@@ -724,21 +785,6 @@ suff L: forall m s, k \in supp m -> disj m s ->
 by move=>m s S; case: disjP=>//; move/(_ _ S)/negbTE; rewrite fnd_fcat=>->.
 Qed.
 
-Lemma sorted_dom f : sorted (@ord K) (dom f).
-Proof. by rewrite !umEX; case: (UMC_from f)=>[|[]]. Qed.
-
-Lemma sorted_dom_oleq f : sorted (@oleq K) (dom f).
-Proof. by apply: sorted_oleq (sorted_dom f). Qed.
-
-Lemma uniq_dom f : uniq (dom f).
-Proof.
-apply: sorted_uniq (sorted_dom f);
-by [apply: ordtype.trans | apply: ordtype.irr].
-Qed.
-
-Lemma all_dom f : all C (dom f).
-Proof. by rewrite !umEX; case: (UMC_from f). Qed.
-
 Lemma perm_domUn f1 f2 :
         valid (f1 \+ f2) -> perm_eq (dom (f1 \+ f2)) (dom f1 ++ dom f2).
 Proof.
@@ -746,7 +792,7 @@ move=>Vh; apply: uniq_perm; last 1 first.
 - by move=>x; rewrite mem_cat domUn inE Vh.
 - by apply: uniq_dom.
 rewrite cat_uniq !uniq_dom /= andbT; apply/hasPn=>x.
-rewrite !umEX /UM.valid /UM.union /UM.dom in Vh *.
+rewrite /domx !umEX /UM.valid /UM.union /UM.dom in Vh *.
 case: (UMC_from f1) (UMC_from f2) Vh=>// f1' H1 [//|f2' H2].
 by case: disjP=>// H _; apply: contraL (H x).
 Qed.
@@ -759,7 +805,7 @@ Proof. by move/perm_domUn/seq.perm_size; rewrite size_cat. Qed.
 Lemma size_domF k f :
         k \in dom f -> size (dom (free f k)) = (size (dom f)).-1.
 Proof.
-rewrite !umEX; case: (UMC_from f)=>[|f'] //=; case: f'=>f' F /= _.
+rewrite /domx !umEX; case: (UMC_from f)=>[|f'] //=; case: f'=>f' F /= _.
 rewrite /supp /= !size_map size_filter=>H.
 move/(sorted_uniq (@trans K) (@irr K))/count_uniq_mem: F=>/(_ k).
 rewrite {}H count_map /ssrbool.preim /= => H.
@@ -771,7 +817,7 @@ Lemma size_domU k v f :
         size (dom (upd k v f)) =
         if k \in dom f then size (dom f) else (size (dom f)).+1.
 Proof.
-rewrite !umEX /UM.valid /UM.upd /UM.dom.
+rewrite /domx !umEX /UM.valid /UM.upd /UM.dom.
 case: (UMC_from f)=>[|f'] //= H; case: decP=>// P _.
 by case: f' H=>f' F H; rewrite /supp /= !size_map size_ins'.
 Qed.
@@ -787,7 +833,7 @@ Prenex Implicits find_some find_none subdomF.
 (* lemmas for comparing doms of two differently-typed maps *)
 Section DomLemmas2.
 Variables (K : ordType) (C1 C2 : pred K) (V1 V2 : Type).
-Variables (U1 : @union_map K C1 V1) (U2 : @union_map K C2 V2).
+Variables (U1 : union_map K C1 V1) (U2 : union_map K C2 V2).
 
 Lemma domE (f1 : U1) (f2 : U2) : dom f1 =i dom f2 <-> dom f1 = dom f2.
 Proof. by split=>[|->] //; apply/ord_sorted_eq/sorted_dom/sorted_dom. Qed.
@@ -797,7 +843,7 @@ Lemma domKi (f1 g1 : U1) (f2 g2 : U2) :
         dom (f1 \+ g1) =i dom (f2 \+ g2) ->
         dom f1 =i dom f2 -> dom g1 =i dom g2.
 Proof.
-rewrite !umEX /UM.valid /UM.union /UM.dom.
+rewrite /domx !umEX /UM.valid /UM.union /UM.dom.
 case: (UMC_from f1) (UMC_from f2) (UMC_from g1) (UMC_from g2)=>
 [|f1' F1][|f2' F2][|g1' G1][|g2' G2] //.
 case: disjP=>// D1 _; case: disjP=>// D2 _ E1 E2 x.
@@ -846,7 +892,7 @@ End DomLemmas2.
 (*********)
 
 Section ValidLemmas.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Types (k : K) (v : V) (f g : U).
 
 Lemma invalidE f : ~~ valid f <-> f = undef.
@@ -879,9 +925,9 @@ case: (UMC_from f1) (UMC_from f2)=>[|f1' F1][|f2' F2] /=.
 - by apply: valid_false2; rewrite !umEX.
 case: ifP=>E.
 - apply: valid_true; try by rewrite !umEX.
-  by move=>k; rewrite !umEX => H; case: disjP E=>//; move/(_ _ H).
+  by move=>k; rewrite /domx !umEX => H; case: disjP E=>//; move/(_ _ H).
 case: disjP E=>// k T1 T2 _.
-by apply: (valid_false3 (k:=k)); rewrite !umEX.
+by apply: (valid_false3 (k:=k)); rewrite /domx !umEX.
 Qed.
 
 Lemma validUnAE f1 f2 :
@@ -918,7 +964,7 @@ Proof.
 case: validUn=>// V1 V2 H _; case: validUn=>//.
 - by rewrite validF V1.
 - by rewrite V2.
-by move=>k'; rewrite domF inE; case: eqP=>// _ /H/negbTE ->.
+by move=>x; rewrite domF=>/andP [_] /H/negbTE ->.
 Qed.
 
 Lemma validUnF k f1 f2 :
@@ -969,7 +1015,7 @@ Proof. by case: (k1 =P k2) =>// <- W H /(dom_inNLX W H). Qed.
 
 Lemma dom_inNX k1 k2 f1 f2 :
         valid (f1 \+ f2) ->
-        k1 \in dom f1 -> k2 \in dom f2 -> k1 <> k2.
+        k1 \in dom f1 -> k2 \in dom f2 -> k1 <> k2. 
 Proof. by move=>W K1 K2; apply/eqP; apply: dom_inN K1 K2. Qed.
 
 End ValidLemmas.
@@ -982,7 +1028,7 @@ End ValidLemmas.
 (* AKA empb *)
 
 Section UnitbLemmas.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Types (k : K) (v : V) (f : U).
 
 Lemma um_unitbU k v f : unitb (upd k v f) = false.
@@ -993,35 +1039,13 @@ suff: k \in supp (ins k v f') by case: (supp _).
 by rewrite supp_ins inE /= eq_refl.
 Qed.
 
-Lemma um_unitbUn f1 f2 : unitb (f1 \+ f2) = unitb f1 && unitb f2.
-Proof.
-rewrite !umEX /UM.empb /UM.union.
-case: (UMC_from f1) (UMC_from f2)=>[|f1' F1][|f2' F2] //.
-- by rewrite andbF.
-case: ifP=>E; case: eqP=>E1; case: eqP=>E2 //; last 2 first.
-- by move: E2 E1; move/supp_nilE=>->; rewrite fcat0s; case: eqP.
-- by move: E1 E2 E; do 2![move/supp_nilE=>->]; case: disjP.
-- by move/supp_nilE: E2 E1=>-> <-; rewrite fcat0s eq_refl.
-have [k H3]: exists k, k \in supp f1'.
-- case: (supp f1') {E1 E} E2=>[|x s _] //.
-  by exists x; rewrite inE eq_refl.
-suff: k \in supp (fcat f1' f2') by rewrite E1.
-by rewrite supp_fcat inE /= H3.
-Qed.
-
 (* some transformation lemmas *)
-
-(* AKA conicity *)
-Lemma umap0E f1 f2 : f1 \+ f2 = Unit -> f1 = Unit /\ f2 = Unit.
-Proof. 
-by move/unitbP; rewrite um_unitbUn=>/andP [H1 H2]; split; apply/unitbP.
-Qed.
 
 Lemma validEb f : reflect (valid f /\ forall k, k \notin dom f) (unitb f).
 Proof.
 case: unitbP=>E; constructor; first by rewrite E valid_unit dom0.
 case=>V' H; apply: E; move: V' H.
-rewrite !umEX /UM.valid /UM.dom /UM.empty -{3}[f]tfE.
+rewrite /domx !umEX /UM.valid /UM.dom /UM.empty -{3}[f]tfE.
 case: (UMC_from f)=>[|f' F] // _ H; rewrite !umEX.
 apply/supp_nilE; case: (supp f') H=>// x s /(_ x).
 by rewrite inE eq_refl.
@@ -1042,7 +1066,7 @@ End UnitbLemmas.
 (**********)
 
 Section UndefbLemmas.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Types (k : K) (v : V) (f : U).
 
 Lemma undefb_undef : undefb (undef : U).
@@ -1075,8 +1099,8 @@ End UndefbLemmas.
 
 Section DomEqDef.
 Variables (K : ordType) (C1 C2 : pred K) (V1 V2 : Type).
-Variable U1 : @union_map K C1 V1.
-Variable U2 : @union_map K C2 V2.
+Variable U1 : union_map K C1 V1.
+Variable U2 : union_map K C2 V2.
 
 Definition dom_eq (f1 : U1) (f2 : U2) :=
   (valid f1 == valid f2) && (dom f1 == dom f2).
@@ -1085,9 +1109,9 @@ End DomEqDef.
 
 Section DomEqLemmas.
 Variables (K : ordType) (C1 C2 C3 : pred K) (V1 V2 V3 : Type).
-Variable U1 : @union_map K C1 V1.
-Variable U2 : @union_map K C2 V2.
-Variable U3 : @union_map K C3 V3.
+Variable U1 : union_map K C1 V1.
+Variable U2 : union_map K C2 V2.
+Variable U3 : union_map K C3 V3.
 
 Lemma domeqP (f1 : U1) (f2 : U2) :
         reflect (valid f1 = valid f2 /\ dom f1 = dom f2) (dom_eq f1 f2).
@@ -1129,8 +1153,8 @@ Lemma domeqVUnE (f1 f1' : U1) (f2 f2' : U2) :
         dom_eq f1 f2 -> dom_eq f1' f2' ->
         valid (f1 \+ f1') = valid (f2 \+ f2').
 Proof.
-suff L (C1' C2' : pred K) V1' V2' (U1' : @union_map K C1' V1')
-  (U2' : @union_map K C2' V2') (g1 g1' :  U1') (g2 g2' : U2') :
+suff L (C1' C2' : pred K) V1' V2' (U1' : union_map K C1' V1')
+  (U2' : union_map K C2' V2') (g1 g1' :  U1') (g2 g2' : U2') :
   dom_eq g1 g2 -> dom_eq g1' g2' ->
   valid (g1 \+ g1') -> valid (g2 \+ g2').
 - by move=>D D'; apply/idP/idP; apply: L=>//; apply: domeq_sym.
@@ -1180,7 +1204,7 @@ End DomEqLemmas.
 Hint Resolve domeq_refl : core.
 
 Section DomEq1Lemmas.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 
 Lemma domeqfU k v (f : U) : k \in dom f -> dom_eq f (upd k v f).
 Proof.
@@ -1213,7 +1237,7 @@ End DomEq1Lemmas.
 
 Section DomEq2Lemmas.
 Variables (K : ordType) (C1 C2 : pred K) (V1 V2 : Type). 
-Variables (U1 : @union_map K C1 V1) (U2 : @union_map K C2 V2).
+Variables (U1 : union_map K C1 V1) (U2 : union_map K C2 V2).
 
 Lemma domeq_symE (f1 : U1) (f2 : U2) : dom_eq f1 f2 = dom_eq f2 f1.
 Proof. by apply/idP/idP; apply: domeq_sym. Qed.
@@ -1226,7 +1250,7 @@ End DomEq2Lemmas.
 (**********)
 
 Section UpdateLemmas.
-Variable (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variable (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Types (k : K) (v : V) (f : U).
 
 Lemma upd_undef k v : upd k v undef = undef :> U.
@@ -1273,7 +1297,7 @@ Lemma updUnL k v f1 f2 :
         upd k v (f1 \+ f2) =
         if k \in dom f1 then upd k v f1 \+ f2 else f1 \+ upd k v f2.
 Proof.
-rewrite !umEX /UM.upd /UM.union /UM.dom.
+rewrite /domx !umEX /UM.upd /UM.union /UM.dom.
 case: (UMC_from f1) (UMC_from f2)=>[|f1' F1][|f2' F2] //=.
 - by case: ifP=>//; case: decP.
 case: ifP=>// D; case: ifP=>// H1; case: decP=>// H2.
@@ -1311,7 +1335,7 @@ End UpdateLemmas.
 (********)
 
 Section FreeLemmas.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Types (k : K) (v : V) (f : U).
 
 Lemma free0 k : free Unit k = Unit :> U.
@@ -1347,7 +1371,7 @@ Lemma freeUn k f1 f2 :
         if k \in dom (f1 \+ f2) then free f1 k \+ free f2 k
         else f1 \+ f2.
 Proof.
-rewrite !umEX /UM.free /UM.union /UM.dom.
+rewrite /domx !umEX /UM.free /UM.union /UM.dom.
 case: (UMC_from f1) (UMC_from f2)=>[|f1' F1][|f2' F2] //.
 case: ifP=>// E1; rewrite supp_fcat inE /=.
 case: ifP=>E2; last by rewrite !umEX rem_supp // supp_fcat inE E2.
@@ -1378,8 +1402,8 @@ suff: ~~ valid (f1 \+ free f2 k) by move/invalidE: V2=>-> /invalidE ->.
 apply: contra V2; case: validUn=>// H1 H2 H _.
 case: validUn=>//; first by rewrite H1.
 - by move: H2; rewrite validF => ->.
-move=>x H3; move: (H _ H3); rewrite domF inE /=.
-by case: ifP H3 V1=>[|_ _ _]; [move/eqP=><- -> | move/negbTE=>->].
+move=>x H3; move: (H _ H3); rewrite domF negb_and negbK.
+by case: (x =P k) H3 V1=>[->|_ _ _ /negbTE] ->.
 Qed.
 
 Lemma freeUnL k f1 f2 : 
@@ -1412,7 +1436,7 @@ End FreeLemmas.
 (********)
 
 Section FindLemmas.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Types (k : K) (v : V) (f : U).
 
 Lemma find0E k : find k (Unit : U) = None.
@@ -1452,7 +1476,7 @@ Lemma findUnL k f1 f2 :
         valid (f1 \+ f2) ->
         find k (f1 \+ f2) = if k \in dom f1 then find k f1 else find k f2.
 Proof.
-rewrite !umEX /UM.valid /UM.find /UM.union /UM.dom.
+rewrite /domx !umEX /UM.valid /UM.find /UM.union /UM.dom.
 case: (UMC_from f1) (UMC_from f2)=>[|f1' F1][|f2' F2] //.
 case: ifP=>// D _; case: ifP=>E1; last first.
 - rewrite fnd_fcat; case: ifP=>// E2.
@@ -1480,7 +1504,7 @@ End FindLemmas.
 (* if maps store units, i.e., we keep them just for sets *)
 (* then we can simplify the find_eta lemma a bit *)
 
-Lemma domeq_eta (K : ordType) (C : pred K) (U : @union_map K C unit) (f1 f2 : U) :
+Lemma domeq_eta (K : ordType) (C : pred K) (U : union_map K C unit) (f1 f2 : U) :
         dom_eq f1 f2 -> f1 = f2.
 Proof.
 case/domeqP=>V E; case V1 : (valid f1); last first.
@@ -1496,7 +1520,7 @@ Qed.
 (**********)
 
 Section AssocsLemmas.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Type f : U.
 
 Lemma assocs_valid k f : k \In assocs f -> valid f.
@@ -1521,7 +1545,7 @@ by case: ifP=>// D _; apply: seqof_fcat_perm D.
 Qed.
 
 Lemma assocs_dom f : dom f = map fst (assocs f).
-Proof. by rewrite !umEX; case: (UMC_from f). Qed.
+Proof. by rewrite /domx !umEX; case: (UMC_from f). Qed.
 
 Lemma size_assocs f : size (assocs f) = size (dom f).
 Proof. by rewrite assocs_dom size_map. Qed.
@@ -1553,12 +1577,24 @@ move=>H1 H2; case: H2 H1.
 by move=>H1 H2; apply: IH H2 H1.
 Qed.
 
+Lemma Uniq_assocs K C V (U : @union_map K C V) (f : U) :
+        Uniq (assocs f).
+Proof.
+rewrite !umEX /UM.assocs /=; case: (UMC_from f)=>[|[s H _]] //=.
+move/(sorted_uniq (@trans K) (@irr K)): H.
+apply: map_Uniq.
+Qed.
+
+Lemma sorted_assocs K C V (U : @union_map K C V) (f : U) :
+        sorted (relpre fst ord) (assocs f).
+Proof. rewrite -sorted_map -assocs_dom; exact: sorted_dom. Qed.
+
 (*********************************)
 (* Interaction of subset and dom *)
 (*********************************)
 
 Section Interaction.
-Variables (K : ordType) (C : pred K) (A : Type) (U : @union_map K C A).
+Variables (K : ordType) (C : pred K) (A : Type) (U : union_map K C A).
 Implicit Types (x y a b : U) (p q : pred K).
 
 (* Some equivalent forms for subset with dom *)
@@ -1598,7 +1634,7 @@ End Interaction.
 (****************************)
 
 Section PointsToLemmas.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Types (k : K) (v : V) (f : U).
 
 Lemma ptsU k v : pts k v = upd k v Unit :> U.
@@ -1609,7 +1645,7 @@ Proof. by move=>C'; rewrite ptsU upd_condN. Qed.
 
 Lemma domPtK k v : dom (pts k v : U) = if C k then [:: k] else [::].
 Proof.
-rewrite /ptsx !umEX /= /UM.dom /supp /UM.pts /UM.upd /UM.empty /=.
+rewrite /domx/ptsx !umEX /= /UM.dom /supp /UM.pts /UM.upd /UM.empty /=.
 by case D : (decP _)=>[a|a] /=; rewrite ?a ?(introF idP a).
 Qed.
 
@@ -1689,7 +1725,7 @@ Lemma assocsUnPt f k v :
         all (ord^~ k) (dom f) ->
         assocs (f \+ pts k v) = rcons (assocs f) (k, v).
 Proof.
-rewrite /ptsx !umEX /UM.assocs/UM.union/UM.pts/UM.dom/supp /=.
+rewrite /domx/ptsx !umEX /UM.assocs/UM.union/UM.pts/UM.dom/supp /=.
 case: (UMC_from f)=>//=; case: decP=>//= H1 g H2; case: ifP=>//= _ _.
 by case: allP=>//; case: g H2=>// s1 H2 H3 H4 _; apply: first_ins' H4.
 Qed.
@@ -1699,7 +1735,7 @@ Lemma assocsPtUn f k v :
         all (ord k) (dom f) ->
         assocs (pts k v \+ f) = (k, v) :: (assocs f).
 Proof.
-rewrite /ptsx !umEX /UM.assocs/UM.union/UM.pts/UM.dom/supp /=.
+rewrite /domx/ptsx !umEX /UM.assocs/UM.union/UM.pts/UM.dom/supp /=.
 case: decP=>// H1; case: (UMC_from f)=>//= g H2.
 rewrite /disj /= andbT; case: ifP=>//= D _ H3.
 rewrite (fcat_inss _ (@nil K V) D) fcat0s.
@@ -1908,7 +1944,7 @@ case: (normalP f)=>[->|W]; first by rewrite upd_undef free_undef join_undef.
 case H : (C k); last first.
 - by move/negbT: H=>H; rewrite (upd_condN v) // pts_condN // undef_join.
 have W' : valid (pts k v \+ free f k).
-- by rewrite validPtUn H validF W domF inE eq_refl.
+- by rewrite validPtUn H validF W domF eqxx.
 apply: find_eta=>//; first by rewrite validU H W.
 by move=>k'; rewrite findU H W findPtUn2 // findF; case: eqP.
 Qed.
@@ -1921,7 +1957,7 @@ Proof. by move=>D; rewrite upd_eta freeND. Qed.
 (* um_unitb *)
 
 Lemma um_unitbPtUn k v f : unitb (pts k v \+ f) = false.
-Proof. by rewrite um_unitbUn um_unitbPt. Qed.
+Proof. by rewrite join0E um_unitbPt. Qed.
 
 Lemma um_unitbUnPt k v f : unitb (f \+ pts k v) = false.
 Proof. by rewrite joinC; apply: um_unitbPtUn. Qed.
@@ -1948,7 +1984,7 @@ Lemma um_eta k f :
         k \in dom f -> exists v, find k f = Some v /\ f = pts k v \+ free f k.
 Proof.
 case: dom_find=>// v E1 E2 _; exists v; split=>//.
-by rewrite {1}E2 -{1}[free f k]unitL updUnR domF inE /= eq_refl ptsU.
+by rewrite {1}E2 -{1}[free f k]unitL updUnR domF eqxx ptsU.
 Qed.
 
 Lemma um_eta2 k v f : find k f = Some v -> f = pts k v \+ free f k.
@@ -2002,7 +2038,7 @@ Lemma um_indf (P : U -> Prop) :
              P (pts k v \+ f)) ->
          forall f, P f.
 Proof.
-rewrite /ptsx !umEX => H1 H2 H3 f; rewrite -[f]tfE.
+rewrite /domx/ptsx !umEX => H1 H2 H3 f; rewrite -[f]tfE.
 apply: (UM.base_indf (P := (fun b => P (UMC_to b))))=>//.
 move=>k v g H V1; move: (H3 k v _ H); rewrite !umEX.
 by apply.
@@ -2016,7 +2052,7 @@ Lemma um_indb (P : U -> Prop) :
             P (pts k v \+ f)) ->
          forall f, P f.
 Proof.
-rewrite /ptsx !umEX => H1 H2 H3 f; rewrite -[f]tfE.
+rewrite /domx/ptsx !umEX => H1 H2 H3 f; rewrite -[f]tfE.
 apply: (UM.base_indb (P := (fun b => P (UMC_to b))))=>//.
 move=>k v g H V1; move: (H3 k v _ H); rewrite !umEX.
 by apply.
@@ -2048,7 +2084,7 @@ have W : valid (pts k2 w2 \+ (f1 \+ f)).
 - by rewrite -(validPt _ v) -E -joinA in X.
 rewrite -[pts k v]unitR -joinA in E.
 move/(cancel2 W): E; case: ifP.
-- by move/eqP=>-> [->] /umap0E [->->]; rewrite unitR; left.
+- by move/eqP=>-> [->] /join0I [->->]; rewrite unitR; left.
 by move=>_ [_ _] /esym/unitbP; rewrite um_unitbPtUn.
 Qed.
 
@@ -2064,7 +2100,7 @@ Prenex Implicits validPtUnD validUnPtD cancelPt cancelPt2 um_prime.
 
 Section DomeqPtLemmas.
 Variables (K : ordType) (C1 C2 : pred K) (V1 V2 : Type).
-Variables (U1 : @union_map K C1 V1) (U2 : @union_map K C2 V2).
+Variables (U1 : union_map K C1 V1) (U2 : union_map K C2 V2).
 
 Lemma domeqPt (k : K) (v1 : V1) (v2 : V2) :
         C1 k = C2 k ->
@@ -2090,7 +2126,7 @@ Hint Resolve domeqPt domeqPtUn domeqUnPt : core.
 
 Section EqPtLemmas.
 Variables (K : ordType) (C : pred K) (V : eqType).
-Variables (U : @union_map K C V).
+Variables (U : union_map K C V).
 Notation Ue := 
   (Equality.pack_ (Equality.Mixin (union_map_eqP (U:=U)))).
 
@@ -2138,7 +2174,7 @@ Lemma um0UndefE : (Unit == undef :> Ue) = false.
 Proof. by rewrite eq_sym umUndef0E. Qed.
 
 Lemma umPtUE (k : K) (v : V) f : (pts k v \+ f == Unit :> Ue) = false.
-Proof. by apply/eqP=>/umap0E/proj1/unitbP; rewrite um_unitbPt. Qed.
+Proof. by apply/eqP=>/join0I/proj1/unitbP; rewrite um_unitbPt. Qed.
 
 Lemma umUPtE (k : K) (v : V) f : (f \+ pts k v == Unit :> Ue) = false.
 Proof. by rewrite joinC umPtUE. Qed.
@@ -2210,7 +2246,7 @@ End EqPtLemmas.
 (************)
 
 Section PreimDefLemmas.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Types (k : K) (v : V) (f : U) (p : pred V).
 
 Definition um_preim p f k := oapp p false (find k f).
@@ -2265,7 +2301,7 @@ End PreimDefLemmas.
 (****************************)
 
 Section MapMembership.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Type f : U.
 
 Definition Mem_UmMap f :=
@@ -2495,6 +2531,18 @@ have : find x1 (pts x1 v1 \+ z) = Some v1 by rewrite findPtUn // -E.
 by rewrite -E findF; case: eqP=>//= _ /In_find.
 Qed.
 
+(* stronger version of InU that removes k from f *)
+Lemma InFU x k v f :
+       x \In upd k v f <->
+       valid (upd k v f) /\
+       if x.1 == k then x.2 = v else x \In free f k.
+Proof.
+split; last first.
+- by case=>W H; apply/InU; split=>//; case: ifP H=>// _ /InF [].
+case/InU=>W; case: ifPn=>// N H; split=>//.
+by apply/InF; rewrite validF (In_valid H).
+Qed.
+
 Lemma In_eta k v f : (k, v) \In f -> f = pts k v \+ free f k.
 Proof. by move=>H; case/In_dom/um_eta: (H)=>w [/In_find/(In_fun H) ->]. Qed.
 
@@ -2503,7 +2551,7 @@ End MapMembership.
 Arguments In_condPt {K C V U k}.
 Prenex Implicits InPt In_eta InPtUn In_dom InPtUnEL In_findE.
 
-(* Umap and fset are special cases of @union_map K but are *)
+(* Umap and fset are special cases of union_map but are *)
 (* defined before membership structure is declared. *)
 (* Their membership structures aren't directly inheritted from that *)
 (* of union_map, but must be declared separately *)
@@ -2518,7 +2566,7 @@ Coercion Pred_of_fset K (x : fset K) : {Pred _} :=
 
 Section MorphMembership.
 Variables (K : ordType) (C : pred K) (V : Type).
-Variables (U1 : pcm) (U2 : @union_map K C V).
+Variables (U1 : pcm) (U2 : union_map K C V).
 
 Section PlainMorph.
 Variable f : pcm_morph U1 U2.
@@ -2576,7 +2624,7 @@ End MorphMembership.
 (*********)
 
 Section Range.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Types f : U.
 
 Definition range f := map snd (assocs f).
@@ -2672,7 +2720,7 @@ Prenex Implicits In_range_valid In_range In_rangeUn In_rangeF.
 (* decidable versions, when V is eqtype *)
 
 Section DecidableRange.
-Variables (K : ordType) (C : pred K) (V : eqType) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : eqType) (U : union_map K C V).
 Implicit Types f : U.
 
 Lemma uniq_rangeP f :
@@ -2805,7 +2853,7 @@ End DecidableRange.
 (********************)
 
 Section MapMonotonicity.
-Variables (K V : ordType) (C : pred K) (U : @union_map K C V).
+Variables (K V : ordType) (C : pred K) (U : union_map K C V).
 Implicit Types f : U.
 
 Definition um_mono f := sorted ord (range f).
@@ -2958,7 +3006,7 @@ End MapMonotonicity.
 (* Induction lemmas over PCMs in the proofs *)
 
 Section FoldDefAndLemmas.
-Variables (K : ordType) (C : pred K) (V R : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V R : Type) (U : union_map K C V).
 Implicit Type f : U.
 
 Definition um_foldl (a : R -> K -> V -> R) (z0 d : R) f :=
@@ -3110,12 +3158,12 @@ Qed.
 End FoldDefAndLemmas.
 
 Section PCMFold.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Variables (R : pcm) (a : R -> K -> V -> R).
 Hypothesis frame : forall x y k v, a (x \+ y) k v = a x k v \+ y.
 
 Lemma umfoldl0_frame z0 d (f : U) :
-        valid f -> @um_foldl K _ _ _ _ a z0 d f = um_foldl a Unit d f \+ z0.
+        valid f -> um_foldl (K:=K) a z0 d f = um_foldl a Unit d f \+ z0.
 Proof.
 move=>W; elim/um_indf: f W d z0
   =>[||k v f IH _ /(order_path_min (@trans K)) P] W d z0.
@@ -3151,12 +3199,12 @@ End PCMFold.
 (* Fold when the function produces a map *)
 
 Section FoldMap.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Variable (a : U -> K -> V -> U).
 Hypothesis frame : forall x y k v, a (x \+ y) k v = a x k v \+ y.
 
 Lemma In_umfoldlMX (f : U) (k : K) (v : V) :
-        (k, v) \In @um_foldl K _ _ _ _ a Unit undef f ->
+        (k, v) \In um_foldl (K:=K) a Unit undef f ->
         exists k1 (v1 : V), (k, v) \In a Unit k1 v1 /\ (k1, v1) \In f.
 Proof.
 elim/um_indf: f.
@@ -3185,7 +3233,7 @@ End FoldMap.
 
 Section MapPrefix.
 Variables (K : ordType) (C : pred K) (V : Type).
-Variables (U : @union_map K C V).
+Variables (U : union_map K C V).
 
 Definition um_prefix (h1 h2 : U) := Prefix (assocs h1) (assocs h2).
 
@@ -3254,7 +3302,7 @@ case/(IH _ (validR W1) W')=>h2 Eh' H; exists h2.
 move=>x y; rewrite domPtUn inE W1 /=; case/orP; last by apply: H.
 move/eqP=><-{x} Dy.
 have : y \in dom h' by rewrite Eh' domUn inE -Eh' W' /= Dy orbT.
-rewrite domF inE; case: (k =P y)=>// /eqP N.
+rewrite domF eq_sym; case: (k =P y)=>// /eqP N.
 rewrite assocs_dom Eh /= inE eq_sym (negbTE N) /=.
 case/mem_seqP/MapP; case=>a b X -> /=.
 have {}P : path ord k (map fst (assocs h1 ++ h2')).
@@ -3278,7 +3326,7 @@ End MapPrefix.
 (* Definition and basic properties *)
 Section OmapDefs.
 Variables (K : ordType) (C : pred K) (V V' : Type).
-Variables (U : @union_map K C V) (U' : @union_map K C V').
+Variables (U : union_map K C V) (U' : union_map K C V').
 Variable f : K * V -> option V'.
 
 Definition omap (x : U) : U' :=
@@ -3362,21 +3410,21 @@ Arguments omap {K C V V' U U'}.
 (* Structure definition *)
 
 Definition omap_fun_axiom (K : ordType) (C : pred K) (V V' : Type)
-    (U : @union_map K C V) (U' : @union_map K C V') 
+    (U : union_map K C V) (U' : union_map K C V') 
     (f : U -> U') (omf : K * V -> option V') := 
   f =1 omap omf.
 
 (* factory to use if full/norm/tpcm morphism property already proved *)
 (* (omap_fun isn't binormal as it can drop timestamps) *)
 HB.mixin Record isOmapFun_morph (K : ordType) (C : pred K) (V V' : Type)
-    (U : @union_map K C V) (U' : @union_map K C V') (f : U -> U') of 
+    (U : union_map K C V) (U' : union_map K C V') (f : U -> U') of 
     @Full_Norm_TPCM_morphism U U' f := { 
   omf_op : K * V -> option V';  
   omfE_op : omap_fun_axiom f omf_op}.
 
 #[short(type=omap_fun)]
 HB.structure Definition OmapFun (K : ordType) (C : pred K) (V V' : Type)
-    (U : @union_map K C V) (U' : @union_map K C V') := 
+    (U : union_map K C V) (U' : union_map K C V') := 
   {f of isOmapFun_morph K C V V' U U' f &}. 
 
 Arguments omfE_op {K C V V' U U'}.
@@ -3385,7 +3433,7 @@ Arguments omf_op {K C V V' U U'} _ _ /.
 (* factory to use when full/norm/tpcm morphism property *)
 (* hasn't been established *)
 HB.factory Record isOmapFun (K : ordType) (C : pred K) (V V' : Type)
-    (U : @union_map K C V) (U' : @union_map K C V') (f : U -> U') := {
+    (U : union_map K C V) (U' : union_map K C V') (f : U -> U') := {
   omf : K * V -> option V';  
   omfE : omap_fun_axiom f omf}.
 
@@ -3424,7 +3472,7 @@ HB.end.
 (* notation to hide the structure when projecting omf *)
 Section OmapFunNotation.
 Variables (K : ordType) (C : pred K) (V V' : Type).
-Variables (U : @union_map K C V) (U' : @union_map K C V').
+Variables (U : union_map K C V) (U' : union_map K C V').
 
 Definition omfx (f : omap_fun U U') of phantom (U -> U') f :
   K * V -> option V' := omf_op f.
@@ -3440,7 +3488,7 @@ Notation omf f := (omfx (Phantom (_ -> _) f)).
 (* omap is omap_fun *)
 Section OmapOmapFun.
 Variables (K : ordType) (C : pred K) (V V' : Type).
-Variables (U : @union_map K C V) (U' : @union_map K C V').
+Variables (U : union_map K C V) (U' : union_map K C V').
 
 HB.instance Definition _ f := 
   isOmapFun.Build K C V V' U U' (omap f) (fun => erefl _). 
@@ -3453,7 +3501,7 @@ End OmapOmapFun.
 
 Section OmapFunLemmas.
 Variables (K : ordType) (C : pred K) (V V' : Type).
-Variables (U : @union_map K C V) (U' : @union_map K C V').
+Variables (U : union_map K C V) (U' : union_map K C V').
 Implicit Types (f : omap_fun U U') (x : U).
 
 (* different name for pfjoin on full morphisms *)
@@ -3658,7 +3706,7 @@ Proof.
 case: ifP=>// D; last by rewrite (upd_condN v x (negbT D)) pfundef.
 case: (normalP x)=>[->|H].
 - by case: (omf _ _)=>[a|]; rewrite ?(upd_undef,free_undef,pfundef).
-rewrite upd_eta omfPtUn validPtUn D validF H domF inE eq_refl /=.
+rewrite upd_eta omfPtUn validPtUn D validF H domF eqxx /=.
 case: (omf _ _)=>[xa|]; last by rewrite omfF.
 by rewrite upd_eta omfF.
 Qed.
@@ -3772,7 +3820,7 @@ Arguments In_odom {K C V V' U U' f x k} .
 
 Section OmapFun2.
 Variables (K : ordType) (C : pred K) (V V1 V2 : Type). 
-Variables (U : @union_map K C V) (U1 : @union_map K C V1) (U2 : @union_map K C V2).
+Variables (U : union_map K C V) (U1 : union_map K C V1) (U2 : union_map K C V2).
 Variables (f1 : omap_fun U U1) (f2 : omap_fun U U2).
 
 (* when one mapped function is included in other *)
@@ -3810,7 +3858,7 @@ End OmapFun2.
 
 Section OmapFun2Eq.
 Variables (K : ordType) (C : pred K) (V V1 V2 : Type).
-Variables (U : @union_map K C V) (U1 : @union_map K C V1) (U2 : @union_map K C V2).
+Variables (U : union_map K C V) (U1 : union_map K C V1) (U2 : union_map K C V2).
 Variables (f1 : omap_fun U U1) (f2 : omap_fun U U2).
 
 Lemma omf_dom_eq (x : U) : 
@@ -3825,7 +3873,7 @@ End OmapFun2Eq.
 
 Section OmapMembershipExtra.
 Variables (K : ordType) (C : pred K) (V1 V2 : Type).
-Variables (U1 : @union_map K C V1) (U2 : @union_map K C V2).
+Variables (U1 : union_map K C V1) (U2 : union_map K C V2).
 Variables f : omap_fun U1 U2.
 
 Lemma omfL e (x y : U1) :  
@@ -3873,7 +3921,7 @@ End OmapMembershipExtra.
 
 Section OmapMembershipExtra2.
 Variables (K : ordType) (C : pred K) (V1 V2 : Type).
-Variables (U1 : @union_map K C V1) (U2 : @union_map K C V2).
+Variables (U1 : union_map K C V1) (U2 : union_map K C V2).
 Variables f : omap_fun U1 U2.
 
 Lemma omfDL00 k a (x y : U1) : 
@@ -3917,7 +3965,7 @@ End OmapMembershipExtra2.
 
 Section OmapFunId.
 Variables (K : ordType) (C : pred K) (V : Type).
-Variables (U : @union_map K C V).
+Variables (U : union_map K C V).
 
 Lemma omf_some (f : omap_fun U U) x :
         (forall kv, kv \In x -> omf f kv = Some kv.2) -> 
@@ -3950,7 +3998,7 @@ End OmapFunId.
 
 Section OmapFunComp.
 Variables (K : ordType) (C : pred K) (V1 V2 V3 : Type).
-Variables (U1 : @union_map K C V1) (U2 : @union_map K C V2) (U3 : @union_map K C V3).
+Variables (U1 : union_map K C V1) (U2 : union_map K C V2) (U3 : union_map K C V3).
 Variables (f1 : omap_fun U1 U2) (f2 : omap_fun U2 U3).
 
 Lemma comp_is_omap_fun : 
@@ -3986,7 +4034,7 @@ Notation omapv f := (omap (f \o snd)).
 Notation mapv f := (omapv (Some \o f)).
 
 Section OmapId.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 
 Lemma omapv_id : omapv Some =1 @id U. 
 Proof. by move=>x; apply: omf_some. Qed.
@@ -3998,7 +4046,7 @@ End OmapId.
 
 Section OmapComp.
 Variables (K : ordType) (C : pred K) (V1 V2 V3 : Type).
-Variables (U1 : @union_map K C V1) (U2 : @union_map K C V2) (U3 : @union_map K C V3).
+Variables (U1 : union_map K C V1) (U2 : union_map K C V2) (U3 : union_map K C V3).
 
 Lemma omap_omap f1 f2 (x : U1) :
         omap f2 (omap f1 x : U2) =
@@ -4028,7 +4076,7 @@ End OmapComp.
 
 Section OmapMembership.
 Variables (K : ordType) (C : pred K) (V V' : Type).
-Variables (U : @union_map K C V) (U' : @union_map K C V').
+Variables (U : union_map K C V) (U' : union_map K C V').
 
 Lemma In_omapX f k v (x : U) :
         (k, v) \In (omap f x : U') <->
@@ -4058,7 +4106,7 @@ Arguments In_omapv {K C V V' U U' f k v w}.
 
 Section OmapMembership2.
 Variables (K : ordType) (C : pred K) (V V' : Type).
-Variables (U : @union_map K C V) (U' : @union_map K C V').
+Variables (U : union_map K C V) (U' : union_map K C V').
 
 Lemma In_omapV f g k v (x : U) :
         ocancel f g -> pcancel g f ->
@@ -4083,7 +4131,7 @@ End OmapMembership2.
 
 Section OmapMembership3.
 Variables (K : ordType) (C : pred K) (V V' : eqType).
-Variables (U : @union_map K C V) (U' : @union_map K C V').
+Variables (U : union_map K C V) (U' : union_map K C V').
 
 (* decidable variant of In_rangev *)
 Lemma mem_rangev f g v (x : U) :
@@ -4099,7 +4147,7 @@ End OmapMembership3.
 (* freeing k representable as omap *)
 Section OmapFree.
 Variables (K : ordType) (C : pred K) (V V' : Type).
-Variables (U : @union_map K C V) (U' : @union_map K C V').
+Variables (U : union_map K C V) (U' : union_map K C V').
 
 Lemma omap_free k x :
         free x k = 
@@ -4119,7 +4167,7 @@ End OmapFree.
 (* eq_in_omap *)
 Section EqInOmap.
 Variables (K : ordType) (C : pred K) (V V' : Type).
-Variables (U : @union_map K C V) (U' : @union_map K C V').
+Variables (U : union_map K C V) (U' : union_map K C V').
 
 Lemma eq_in_omap a1 a2 (h : U) :
         (forall kv, kv \In h -> a1 kv = a2 kv) <->
@@ -4135,7 +4183,7 @@ End EqInOmap.
 (* filter that works over both domain and range at once *)
 
 Section FilterDefLemmas.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Types (f : U) (p q : pred (K * V)).
 
 Definition um_filter p f : U :=
@@ -4196,7 +4244,7 @@ apply: (iffP (In_domX _ _)).
 by case=>v Hp Hf; exists v; apply/In_umfilt.
 Qed.
 
-Lemma dom_omf_umfilt V' (U' : @union_map K C V') (f : omap_fun U U') x :
+Lemma dom_omf_umfilt V' (U' : union_map K C V') (f : omap_fun U U') x :
         dom (f x) = dom (um_filter (isSome \o omf f) x).
 Proof.
 apply/domE=>k; apply/idP/idP.
@@ -4207,7 +4255,7 @@ case E: (omf f (k, w))=>[a|] // _ H.
 by move/In_dom: (In_omf _ H E).
 Qed.
 
-Lemma dom_omap_umfilt V' (U' : @union_map K C V') a x :
+Lemma dom_omap_umfilt V' (U' : union_map K C V') a x :
         dom (omap a x : U') = dom (um_filter (isSome \o a) x).
 Proof. exact: dom_omf_umfilt. Qed.
 
@@ -4255,6 +4303,23 @@ Proof. by move/eq_in_umfilt. Qed.
 Lemma eq_in_umfiltE p1 p2 f :
         p1 =1 p2 -> um_filter p1 f = um_filter p2 f.
 Proof. by move=>S; apply/eq_in_umfilt=>kv _; apply: S. Qed.
+
+(* filters of the same map are equal if their domains are equal *)
+Lemma eq_umfiltD p1 p2 f :
+        dom (um_filter p1 f) =i dom (um_filter p2 f) ->
+        um_filter p1 f = um_filter p2 f.
+Proof.
+move=>S; apply/eq_in_umfilt; case=>k v H; apply/idP/idP.
+- move/(In_umfilt H)/In_dom; rewrite S.
+  by case/In_domX=>v2 /In_umfiltX [P2] /(In_fun H) ->.
+move/(In_umfilt H)/In_dom; rewrite -S. 
+by case/In_domX=>v1 /In_umfiltX [P1] /(In_fun H) ->.
+Qed.
+
+Lemma id_umfiltD p f :
+        dom (um_filter p f) =i dom f ->
+        um_filter p f = f.
+Proof. by rewrite -{2 4}(umfilt_predT f); apply: eq_umfiltD. Qed.
 
 Lemma umfiltC p1 p2 f :
         um_filter p1 (um_filter p2 f) = um_filter p2 (um_filter p1 f).
@@ -4415,6 +4480,11 @@ move: (In_fun H1 H2)=>E; rewrite -{v2}E in X2 H2 *.
 by apply/In_dom_umfilt; exists v1=>//; apply/andP.
 Qed.
 
+Lemma dom_umfiltF p f z x :
+        z \in dom (um_filter p (free f x)) = 
+        (z != x) && (z \in dom (um_filter p f)).
+Proof. by rewrite omfF /= domF eq_sym; case: eqP. Qed.
+
 End FilterDefLemmas.
 
 #[export]
@@ -4427,7 +4497,7 @@ Notation um_filterv p f := (um_filter (p \o snd) f).
 Arguments In_umfilt [K C V U] p x f _ _.
 
 Section FilterKLemmas.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Type f : U.
 Implicit Type p q : pred K.
 
@@ -4537,14 +4607,14 @@ Qed.
 
 (* filters commute with omap_fun *)
 
-Lemma umfiltk_omf V' (U' : @union_map K C V') (f : omap_fun U U') p x :
+Lemma umfiltk_omf V' (U' : union_map K C V') (f : omap_fun U U') p x :
         f (um_filterk p x) = um_filterk p (f x).
 Proof.
 rewrite (compE f) [RHS]compE eq_in_omf !omf_comp !omf_omap /=.
 by rewrite /obind/oapp /=; case=>k v; case: ifP; case: (omf f _).
 Qed.
 
-Lemma umfiltk_dom_omf V' (U' : @union_map K C V') (f : omap_fun U U') x :
+Lemma umfiltk_dom_omf V' (U' : union_map K C V') (f : omap_fun U U') x :
         um_filterk [dom x] (f x) = f x.
 Proof. by rewrite -umfiltk_omf umfiltk_dom'. Qed.
 
@@ -4569,12 +4639,27 @@ Qed.
 Lemma In_umfiltk p x f : x \In f -> p x.1 -> x \In um_filterk p f.
 Proof. by apply: In_umfilt. Qed.
 
+Lemma umfiltkC1 (f : U) x :
+        um_filterk (predC1 x) f = free f x.
+Proof.
+case: (normalP f)=>[->|W]; first by rewrite pfundef free_undef.
+rewrite [in RHS](umfilt_predC f (pred1 x \o fst)).
+rewrite freeUnL; last first.
+- rewrite dom_umfiltE mem_filter.
+  by case: dom_find=>//= v; rewrite eqxx.
+rewrite (_ : free (um_filterk (pred1 x) f) x =
+  um_filterk (pred1 x) (free f x)); last first.
+- by rewrite umfiltkF /= eqxx.
+rewrite [in RHS]umfilt_mem0L ?unitL ?validF //.
+by move=>k v /InF [].
+Qed.
+
 End FilterKLemmas.
 
 Arguments In_umfiltk {K C V U} p {x f} _ _.
 
 Section FilterVLemmas.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Type f : U.
 Implicit Type p q : pred V.
 
@@ -4597,7 +4682,7 @@ Arguments In_umfiltv {K C V U} p {x f} _ _.
 
 Section OmapMembershipLemmas.
 Variables (K : ordType) (C : pred K) (V V' : Type).
-Variables (U : @union_map K C V) (U' : @union_map K C V').
+Variables (U : union_map K C V) (U' : union_map K C V').
 
 Lemma mapv_omapv f g (x : U) :
         ocancel f g ->
@@ -4606,6 +4691,89 @@ Proof. exact: mapv_omapvE. Qed.
 
 End OmapMembershipLemmas.
 
+(* map fun = omap fun which is total *)
+
+Definition map_fun_axiom (K : ordType) (C : pred K) V V'
+    (U : @union_map K C V) (U' : @union_map K C V') 
+    (f : omap_fun U U') := 
+  forall x, isSome (omf f x).
+
+HB.mixin Record isMapFun (K : ordType) (C : pred K) (V V' : Type)
+    (U : @union_map K C V) (U' : @union_map K C V') (f : U -> U') of 
+    @OmapFun K C V V' U U' f := { 
+  mapfun_subproof : map_fun_axiom f}.
+
+#[short(type=map_fun)]
+HB.structure Definition MapFun (K : ordType) (C : pred K) (V V' : Type)
+    (U : @union_map K C V) (U' : @union_map K C V') := 
+  {f of isMapFun K C V V' U U' f & 
+        @Binorm_PCM_morphism U U' f & 
+        OmapFun K f}. 
+
+HB.builders Context K C V V' U U' f of isMapFun K C V V' U U' f.
+Lemma map_fun_is_binorm_morph : binorm_pcm_morph_axiom f.
+Proof. 
+by move=>x y; rewrite -omfUn_some ?pfVE ?pfT //= => k; rewrite mapfun_subproof.
+Qed.
+HB.instance Definition _ := 
+  isBinorm_PCM_morphism.Build U U' f map_fun_is_binorm_morph.
+HB.end.
+
+Section MapFunLemmas.
+Variables (K : ordType) (C : pred K) (V V' : Type).
+Variables (U : @union_map K C V) (U' : @union_map K C V').
+Implicit Types (f : map_fun U U') (x : U).
+
+Lemma mf_some f (x : K * V) : omf f x.
+Proof. by apply: mapfun_subproof. Qed.
+
+Definition mfx f (x : K * V) := 
+  match omf f x as z return z -> V' with 
+  | Some v => fun => v
+  | None => False_rect V' \o not_false_is_true
+  end (mf_some f x).
+
+Lemma mfE f : omf f =1 some \o mfx f.
+Proof. by move=>x; rewrite /mfx /=; case: (omf f x) (mf_some f x). Qed.
+
+Lemma dom_mf f x : dom (f x) = dom x. 
+Proof. by rewrite dom_omf_some // => k _; rewrite mf_some. Qed.
+
+(* mfPt differs from omfPt in eliding validity checks *)
+Lemma mfPt f k v :
+        f (pts k v) = pts k (mfx f (k, v)). 
+Proof.
+case H: (C k); last by rewrite !pts_condN ?H // pfundef.
+by rewrite omfPt // /mfx; case: (omf f (k, v)) (mf_some _ _).
+Qed.
+
+(* stronger than morphism property because no validity check *)
+Lemma mfUn f x1 x2 : 
+        f (x1 \+ x2) = f x1 \+ f x2.
+Proof. by rewrite omfUn_some // => k _; apply/mf_some. Qed.
+
+(* mfPtUn differs from omfPtUn in eliding validity check *)
+Lemma mfPtUn f k v x :
+        f (pts k v \+ x) = pts k (mfx f (k, v)) \+ f x.
+Proof. by rewrite mfUn mfPt. Qed.
+
+Lemma mfUnPt f k v x :
+        f (x \+ pts k v) = f x \+ pts k (mfx f (k, v)).
+Proof. by rewrite joinC mfPtUn joinC. Qed.
+
+Lemma mf_unit f x :
+        unitb (f x) = unitb x.
+Proof.
+apply/omf_unit/validEb; case=>W H; split=>// k.
+- by apply/In_domX; case=>v /H E; move: (mf_some f (k, v)); rewrite E. 
+by move/In_dom; rewrite (negbTE (H _)).
+Qed.
+
+End MapFunLemmas.
+
+Arguments mfx {K C V V' U U'} _ _ /.
+
+
 (************************)
 (* PCM-induced ordering *)
 (************************)
@@ -4613,7 +4781,7 @@ End OmapMembershipLemmas.
 (* Union maps and PCM ordering. *)
 
 Section UmpleqLemmas.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Types (x y a b : U) (p : pred K).
 
 (* PCM-induced preorder is order in the case of union maps *)
@@ -4623,7 +4791,7 @@ Proof.
 case=>a -> [b]; case W : (valid x); last first.
 - by move/invalidE: (negbT W)=>->; rewrite undef_join.
 rewrite -{1 2}[x]unitR -joinA in W *.
-by case/(joinxK W)/esym/umap0E=>->; rewrite unitR.
+by case/(joinxK W)/esym/join0I=>->; rewrite unitR.
 Qed.
 
 (* lemmas on the PCM ordering and um_filter(k) *)
@@ -4699,15 +4867,26 @@ Lemma umpleq_none x1 x2 t :
         valid x2 -> [pcm x1 <= x2] -> find t x2 = None -> find t x1 = None.
 Proof. by case E: (find t x1)=>[a|] // W H <-; rewrite (umpleq_some W H E). Qed.
 
+Lemma pleq_free (f : U) k :
+        [pcm free f k <= f].
+Proof.
+case D : (k \in dom f); last by rewrite freeND // D.
+by case: (um_eta D)=>x [_ E]; rewrite {2}E.
+Qed.
+
 End UmpleqLemmas.
 
+Prenex Implicits pleq_free.
+
+#[export]
+Hint Resolve pleq_free : core.
 
 (********************)
 (* Precision lemmas *)
 (********************)
 
 Section Precision.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Types (x y : U).
 
 Lemma prec_flip x1 x2 y1 y2 :
@@ -4752,7 +4931,7 @@ End Precision.
 (* as list of timestamps which are then read in-order. *)
 
 Section OrdEvalDefLemmas.
-Variables (K : ordType) (C : pred K) (V R : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V R : Type) (U : union_map K C V).
 Implicit Type f : U.
 Implicit Type a : R -> K -> V -> R.
 Implicit Type p q : pred (K * V).
@@ -5013,7 +5192,7 @@ Arguments oev_sub_filter {K C V R U a ks p}.
 Notation oevalv a ks f z0 := (oeval (fun r _ => a r) ks f z0).
 
 Section OrdEvalRelationalInduction1.
-Variables (K : ordType) (C : pred K) (V R1 R2 : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V R1 R2 : Type) (U : union_map K C V).
 
 Lemma oev_ind2 {P : R1 -> R2 -> Prop} (f : U) ks a1 a2 z1 z2 :
         P z1 z2 ->
@@ -5031,14 +5210,14 @@ Qed.
 End OrdEvalRelationalInduction1.
 
 Section OrdEvalPCM.
-Variables (K : ordType) (C : pred K) (V : Type) (R : pcm) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (R : pcm) (U : union_map K C V).
 Implicit Type f : U.
 Variable (a : R -> K -> V -> R).
 Implicit Type p q : pred (K * V).
 Implicit Type ks : seq K.
 Hypothesis frame : forall x y k v, a (x \+ y) k v = a x k v \+ y.
 
-Lemma oev1 ks f z0 : @oeval K _ _ _ _ a ks f z0 = oeval a ks f Unit \+ z0.
+Lemma oev1 ks f z0 : oeval (K:=K) a ks f z0 = oeval a ks f Unit \+ z0.
 Proof.
 apply: (oev_ind2 (P:=fun r1 r2 => r1 = r2 \+ z0)); first by rewrite unitL.
 by move=>k v z1 z2 H1 H2 ->; apply: frame.
@@ -5065,7 +5244,7 @@ End OrdEvalPCM.
 (* as default for undefined maps. *)
 
 Section EvalDefLemmas.
-Variables (K : ordType) (C : pred K) (V R : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V R : Type) (U : union_map K C V).
 Implicit Type f : U.
 Implicit Type a : R -> K -> V -> R.
 Implicit Type p q : pred (K * V).
@@ -5223,7 +5402,7 @@ End EvalDefLemmas.
 
 Section EvalOmapLemmas.
 Variables (K : ordType) (C : pred K) (V V' R : Type).
-Variables (U : @union_map K C V) (U' : @union_map K C V').
+Variables (U : union_map K C V) (U' : union_map K C V').
 
 Lemma eval_omap (b : R -> K -> V' -> R) p a (f : U) z0 :
         eval b p (omap a f : U') z0 =
@@ -5246,7 +5425,7 @@ End EvalOmapLemmas.
 
 
 Section EvalRelationalInduction1.
-Variables (K : ordType) (C : pred K) (V R1 R2 : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V R1 R2 : Type) (U : union_map K C V).
 
 Lemma eval_ind2 {P : R1 -> R2 -> Prop} (f : U) p0 p1 a0 a1 z0 z1 :
         P z0 z1 ->
@@ -5267,8 +5446,8 @@ End EvalRelationalInduction1.
 Section EvalRelationalInduction2.
 Variables (K1 K2 : ordType) (C1 : pred K1) (C2 : pred K2).
 Variables (V1 V2 R1 R2 : Type).
-Variables (U1 : @union_map K1 C1 V1) (U2 : @union_map K2 C2 V2).
-Variables (U : @union_map K1 C1 K2) (P : R1 -> R2 -> Prop).
+Variables (U1 : union_map K1 C1 V1) (U2 : union_map K2 C2 V2).
+Variables (U : union_map K1 C1 K2) (P : R1 -> R2 -> Prop).
 
 (* generalization of eval_ind2 to different maps, but related by a bijection *)
 
@@ -5310,7 +5489,7 @@ set phi2 := free phi1 k1.
 have W2 : valid f2 by move/In_dom/dom_valid: I3.
 have E2 : f2 = pts k2 v2 \+ free f2 k2 by apply/In_eta: I3.
 have A2 : all (ord k2) (dom (free f2 k2)).
-- apply/allP=>x; rewrite domF inE E2 domPtUn inE -E2 W2 /= domF inE.
+- apply/allP=>x; rewrite domF E2 domPtUn inE -E2 W2 /= domF eq_sym.
   case: eqP=>//= N; rewrite -R =>R'; move/mem_seqP/In_rangeX: (R').
   case=>k' H1; apply: M1 (I1) (H1) _; move/allP: A1; apply.
   move/In_dom: H1 (H1); rewrite D1 inE; case/orP=>//= /eqP ->.
@@ -5319,13 +5498,13 @@ rewrite E2 evalPtUn -?E2 //.
 have M2 : um_mono phi2.
 - by apply/ummonoP=>???? /InF [_ _ /M1] X /InF [_ _]; apply: X.
 have D2 : dom phi2 = dom f1.
-- apply/domE=>x; rewrite domF inE D1 inE eq_sym.
+- apply/domE=>x; rewrite domF D1 inE.
   by case: eqP=>// ->{x}; rewrite (negbTE (validPtUnD W)).
 have R2' : range phi2 = dom (free f2 k2).
   move/In_eta: (I1) (R)=>E1; rewrite E1 rangePtUnK.
   - by rewrite {1}E2 domPtUnK //; [case | rewrite -E2].
   - by rewrite -E1.
-  apply/allP=>x; rewrite domF inE D1 inE eq_sym.
+  apply/allP=>x; rewrite domF D1 inE.
   by case: eqP=>//= _; apply/allP/A1.
 have {}H x1 w1 x2 w2 t1 t2 : (x1, x2) \In phi2 -> (x1, w1) \In f1 ->
   (x2, w2) \In free f2 k2 -> P t1 t2 ->
@@ -5341,7 +5520,7 @@ End EvalRelationalInduction2.
 
 (* Evaluating frameable functions *)
 Section EvalFrame.
-Variables (K : ordType) (C : pred K) (V : Type) (R : pcm) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (R : pcm) (U : union_map K C V).
 Variables (a : R -> K -> V -> R) (p : pred (K * V)).
 Hypothesis frame : (forall x y k v, a (x \+ y) k v = a x k v \+ y).
 
@@ -5351,7 +5530,7 @@ Implicit Type f : U.
 (* so that the result is independent of the order of k *)
 Lemma evalFPtUn k v z0 f :
         valid (pts k v \+ f) ->
-        @eval K _ _ _ _ a p (pts k v \+ f) z0 =
+        eval (K:=K) a p (pts k v \+ f) z0 =
         if p (k, v) then a Unit k v \+ eval a p f z0 else eval a p f z0.
 Proof.
 move=>W; rewrite /eval umfiltPtUn W.
@@ -5391,7 +5570,7 @@ Notation evalv a p f z0 := (eval (fun r _ => a r) p f z0).
 (************)
 
 Section CountDefLemmas.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Type f : U.
 Implicit Type p : pred (K * V).
 
@@ -5637,8 +5816,8 @@ Hint Extern 0 (ocancel (side_m _) (Tag _)) =>
 
 Section Side.
 Variables (K : ordType) (C : pred K) (T : eqType) (Us : T -> Type).
-Variables (U : @union_map K C (sigT Us)).
-Variables (Ut : forall t, @union_map K C (Us t)).
+Variables (U : union_map K C (sigT Us)).
+Variables (Ut : forall t, union_map K C (Us t)).
 Variables t : T.
 
 Definition side_map : U -> Ut t := locked (omapv (side_m t)).
@@ -5741,8 +5920,8 @@ Arguments In_dom_side {K C T Us U} Ut {t x a h}.
 
 Section Side2.
 Variables (K : ordType) (C : pred K) (T : eqType) (Us : T -> Type).
-Variables (U : @union_map K C (sigT Us)).
-Variables (Ut : forall t, @union_map K C (Us t)).
+Variables (U : union_map K C (sigT Us)).
+Variables (Ut : forall t, union_map K C (Us t)).
 Variables t1 t2 : T.
 
 Lemma sideN_all_predC (h : U) :
@@ -5806,13 +5985,13 @@ Definition gather_m : sigT (sliceT Us) -> sigT Us :=
   fun '(Tag t (Tag k v)) => Tag (Tag t k) v.
 
 Variables (K : ordType) (C : pred K).
-Variables (U : @union_map K C (sigT Us)).
-Variables (S : @union_map K C (sigT (sliceT Us))).
+Variables (U : union_map K C (sigT Us)).
+Variables (S : union_map K C (sigT (sliceT Us))).
 
 Definition slice : U -> S := mapv slice_m.
-HB.instance Definition _ := OmapFun.copy slice slice.
+HB.instance Definition _ := OmapFun.on slice.
 Definition gather : S -> U := mapv gather_m.
-HB.instance Definition _ := OmapFun.copy gather gather.
+HB.instance Definition _ := OmapFun.on gather.
 
 Lemma In_slice x t (k : Ts t) (v : Us (Tag t k)) h :
         (x, Tag t (Tag k v)) \In slice h <->
@@ -5862,8 +6041,8 @@ Arguments gather {T Ts Us K C U}.
 
 Section GraftDef.
 Variables (K : ordType) (C : pred K) (T : eqType) (Us : T -> Type).
-Variables (U : @union_map K C (sigT Us)).
-Variables (Ut : forall t, @union_map K C (Us t)).
+Variables (U : union_map K C (sigT Us)).
+Variables (Ut : forall t, union_map K C (Us t)).
 Variables (h : U) (t : T).
 
 Definition graft (ht : Ut t) : U := 
@@ -5874,7 +6053,7 @@ Arguments graft {K C T Us U Ut}.
 
 Section GraftLemmas.
 Variables (K : ordType) (C : pred K) (T : eqType) (Us : T -> Type).
-Variables (U : @union_map K C (sigT Us)) (Ut : forall t, @union_map K C (Us t)).
+Variables (U : union_map K C (sigT Us)) (Ut : forall t, union_map K C (Us t)).
 Implicit Type h : U.
 
 (* ht has disjoint domain with other sides of h *)
@@ -5961,7 +6140,7 @@ End GraftLemmas.
 
 Section DomMap.
 Variables (K : ordType) (C : pred K) (V : Type).
-Variables (U : @union_map K C V) (U' : @union_map K C unit).
+Variables (U : union_map K C V) (U' : union_map K C unit).
 
 Definition dom_map (x : U) : U' := omap (fun => Some tt) x.
 
@@ -5996,8 +6175,8 @@ Arguments dom_map [K C V U U'] _.
 (* composing dom_map *)
 
 Section DomMapIdempotent.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
-Variables (U' : @union_map K C unit) (U'' : @union_map K C unit).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
+Variables (U' : union_map K C unit) (U'' : union_map K C unit).
 
 Lemma dom_map_idemp (x : U) : dom_map (dom_map x : U') = dom_map x :> U''.
 Proof. by rewrite /dom_map omap_omap. Qed.
@@ -6011,7 +6190,7 @@ End DomMapIdempotent.
 
 Section MapInvert.
 Variables (K V : ordType) (C : pred K) (C' : pred V).
-Variables (U : @union_map K C V) (U' : @union_map V C' K).
+Variables (U : union_map K C V) (U' : union_map V C' K).
 
 (* inverting f = flipping each pts k v in f into pts v k *)
 Definition invert (f : U) : U' :=
@@ -6131,7 +6310,7 @@ Arguments invert {K V C C' U U'}.
 
 Section InvertLaws.
 Variables (K V : ordType) (C : pred K) (C' : pred V).
-Variables (U : @union_map K C V) (U' : @union_map V C' K).
+Variables (U : union_map K C V) (U' : union_map V C' K).
 
 Lemma valid_invert_idemp (f : U) :
         valid (invert (invert f : U') : U) = valid (invert f : U').
@@ -6163,7 +6342,9 @@ Arguments In_invert {K V C C' U U' k v f}.
 
 Section MapComposition.
 Variables (K1 K2 : ordType) (C1 : pred K1) (C2 : pred K2) (V : Type).
-Variables (Uf : @union_map K1 C1 K2) (Ug : @union_map K2 C2 V) (U : @union_map K1 C1 V).
+Variables Uf : union_map K1 C1 K2.
+Variables Ug : union_map K2 C2 V.
+Variables U : union_map K1 C1 V.
 Implicit Types (f : Uf) (g : Ug).
 
 Definition um_comp g f : U :=
@@ -6328,7 +6509,7 @@ End MapComposition.
 
 Section AllDefLemmas.
 Variables (K : ordType) (C : pred K) (V : Type).
-Variables (U : @union_map K C V) (P : K -> V -> Prop).
+Variables (U : union_map K C V) (P : K -> V -> Prop).
 Implicit Types (k : K) (v : V) (f : U).
 
 Definition um_all f := forall k v, (k, v) \In f -> P k v.
@@ -6393,7 +6574,7 @@ Hint Resolve umall_undef umall0 : core.
 (* decidable um_all *)
 
 Section MapAllDecidable.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Types (f : U) (p : pred (K*V)). 
 
 Definition um_allb p f := um_count p f == size (dom f).
@@ -6405,28 +6586,19 @@ apply/(equivP idP); split=>[/eqP | H].
 by apply/eqP; rewrite umcnt_memT=>k v; apply: H.
 Qed.
 
-Lemma umallb_is_pcm_morph p : pcm_morph_axiom relT (um_allb p).
-Proof.
-rewrite /um_allb; split=>[|x y W _]; first by rewrite umcnt0 dom0.
-split=>//; apply/idP/idP.
-- by move/umallbP=>H; apply/andP; split; apply/umallbP=>k X;
-  apply: H; [apply: InL | apply: InR].
-case/andP=>/umallbP X1 /umallbP X2; apply/umallbP=>k.
-by case/InUn; [apply: X1 | apply: X2].
-Qed.
-
-HB.instance Definition _ p := 
-  isPCM_morphism.Build U bool (um_allb p) (umallb_is_pcm_morph p).
-HB.instance Definition _ p := 
-  isFull_PCM_morphism.Build U bool (um_allb p) (fun x y => erefl).
-
 Lemma umallb0 p : um_allb p Unit.
-Proof. exact: pfunit. Qed.
+Proof. by rewrite /um_allb umcnt0 dom0. Qed.
 
 Lemma umallbUn p f1 f2 :
         valid (f1 \+ f2) -> 
         um_allb p (f1 \+ f2) = um_allb p f1 && um_allb p f2.
-Proof. exact: pfjoinT. Qed.
+Proof. 
+move=>W; apply/idP/idP.
+- by move/umallbP=>H; apply/andP; split; apply/umallbP=>k X; 
+  apply: H; [apply: InL | apply: InR].
+case/andP=>/umallbP X1 /umallbP X2; apply/umallbP=>k.
+by case/InUn; [apply: X1 | apply: X2].
+Qed.
 
 (* bool isn't tpcm, so we can't declare umallb tpcm morphism *)
 (* however, we can prove some properties about under *)
@@ -6447,7 +6619,7 @@ Lemma umallbU p k v f :
         um_allb p (upd k v f) = p (k, v) && um_allb p (free f k).
 Proof.
 rewrite validU=>/andP [W1 W2]; rewrite upd_eta // umallbPtUn //.
-by rewrite validPtUn W1 validF W2 domF inE eq_refl.
+by rewrite validPtUn W1 validF W2 domF eqxx.
 Qed.
 
 Lemma umallbF p k f : um_allb p f -> um_allb p (free f k).
@@ -6464,7 +6636,7 @@ End MapAllDecidable.
 (* values of equal keys in both maps. *)
 
 Section BinaryMapAll.
-Variables (K : ordType) (C : pred K) (V : Type) (U : @union_map K C V).
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Variables (P : V -> V -> Prop).
 Implicit Types (k : K) (v : V) (f : U).
 
@@ -6697,7 +6869,7 @@ End BinaryMapAll.
 
 Section BigOpsUM.
 Variables (K : ordType) (C : pred K) (T : Type).
-Variables (U : @union_map K C T).
+Variables (U : union_map K C T).
 Variables (I : Type) (f : I -> U).
 
 Lemma big_domUn (xs : seq I) :
@@ -6831,7 +7003,7 @@ Qed.
 
 (* if xs is domain of some map *)
 
-Lemma bigD1FE (k : K) (F : K -> U) (g : U) : 
+Lemma bigD1FE (V: pcm) (k : K) (F : K -> V) (g : U) : 
         \big[join/Unit]_(i <- dom g) F i = 
         if k \in dom g then 
           F k \+ \big[join/Unit]_(i <- dom (free g k)) F i
@@ -6841,34 +7013,43 @@ case: ifP=>D; last by rewrite freeND // (negbT D).
 rewrite (bigD1_seq k) //= -big_filter (_ : filter _ _ = dom (free g k)) //.
 apply/ord_sorted_eq; first by rewrite sorted_filter.
 - by rewrite sorted_dom.
-by move=>z; rewrite mem_filter domF inE eq_sym; case: (k =P z).
+by move=>z; rewrite mem_filter domF.
 Qed.
 
-Lemma bigPtUnE (x : K) (a : T) (g : U) (F : K -> U) : 
+Lemma bigPtUnE (V : pcm) (x : K) (a : T) (g : U) (F : K -> V) : 
         \big[join/Unit]_(i <- dom (pts x a \+ g)) F i = 
         if valid (pts x a \+ g) then 
           F x \+ \big[join/Unit]_(i <- dom g) F i
         else Unit.
 Proof. 
 rewrite (bigD1FE x) domPtUnE.
-case: (normalP (pts x a \+ g))=>[->|V].
+case: (normalP (pts x a \+ g))=>[->|W].
 - by rewrite free_undef dom_undef big_nil.
 by rewrite freePtUn.
 Qed.
 
-Lemma bigPtUn (x : K) (a : T) (g : U) (F : K -> U) : 
+Lemma bigPtUn (V : pcm) (x : K) (a : T) (g : U) (F : K -> V) : 
         valid (pts x a \+ g) ->
         \big[join/Unit]_(i <- dom (pts x a \+ g)) F i = 
         F x \+ \big[join/Unit]_(i <- dom g) F i.
-Proof. by move=>V; rewrite bigPtUnE V. Qed.
+Proof. by move=>W; rewrite bigPtUnE W. Qed.
 
-Lemma bigDUE (x : K) (a : T) (g : U) (F : K -> U) : 
+Lemma bigDUE (V : pcm) (x : K) (a : T) (g : U) (F : K -> V) : 
          \big[join/Unit]_(i <- dom (upd x a g)) F i = 
          if C x && valid g then 
            F x \+ \big[join/Unit]_(i <- dom (free g x)) F i
          else Unit.
 Proof.
-by rewrite (upd_eta x) bigPtUnE validPtUn validF domF inE eqxx andbT.
+by rewrite (upd_eta x) bigPtUnE validPtUn validF domF eqxx andbT.
+Qed.
+
+Lemma big_assocs_dom (V : tpcm) (F : K * T -> V) (g : U):
+        \big[join/Unit]_(x <- assocs g) F x =
+        \big[join/Unit]_(x <- dom g)
+          if find x g is Some v then F (x, v) else undef.
+Proof.
+rewrite assocs_dom big_map.
+by apply: eq_Bigr=>-[x v] /In_assocs/In_find ->.
 Qed.
 
 End BigOpsUM.
@@ -6880,7 +7061,7 @@ Prenex Implicits big_find_someX big_find_someXP bigIn bigInD bigInX bigInXP.
 (* big validity lemma *)
 
 Section BigOpsUMEq.
-Variables (K : ordType) (C : pred K) (T : Type) (U : @union_map K C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Variables (I : eqType) (f : I -> U).
 
 Lemma big_validP (xs : seq I) :
@@ -6924,7 +7105,7 @@ Qed.
 End BigOpsUMEq.
 
 Section BigCatSeqUM.
-Variables (K : ordType) (C : pred K) (T : Type) (U : @union_map K C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Variables (I : eqType) (g : I -> U).
 
 Lemma big_valid_dom_seq (xs : seq I) :
@@ -6961,7 +7142,7 @@ Proof. by move=>x; rewrite big_valid_dom_seq. Qed.
 
 End BigCatSeqUM.
 
-Lemma bigPt_valid (K : ordType) (C : pred K) T (U : @union_map K C T)
+Lemma bigPt_valid (K : ordType) (C : pred K) T (U : union_map K C T)
            (g : U) (F : K -> T) : 
          valid (\big[join/Unit]_(i <- dom g) pts i (F i) : U).
 Proof.
@@ -6973,7 +7154,7 @@ Qed.
 
 Section OMapBig.
 Variables (K : ordType) (C : pred K) (T T' : Type).
-Variables (U : @union_map K C T) (U' : @union_map K C T').
+Variables (U : union_map K C T) (U' : union_map K C T').
 Variables (I : Type) (f : I -> U).
 
 Lemma big_omapVUn (a : K * T -> option T') ts :

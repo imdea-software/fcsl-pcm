@@ -981,7 +981,7 @@ Definition mapf' (m : seq (K * U)) : seq (K * V) :=
 Lemma map_key_mapf (m : seq (K * U)) : map key (mapf' m) = map key m.
 Proof. by elim: m=>[|[k v] m IH] //=; rewrite IH. Qed.
 
-Lemma sorted_map (m : seq (K * U)) :
+Lemma sorted_map_key (m : seq (K * U)) :
         sorted ord (map key m) -> sorted ord (map key (mapf' m)).
 Proof.
 elim: m=>[|[k v] m IH] //= H.
@@ -991,7 +991,7 @@ by apply/(order_path_min _ H);apply/trans.
 Qed.
 
 Definition mapf (m : finMap K U) : finMap K V :=
-  let: FinMap _ pf := m in FinMap (sorted_map pf).
+  let: FinMap _ pf := m in FinMap (sorted_map_key pf).
 
 Lemma supp_mapf (s : finMap K U) :
         supp (mapf s) = supp s.
@@ -1134,7 +1134,7 @@ Fixpoint zip' (s1 s2 : seq (K * V)) :=
   | _, _ => None
   end.
 
-Definition zip_unit' (s : seq (K * V)) := @mapf' K _ _ unit_f s.
+Definition zip_unit' (s : seq (K * V)) := @mapf' K V V unit_f s.
 
 Lemma zipC' s1 s2 : zip' s1 s2 = zip' s2 s1.
 Proof.

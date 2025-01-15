@@ -16,7 +16,7 @@ limitations under the License.
 (******************************************************************************)
 
 From Coq Require Import ssreflect ssrbool ssrfun Setoid Basics.
-From mathcomp Require Import ssrnat seq eqtype.
+From mathcomp Require Import ssrnat seq eqtype bigop.
 From pcm Require Import options.
 
 (* First some basic propositional equalities *)
@@ -807,6 +807,14 @@ End ListMembership.
 
 Prenex Implicits In_split.
 
+(* for equality types, membership predicates coincide *)
+Lemma mem_seqP (A : eqType) x (s : seq A) : reflect (x \In s) (x \in s).
+Proof.
+elim: s=>[|y s IH]; first by constructor.
+rewrite inE; case: eqP=>[<-|H /=]; first by constructor; left.
+by apply: equivP IH _; rewrite InE; split; [right | case].
+Qed.
+
 Lemma Mem_map T T' (f : T -> T') x (s : seq T) :
          x \In s -> f x \In (map f s).
 Proof.
@@ -835,6 +843,10 @@ case=>k /In_cons [->|H E]; first by left.
 by right; apply/IHs; exists k.
 Qed.
 
+Lemma mapPP T1 (T2 : eqType) (f : T1 -> T2) (s : seq T1) y :
+        reflect (exists2 x, x \In s & y = f x) (y \in map f s).
+Proof. by apply: (iffP idP)=>[/mem_seqP/MapP|/MapP/mem_seqP]. Qed.
+
 Lemma Mem_filter (T : Type) (a : pred T) (x : T) (s : seq T) :
         x \In filter a s <-> a x /\ x \In s.
 Proof.
@@ -860,12 +872,13 @@ rewrite IHs // => y s_y; apply: eq_a.
 by rewrite InE; right.
 Qed.
 
-(* for equality types, membership predicates coincide *)
-Lemma mem_seqP (A : eqType) x (s : seq A) : reflect (x \In s) (x \in s).
+Lemma eq_In_map S T (f g : S -> T) (s : seq S) :
+        (forall x, x \In s -> f x = g x) <->
+        map f s = map g s.
 Proof.
-elim: s=>[|y s IH]; first by constructor.
-rewrite inE; case: eqP=>[<-|H /=]; first by constructor; left.
-by apply: equivP IH _; rewrite InE; split; [right | case].
+elim: s=>[|x s IH] //=; split=>[H|[H1 /IH H2 k]].
+- by congr (_ :: _); [apply: H; left|apply/IH=>k K; apply: H; right].
+by rewrite InE; case=>[->|/H2].
 Qed.
 
 
@@ -988,6 +1001,60 @@ case: andP=>H; constructor.
 - by case: H=>/mem_seqP H /IH.
 by case=>/mem_seqP H1 /IH H2; elim: H.
 Qed.
+
+Lemma map_Uniq T1 (T2 : eqType) (f : T1 -> T2) (s : seq T1) :
+        uniq [seq f i | i <- s] -> Uniq s.
+Proof.
+elim: s=>//= x s IH /andP [nsfx /IH H]; split=>//.
+apply: contraNnot nsfx=>Hx.
+by apply/mapPP; exists x.
+Qed.
+
+(* \In and big operators *)
+
+Lemma Big_rec R (K : R -> Type) (idx : R) (op : R -> R -> R) :
+        K idx ->
+        forall I (r : seq I) (P : pred I) (F : I -> R),
+        (forall (i : I) (x : R), i \In r -> P i -> K x -> K (op (F i) x)) ->
+        K (\big[op/idx]_(i <- r | P i) F i).
+Proof.
+rewrite unlock; move=>Kid I r P F; elim: r=>[|x r IH] Kop //=.
+case: ifP=>H; last by apply: IH=>i x0 X; apply: Kop; right.
+apply: (Kop)=>//; first by left.
+by apply: IH=>i x0 X; apply: Kop; right.
+Qed.
+
+Lemma Big_rec2 R1 R2 (K : R1 -> R2 -> Type) (id1 : R1)
+         (op1 : R1 -> R1 -> R1) (id2 : R2) (op2 : R2 -> R2 -> R2) :
+       K id1 id2 ->
+       forall I (r : seq I) (P : pred I) (F1 : I -> R1) (F2 : I -> R2),
+       (forall (i : I) (y1 : R1) (y2 : R2),
+         i \In r -> P i -> K y1 y2 ->
+         K (op1 (F1 i) y1) (op2 (F2 i) y2)) ->
+         K (\big[op1/id1]_(i <- r | P i) F1 i)
+           (\big[op2/id2]_(i <- r | P i) F2 i).
+Proof.
+move=>Kid I r P F1 F2; rewrite unlock.
+elim: r=>[|x r IH] //=.
+case: ifP=>H K_F; last by apply: IH=>i y1 y2 X; apply: K_F; right.
+apply: (K_F)=>//; first by left.
+by apply: IH=>i y1 y2 X; apply: K_F; right.
+Qed.
+
+Lemma eq_Bigr R (idx : R) (op : R -> R -> R) I (r : seq I)
+           (P : pred I) F1 F2 :
+         (forall i, i \In r -> P i -> F1 i = F2 i) ->
+         \big[op/idx]_(i <- r | P i) F1 i = \big[op/idx]_(i <- r | P i) F2 i.
+Proof.
+by move=>eqF12; elim/Big_rec2: _=>// i x y2 X /(eqF12 _ X) ->->.
+Qed.
+
+Lemma eq_bigR R (idx : R) (op : R -> R -> R) (I : eqType) (r : seq I)
+           (P : pred I) F1 F2 :
+         (forall i, i \in r -> P i -> F1 i = F2 i) ->
+         \big[op/idx]_(i <- r | P i) F1 i = \big[op/idx]_(i <- r | P i) F2 i.
+Proof. by move=>eqF12; apply: eq_Bigr=>i /mem_seqP/eqF12. Qed.
+
 
 (***********************************)
 (* Image of a collective predicate *)

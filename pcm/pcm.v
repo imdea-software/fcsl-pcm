@@ -19,7 +19,8 @@ limitations under the License.
 
 From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun Setoid.
-From mathcomp Require Import ssrnat eqtype seq bigop choice fintype finset finfun.
+From mathcomp Require Import ssrnat eqtype seq bigop choice.
+From mathcomp Require Import fintype finset finfun.
 From pcm Require Import options axioms prelude seqperm pred seqext.
 
 Declare Scope pcm_scope.
@@ -214,6 +215,45 @@ Qed.
 
 End CPCMLemmas.
 
+(****************)
+(* Conical PCMs *)
+(****************)
+
+(* commutative monoid is conical if *)
+(* x+y=0 implies that x=y=0, for any elements x,y *)
+(* https://en.wikipedia.org/wiki/Refinement_monoid *)
+
+Definition pcmc_axiom (U : pcm) :=
+  forall x1 x2 : U, unitb (x1 \+ x2) -> unitb x1 && unitb x2.
+
+HB.mixin Record isPCMC U of PCM U := {
+  pcmc_subproof : pcmc_axiom U}. 
+
+#[short(type="pcmc")]
+HB.structure Definition PCMC := {U of PCM U & isPCMC U}.
+
+Section Repack.
+Context {U : pcmc}.
+Implicit Type x : U.
+
+Lemma join00 {x1 x2} : unitb (x1 \+ x2) -> unitb x1 && unitb x2.
+Proof. by move/pcmc_subproof. Qed.
+
+Lemma join0L {x1 x2} : unitb (x1 \+ x2) -> unitb x1.
+Proof. by case/join00/andP. Qed.
+
+Lemma join0R {x1 x2} : unitb (x1 \+ x2) -> unitb x2.
+Proof. by case/join00/andP. Qed.
+
+Lemma join0E {x1 x2 : U} : unitb (x1 \+ x2) = unitb x1 && unitb x2.
+Proof.
+apply/idP/idP; first by apply/join00.
+by case/andP=>/unitbP -> /unitbP ->; apply/unitbP; rewrite unitL.
+Qed.
+
+Lemma join0I {x1 x2} : x1 \+ x2 = Unit -> x1 = Unit /\ x2 = Unit.
+Proof. by case/unitbP/join00/andP; split; apply/unitbP. Qed.
+End Repack.
 
 (***************)
 (* Topped PCMs *)
@@ -368,6 +408,58 @@ HB.structure Definition Normal_CTPCM := {U of Normal_TPCM U & CPCM U}.
 #[short(type="normal_eqctpcm")]
 HB.structure Definition Normal_EQCTPCM := {U of Normal_TPCM U & EQCPCM U}.
 
+(* adding conical variants *)
+
+(* conical pcm with decidable equality *)
+#[short(type="eqpcmc")]
+HB.structure Definition EQPCMC := {U of Equality U & PCMC U}. 
+
+(* conical cancellative pcm *)
+#[short(type="cpcmc")]
+HB.structure Definition CPCMC := {U of CPCM U & PCMC U}.
+
+(* conical tpcm *)
+#[short(type="tpcmc")]
+HB.structure Definition TPCMC := {U of TPCM U & PCMC U}.
+
+(* conical normal tpcm *)
+#[short(type="normal_tpcmc")]
+HB.structure Definition Normal_TPCMC := {U of Normal_TPCM U & PCMC U}.
+
+(* conical with two extra properties *)
+
+(* conical cancellative pcm with decidable equality *)
+#[short(type="eqcpcmc")]
+HB.structure Definition EQCPCMC := {U of CPCM U & EQPCMC U}.
+
+(* conical tpcm with decidable equality *)
+#[short(type="eqtpcmc")]
+HB.structure Definition EQTPCMC := {U of TPCMC U & EQPCM U}.
+
+(* conical cancellative tpcm *)
+#[short(type="ctpcmc")]
+HB.structure Definition CTPCMC := {U of TPCMC U & CTPCM U}. 
+
+(* conical with three extra properties *)
+
+(* conical normal tpcm with decidable equality *)
+#[short(type="normal_eqtpcmc")]
+HB.structure Definition Normal_EQTPCMC := {U of Normal_TPCMC U & EQPCM U}.
+
+(* conical normal cancellative tpcm *)
+#[short(type="normal_ctpcmc")]
+HB.structure Definition Normal_CTPCMC := {U of Normal_TPCMC U & CTPCM U}. 
+
+(* conical cancellative tpcm with decidable equality *)
+#[short(type="eqctpcmc")]
+HB.structure Definition EQCTPCMC := {U of EQTPCMC U & CTPCM U}. 
+
+(* conical with four extra properties *)
+
+(* conical normal cancellative tpcm with decidable equality *)
+#[short(type="normal_eqctpcmc")]
+HB.structure Definition Normal_EQCTPCMC := {U of Normal_CTPCM U & EQPCMC U}. 
+
 
 (***************************************)
 (* Support for big operators over PCMs *)
@@ -411,32 +503,41 @@ Proof. by split=>//; [apply:addnC|apply:addnA|apply:(@eqP _^~_)]. Qed.
 HB.instance Definition natPCM : isPCM nat := isPCM.Build nat nat_is_pcm. 
 (* Check (PCM.clone nat _). *)
 
+Lemma nat_is_conical : pcmc_axiom nat.
+Proof.
+move=>x y /unitbP/eqP; rewrite addn_eq0.
+by case/andP=>/eqP -> /eqP ->. 
+Qed.
+HB.instance Definition _ := isPCMC.Build nat nat_is_conical.
+
 (* nats are pcm with multiplication too *)
 (* but the instance isn't declared canonical as natPCM already is *)
 Lemma nat_is_mulpcm : pcm_axiom xpredT mult 1 (eq_op^~ 1).
 Proof. by split=>//; [apply:mulnC|apply:mulnA|apply:mul1n|apply:(@eqP _^~_)]. Qed.
-(* HB.instance Definition nat_mulPCM : isPCM nat := 
-  isPCM.Build nat nat_is_mulpcm. *)
+HB.instance Definition nat_mulPCM : isPCM nat := isPCM.Build nat nat_is_mulpcm.
 
 (* nats with max too *)
 Lemma nat_is_maxpcm : pcm_axiom xpredT maxn 0 (eq_op^~ 0).
 Proof. by split=>//; [apply:maxnC|apply:maxnA|apply:max0n|apply:(@eqP _^~_)]. Qed.
-(* HB.instance Definition nat_maxPCM : isPCM nat := 
-  isPCM.Build nat nat_is_maxpcm. *)
+HB.instance Definition nat_maxPCM : isPCM nat := isPCM.Build nat nat_is_maxpcm. 
+
+(* bools with disjunction *)
+(* eqpcm automatically inferred *)
+Lemma bool_is_disjpcm : pcm_axiom xpredT orb false (eq_op^~ false).
+Proof. by split=>//; [apply:orbC|apply:orbA|apply:(@eqP _^~_)]. Qed.
+HB.instance Definition bool_disjPCM : isPCM bool := 
+  isPCM.Build bool bool_is_disjpcm.
+(* Check (EQPCM.clone bool _). *)
+
+Lemma bool_is_conical : pcmc_axiom bool.
+Proof. by case; case. Qed.
+HB.instance Definition _ := isPCMC.Build bool bool_is_conical.
 
 (* bools with conjunction *)
-(* eqpcm automatically inferred *)
+(* but the instance isn't declared canonical as boolPCM alread is *)
 Lemma bool_is_pcm : pcm_axiom xpredT andb true (eq_op^~ true).
 Proof. by split=>//; [apply:andbC|apply:andbA|apply:(@eqP _^~_)]. Qed.
 HB.instance Definition boolPCM : isPCM bool := isPCM.Build bool bool_is_pcm.
-(* Check (EQPCM.clone bool _). *)
-
-(* bools with disjunction *)
-(* but the instance isn't declared canonical as boolPCM alread is *)
-Lemma bool_is_disjpcm : pcm_axiom xpredT orb false (eq_op^~ false).
-Proof. by split=>//; [apply:orbC|apply:orbA|apply:(@eqP _^~_)]. Qed.
-(* HB.instance Definition bool_disjPCM : isPCM bool := 
-  isPCM.Build bool bool_is_disjpcm. *)
 
 (* positive nats under max *)
 Section PosNatMax.
@@ -542,6 +643,12 @@ Lemma option_is_normal (U : pcm) :
         @valid U =1 xpredT -> normal_tpcm_axiom (option U).
 Proof. by move=>E [x|]; [left; rewrite /valid /= E|right]. Qed.
 
+(* option preserves conicity *)
+Lemma option_is_conical (U : pcmc) : pcmc_axiom (option U).
+Proof. by case=>[x|][y|] //= /unitbP [/unitbP/join00]. Qed.
+HB.instance Definition _ (U : pcmc) := 
+  isPCMC.Build (option U) (@option_is_conical U).  
+
 (* case analysis infrastructure *)
 CoInductive option_pcm_spec (A : pcm) (x y : option A) : 
   option A -> Type := 
@@ -590,6 +697,16 @@ End ProdPCM.
 HB.instance Definition _ (U V : eqpcm) := PCM.copy (U * V)%type _.
 
 Arguments unit2 /.
+
+Lemma prod_is_conical (U V : pcmc) : pcmc_axiom (U * V)%type.
+Proof.
+case=>x1 x2 [y1 y2] /unitbP [].
+case/unitbP/join00/andP=>X1 Y1 /unitbP/join00/andP [X2 Y2]. 
+by rewrite /unitb /= X1 X2 Y1 Y2.
+Qed.
+
+HB.instance Definition _ (U V : pcmc) := 
+  isPCMC.Build (U * V)%type (@prod_is_conical U V).
 
 (* product simplification *)
 Section Simplification.
@@ -657,6 +774,17 @@ HB.instance Definition _ (U1 U2 U3 : eqpcm) :=
 
 Arguments unit3 /.
 
+Lemma prod3_is_conical (U1 U2 U3 : pcmc) : pcmc_axiom (Prod3 U1 U2 U3).
+Proof.
+case=>x1 x2 x3 [y1 y2 y3] /unitbP [].
+case/unitbP/join00/andP=>X1 Y1 /unitbP/join00/andP [X2 Y2]
+/unitbP/join00/andP [X3 Y3]. 
+by rewrite /unitb /= X1 X2 X3 Y1 Y2 Y3.
+Qed.
+
+HB.instance Definition _ (U1 U2 U3 : pcmc) := 
+  isPCMC.Build (Prod3 U1 U2 U3) (@prod3_is_conical U1 U2 U3).
+
 Section Prod4PCM.
 Variables U1 U2 U3 U4 : pcm.
 Notation tp := (Prod4 U1 U2 U3 U4).
@@ -698,6 +826,17 @@ HB.instance Definition _ (U1 U2 U3 U4 : eqpcm) :=
   PCM.copy (Prod4 U1 U2 U3 U4) _.
 
 Arguments unit4 /.
+
+Lemma prod4_is_conical (U1 U2 U3 U4 : pcmc) : pcmc_axiom (Prod4 U1 U2 U3 U4).
+Proof.
+case=>x1 x2 x3 x4 [y1 y2 y3 y4] /unitbP [].
+case/unitbP/join00/andP=>X1 Y1 /unitbP/join00/andP [X2 Y2]
+/unitbP/join00/andP [X3 Y3] /unitbP/join00/andP [X4 Y4]. 
+by rewrite /unitb /= X1 X2 X3 X4 Y1 Y2 Y3 Y4.
+Qed.
+
+HB.instance Definition _ (U1 U2 U3 U4 : pcmc) := 
+  isPCMC.Build (Prod4 U1 U2 U3 U4) (@prod4_is_conical U1 U2 U3 U4).
 
 Section Prod5PCM.
 Variables U1 U2 U3 U4 U5 : pcm.
@@ -744,6 +883,19 @@ HB.instance Definition _ (U1 U2 U3 U4 U5 : eqpcm) :=
   PCM.copy (Prod5 U1 U2 U3 U4 U5) _.
 
 Arguments unit5 /.
+
+Lemma prod5_is_conical (U1 U2 U3 U4 U5 : pcmc) : 
+        pcmc_axiom (Prod5 U1 U2 U3 U4 U5).
+Proof.
+case=>x1 x2 x3 x4 x5 [y1 y2 y3 y4 y5] /unitbP [].
+case/unitbP/join00/andP=>X1 Y1 /unitbP/join00/andP [X2 Y2]
+/unitbP/join00/andP [X3 Y3 ]/unitbP/join00/andP [X4 Y4]
+/unitbP/join00/andP [X5 Y5].
+by rewrite /unitb /= X1 X2 X3 X4 X5 Y1 Y2 Y3 Y4 Y5.
+Qed.
+
+HB.instance Definition _ (U1 U2 U3 U4 U5 : pcmc) := 
+  isPCMC.Build (Prod5 U1 U2 U3 U4 U5) (@prod5_is_conical U1 U2 U3 U4 U5).
 
 Section Prod6PCM.
 Variables U1 U2 U3 U4 U5 U6 : pcm.
@@ -793,6 +945,19 @@ HB.instance Definition _ (U1 U2 U3 U4 U5 U6 : eqpcm) :=
   PCM.copy (Prod6 U1 U2 U3 U4 U5 U6) _.
 
 Arguments unit6 /.
+
+Lemma prod6_is_conical (U1 U2 U3 U4 U5 U6 : pcmc) : 
+        pcmc_axiom (Prod6 U1 U2 U3 U4 U5 U6).
+Proof.
+case=>x1 x2 x3 x4 x5 x6 [y1 y2 y3 y4 y5 y6] /unitbP [].
+case/unitbP/join00/andP=>X1 Y1 /unitbP/join00/andP [X2 Y2]
+/unitbP/join00/andP [X3 Y3 ]/unitbP/join00/andP [X4 Y4]
+/unitbP/join00/andP [X5 Y5] /unitbP/join00/andP [X6 Y6].
+by rewrite /unitb /= X1 X2 X3 X4 X5 X6 Y1 Y2 Y3 Y4 Y5 Y6.
+Qed.
+
+HB.instance Definition _ (U1 U2 U3 U4 U5 U6 : pcmc) := 
+  isPCMC.Build (Prod6 U1 U2 U3 U4 U5 U6) (@prod6_is_conical U1 U2 U3 U4 U5 U6).
 
 Section Prod7PCM.
 Variables U1 U2 U3 U4 U5 U6 U7 : pcm.
@@ -846,6 +1011,21 @@ HB.instance Definition _ (U1 U2 U3 U4 U5 U6 U7 : eqpcm) :=
 
 Arguments unit7 /.
 
+Lemma prod7_is_conical (U1 U2 U3 U4 U5 U6 U7 : pcmc) : 
+        pcmc_axiom (Prod7 U1 U2 U3 U4 U5 U6 U7).
+Proof.
+case=>x1 x2 x3 x4 x5 x6 x7 [y1 y2 y3 y4 y5 y6 y7] /unitbP [].
+case/unitbP/join00/andP=>X1 Y1 /unitbP/join00/andP [X2 Y2]
+/unitbP/join00/andP [X3 Y3 ]/unitbP/join00/andP [X4 Y4]
+/unitbP/join00/andP [X5 Y5] /unitbP/join00/andP [X6 Y6]
+/unitbP/join00/andP [X7 Y7].
+by rewrite /unitb /= X1 X2 X3 X4 X5 X6 X7 Y1 Y2 Y3 Y4 Y5 Y6 Y7.
+Qed.
+
+HB.instance Definition _ (U1 U2 U3 U4 U5 U6 U7 : pcmc) := 
+  isPCMC.Build (Prod7 U1 U2 U3 U4 U5 U6 U7) 
+               (@prod7_is_conical U1 U2 U3 U4 U5 U6 U7).
+
 (* Finite products of PCMs as functions *)
 Section FunPCM.
 Variables (T : finType) (Us : T -> pcm).
@@ -876,8 +1056,7 @@ End FunPCM.
 Arguments fun_unit /.
 
 (* we won't use fun types for any examples *)
-(* so we don't need equality structure on them *)
-
+(* so we don't need equality or conicity structure on them *)
 
 (* Finite products of PCMs as finfuns *)
 (* We will work with this second structure, though *)
@@ -917,6 +1096,16 @@ HB.instance Definition _ (T : finType) (Us : T -> eqpcm) :=
   PCM.copy {dffun forall t, Us t} _. 
 
 Arguments fin_unit /.
+
+Lemma dffun_is_conical (T : finType) (Us : T -> pcmc) : 
+        pcmc_axiom {dffun forall t, Us t}.
+Proof.
+by move=>x y /forallP H; apply/andP; split; apply/forallP=>t;
+move: (H t); rewrite /sel !ffunE; [move/join0L|move/join0R].
+Qed.
+
+HB.instance Definition _ (T : finType) (Us : T -> pcmc) := 
+  isPCMC.Build {dffun forall t, Us t} (@dffun_is_conical T Us).
 
 (* product of TPCMs is a TPCM *)
 
