@@ -291,7 +291,7 @@ Lemma lastkeyP A (U : natmap A) (h : U) :
                            (last_val h).
 Proof.
 have L (x : U) : valid x -> last_key x \notin dom x -> x = Unit.
-- rewrite /last_key !umEX /UM.valid/UM.dom/UM.empty -{4}[x]tfE. 
+- rewrite /last_key/domx !umEX /UM.valid/UM.dom/UM.empty -{4}[x]tfE. 
   case: (UMC_from x)=>//=; case=>s H H1 _ /seq_last_in. 
   by rewrite eqE UM.umapE /supp fmapE /= {H H1}; elim: s. 
 case: (normalP0 h)=>[->|->|].
@@ -339,7 +339,7 @@ Lemma dom_lastkey h k :
         k \in dom h -> 
         k <= last_key h.
 Proof.
-rewrite /last_key !umEX /UM.dom; case: (UMC_from h)=>//; case=>s H _ /=.
+rewrite /last_key/domx !umEX /UM.dom; case: (UMC_from h)=>//; case=>s H _ /=.
 rewrite /supp/ord /= (leq_eqVlt k) orbC. 
 by apply: sorted_last_key_maxR otrans (sorted_oleq H).
 Qed.
@@ -561,9 +561,9 @@ Proof.
 move=>D; have {}D : last_key h \in dom h by case: lastkeyP D.
 case: (um_eta D)=>v [Ef Eh].
 have N : last_key h \notin dom (free h (last_key h)).
-- by rewrite domF inE eqxx.
+- by rewrite domF eqxx.
 have: last_key (free h (last_key h)) <= last_key h.
-- by apply: lastkey_mono=>x; rewrite domF inE; case: ifP.
+- by apply: lastkey_mono=>x; rewrite domF; case/andP.
 rewrite leq_eqVlt; case/orP=>// /eqP E; rewrite -{1}E in N.
 have : last_key h > 0 by move/dom_cond: D; case: (last_key h).
 by case: lastkeyP N.

@@ -80,6 +80,14 @@ Lemma mutex_is_normal : normal_tpcm_axiom (mutex T).
 Proof. by case; [right|rewrite valid_unit; left|move=>t; left]. Qed.
 HB.instance Definition _ : isNormal_TPCM (mutex T) :=
   isNormal_TPCM.Build (mutex T) mutex_is_normal.
+
+(* conicity *)
+Lemma mutex_is_conical : pcmc_axiom (mutex T).
+Proof. by case=>[||x1][||x2]. Qed.
+
+HB.instance Definition _ := 
+  isPCMC.Build (mutex T) mutex_is_conical.
+
 End GeneralizedMutex.
 
 (* if T is eqType, so is mutex T *)

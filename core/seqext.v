@@ -98,6 +98,9 @@ Section LemmasEq.
 Variables A : eqType.
 Implicit Type xs : seq A.
 
+Lemma eqnil xs : xs =i [::] -> xs = [::].
+Proof. by case: xs=>// x xs /(_ x); rewrite inE eqxx. Qed.
+
 (* With A : Type, we have the In_split lemma. *)
 (* With A : eqType, the lemma can be strenghtened to *)
 (* not only return the split of xs, but the split of xs *)
@@ -256,6 +259,16 @@ case: has_nilP=>X; constructor.
 by case=>k K; elim: X; apply/hasP; exists k.
 Qed.
 
+Lemma all_filterPC T (a : pred T) (s : seq T) : 
+         reflect (filter a s = [::]) (all (predC a) s).
+Proof.
+case: all_filterP=>H; constructor.
+- rewrite -H -filter_predI -(filter_pred0 s).
+  by apply: eq_filter=>z; rewrite inE andbN.
+move=>E; apply: H; elim: s E=>[|x s IH] //=.
+by case: ifP=>//= E /IH ->. 
+Qed.
+
 Lemma filter_nilP (p : pred A) xs :
         reflect (forall x, p x -> x \in xs -> false)
                 ([seq x <- xs | p x] == [::]).
@@ -380,6 +393,71 @@ by move: H; rewrite drop_oversize.
 Qed.
 
 End LemmasEq.
+
+(* lemmas about prev and next should generally by proved using *)
+(* prev_nth and next_nth, but sometimes we can also prove them *)
+(* directly by setting up the right induction *)
+
+Lemma prevE (T : eqType) (s : seq T) (p x : T) : 
+        prev_at p x x s = prev (x :: s) p.
+Proof. by []. Qed.
+
+Lemma nextE (T : eqType) (s : seq T) (p x : T) : 
+        next_at p x x s = next (x :: s) p.
+Proof. by []. Qed.
+
+(* prev starts counting occurrences of p from the second position; *)
+(* the first position is counted as last; that's the meaning *)
+(* of considering the sequence argument as a cycle *)
+Lemma prev_cons (T : eqType) (s : seq T) x y p :
+        prev (x :: y :: s) p = 
+        if p == y then x else 
+          if p \in s then prev (y :: s) p else 
+            if p == x then last y s else p.
+Proof.
+rewrite !prev_nth !inE orbC /= (eq_sym y); case: (p =P y)=>//= /eqP Npy.
+have [S|/index_sizeE ->/=] := boolP (p \in s).
+- by apply: set_nth_default; rewrite ltnW // ltnS index_mem. 
+by case: (p =P x)=>// <-{x}; rewrite -last_nth.
+Qed.
+
+Lemma next_rcons (T : eqType) (s : seq T) a b c :
+        next (rcons (rcons s a) b) c =
+        if c \in s then next (rcons s a) c else 
+          if c == a then b else 
+            if c == b then head a s else c.
+Proof. 
+case: s=>[|y s] //=; rewrite inE. 
+by elim: s y {2 3 5}y=>[|x s IH] y y' /=; case: (c =P y').
+Qed.
+
+Lemma prevat_rcons (T : eqType) (s : seq T) a b c :
+        (* prev (a :: rcons s b) c *)
+        prev_at c a a (rcons s b) =
+        if c \in s then prev (a :: s) c
+        else if c == b then last a s
+             else if c == a then b else c.
+Proof.  
+rewrite /prev /=; elim: s a {2 4 5}a=>[|x s IH] a a'//=.
+by rewrite inE; case: (c =P x).
+Qed.
+
+Lemma nextat_rcons (T : eqType) (s : seq T) a b c : 
+        (* next (rcons (a :: s) b) c = *)
+        next_at c a a (rcons s b) =   
+        if c == a then head b s 
+        else if c \in s then next (rcons s b) c
+             else if c == b then a else c.
+Proof. 
+rewrite nextE !next_nth inE /= eq_sym.
+case: (a =P c)=>[->|/eqP N] /=; first by rewrite nth0 head_rcons. 
+rewrite mem_rcons inE orbC index_rcons.
+case C: (c \in s)=>//=; last first.
+- by case: (c =P b)=>// <-; rewrite nth_default // size_rcons.
+case: s C=>//= x s; rewrite inE eq_sym.
+case: (x =P c)=>[-> _|/eqP Nc /= C]; first by rewrite !nth0 !head_rcons. 
+by apply: set_nth_default; rewrite size_rcons ltnS index_mem C.
+Qed.
 
 (* decidable sequence disjointness *)
 
@@ -943,6 +1021,11 @@ by rewrite orbT.
 Qed.
 
 Arguments last_in x [k s].
+
+Lemma last_mem x (s : seq A) a : 
+        a = last x s ->
+        (a == x) || (a \in s).
+Proof. by move=>->; apply: mem_last. Qed.
 
 Lemma last_notin x k (s : seq A) : 
         x \in s -> 
@@ -2134,5 +2217,4 @@ Lemma uniq_big_cat_disj (A : finType) (B : eqType) (f : A -> seq B) t1 t2 x :
          x \in f t2 -> 
          t1 = t2.
 Proof. by case/uniq_big_cat=>_; apply. Qed.
-
 

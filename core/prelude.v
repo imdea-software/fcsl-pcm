@@ -541,6 +541,12 @@ Proof. by case: a=>//=->. Qed.
 Lemma iffE (b1 b2 : bool) : b1 = b2 <-> (b1 <-> b2).
 Proof. by split=>[->|] //; move/iffPb/eqP. Qed.
 
+Lemma orPl (a b : bool) : reflect (a \/ ~~ a /\ b) (a || b).
+Proof. by case: a; case: b=>/=; constructor; auto; case=>//; case. Qed.
+
+Lemma orPr (a b : bool) : reflect (~~ b /\ a \/ b) (a || b).
+Proof. by case: a; case: b=>/=; constructor; auto; case=>//; case. Qed.
+
 (* subsets *)
 
 Lemma subsetC T (p q : mem_pred T) :

@@ -43,7 +43,7 @@ From pcm Require Import pcm unionmap natmap.
 (* The context of keys is thus seq K. The context of vars is seq U.      *)
 
 Section ReflectionContexts.
-Variables (K : ordType) (C : pred K) (T : Type) (U : union_map C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 
 Structure ctx := Context {keyx : seq K; varx : seq U}.
 
@@ -74,8 +74,8 @@ End ReflectionContexts.
 (* now for reflection *)
 
 Section Reflection.
-Variables (K : ordType) (C : pred K) (T : Type) (U : @union_map K C T).
-Implicit Type i : @ctx K _ _ U.
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
+Implicit Type i : ctx (K:=K) U.
 
 Inductive term := Pts of nat & T | Var of nat.
 
@@ -200,7 +200,7 @@ End Reflection.
 (* subterm is purely functional version of validX *)
 
 Section Subterm.
-Variables (K : ordType) (C : pred K) (T : Type) (U : @union_map K C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Implicit Types (i : ctx U) (ts : seq (term T)).
 
 Fixpoint subterm ts1 ts2 :=
@@ -232,7 +232,7 @@ End Subterm.
 (* subtract is purely functional version of domeqX *)
 
 Section Subtract.
-Variables (K : ordType) (C : pred K) (T : Type) (U : @union_map K C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Implicit Types (i : ctx U) (ts : seq (term T)).
 
 (* We need a subterm lemma that returns the uncancelled stuff from *)
@@ -273,7 +273,7 @@ End Subtract.
 (* invalid is a purely functional test of invalidX *)
 
 Section Invalid.
-Variables (K : ordType) (C : pred K) (T : Type) (U : @union_map K C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Implicit Types (i : ctx U) (t : term T) (ts : seq (term T)).
 
 Definition undefx i t :=
@@ -315,7 +315,7 @@ End Invalid.
 
 Module Syntactify.
 Section Syntactify.
-Variables (K : ordType) (C : pred K) (T : Type) (U : @union_map K C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Implicit Types (i : ctx U) (ts : seq (term T)).
 
 (* a tagging structure to control the flow of computation *)
@@ -404,7 +404,7 @@ Export Syntactify.Exports.
 
 Module ValidX.
 Section ValidX.
-Variables (K : ordType) (C : pred K) (T : Type) (U : @union_map K C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Implicit Types (j : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
@@ -471,7 +471,7 @@ Canonical equate.
 Canonical start.
 
 Section Exports.
-Variables (K : ordType) (C : pred K) (T : Type) (U : @union_map K C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Implicit Types (j : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
@@ -509,7 +509,7 @@ Export ValidX.Exports.
 
 Module DomeqX.
 Section DomeqX.
-Variables (K : ordType) (C : pred K) (T : Type) (U : @union_map K C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Implicit Types (j : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
@@ -548,7 +548,7 @@ Canonical equate.
 Canonical start.
 
 Section Exports.
-Variables (K : ordType) (C : pred K) (T : Type) (U : @union_map K C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Implicit Types (j : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
@@ -583,7 +583,7 @@ Export DomeqX.Exports.
 
 Module InvalidX.
 Section InvalidX.
-Variables (K : ordType) (C : pred K) (T : Type) (U : @union_map K C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Implicit Types (i : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.
@@ -614,7 +614,7 @@ Canonical equate.
 Canonical start.
 
 Section Exports.
-Variables (K : ordType) (C : pred K) (T : Type) (U : @union_map K C T).
+Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Implicit Types (i : ctx U) (ts : seq (term T)).
 Notation form := Syntactify.form.
 Notation untag := Syntactify.untag.

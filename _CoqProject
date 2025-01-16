@@ -12,6 +12,7 @@ core/axioms.v
 core/prelude.v
 core/pred.v
 core/auto.v
+core/autouniq.v
 core/seqext.v
 core/slice.v
 core/uslice.v

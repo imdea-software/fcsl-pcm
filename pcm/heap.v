@@ -324,8 +324,8 @@ Lemma updi_inv x xs1 xs2 :
         valid (updi x xs1) -> updi x xs1 = updi x xs2 -> xs1 = xs2.
 Proof.
 elim: xs1 x xs2 =>[|v1 xs1 IH] x /=; case=>[|v2 xs2] //= D.
-- by case/esym/umap0E=>/unitbP; rewrite um_unitbPt. 
-- by case/umap0E=>/unitbP; rewrite um_unitbPt.
+- by case/esym/join0I=>/unitbP; rewrite um_unitbPt. 
+- by case/join0I=>/unitbP; rewrite um_unitbPt.
 by case/(hcancelV D)=><- {}D /(IH _ _ D) <-.
 Qed.
 

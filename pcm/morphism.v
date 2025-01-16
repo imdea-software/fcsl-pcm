@@ -13,7 +13,7 @@ limitations under the License.
 
 From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import ssrnat eqtype choice fintype finfun.
+From mathcomp Require Import ssrnat eqtype fintype finfun.
 From pcm Require Import options pred axioms prelude.
 From pcm Require Import pcm.
 
@@ -2369,11 +2369,25 @@ case/fpVI=>/= W1 H1 /fpVI [/= W2 H2].
 by rewrite -(pval_psub S _ W1 H1) -(pval_psub S _ W2 H2) E.
 Qed.
 
+(* unitb *)
+
+Lemma unitb_psub (x : V) : unitb (psub S x) = unitb x.
+Proof.
+apply/unitbP/unitbP=>[E|->]; last by rewrite pfunit.
+by apply: psub_inj; [rewrite E|rewrite pfunit].
+Qed.
+
+Lemma unitb_pval (x : U) : unitb (pval S x) = unitb x.
+Proof.
+apply/unitbP/unitbP=>[E|->]; last by rewrite pfunit.
+by apply: pval_inj; rewrite pfunit.
+Qed.
+
 End DerivedLemmas.
 
 Prenex Implicits valid_sepE valid_pvalE valid_pvalEP valid_pvalS valid_psubS 
 valid_sepUnE valid_pvalUnE valid_pvalUnS valid_sep3E valid_psubUnX valid_psubXUn 
-psubUnX psubXUn pvalXUn pvalUnX pval_inj psub_inj.
+psubUnX psubXUn pvalXUn pvalUnX pval_inj psub_inj unitb_psub unitb_pval.
 
 
 (* properties of V propagate to U *)
@@ -2796,6 +2810,21 @@ move=>X; apply: valx_inj.
 rewrite /undef/= xsep_undefE valxE /psub/= subxE /=.
 by case: decP=>//; rewrite (negbTE X) andbF.  
 Qed.
+
+(***************************)
+(* xsep preserves conicity *)
+(***************************)
+
+Lemma xsep_is_conic (V : tpcmc) (D : seprel V) : 
+        pcmc_axiom (xsep D).
+Proof.
+move=>x y; case: (normalP (x \+ y))=>[//|W].
+rewrite /unitb /= xsep_unitbE pfjoinT //=.
+by move/join00.  
+Qed.
+
+HB.instance Definition _ (V : tpcmc) (D : seprel V) := 
+  isPCMC.Build (xsep D) (@xsep_is_conic V D).
 
 (*****************************************)
 (* Normalize = mod out trivially by relT *)
