@@ -609,7 +609,7 @@ Abort.
 (*******)
 
 Notation "[ 'dom' f ]" := 
-  [mem (dom f)] (format "[ 'dom'  f ]") : fun_scope.
+  [mem (dom f)] (format "[ 'dom'  f ]") : function_scope.
 
 Section DomLemmas.
 Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).

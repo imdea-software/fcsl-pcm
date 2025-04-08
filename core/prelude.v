@@ -212,14 +212,14 @@ Definition fprod A1 A2 B1 B2 (f1 : A1 -> B1) (f2 : A2 -> B2) :=
   fun (x : A1 * A2) => (f1 x.1, f2 x.2).
 
 Notation "f1 \* f2" := (fprod f1 f2) 
-  (at level 42, left associativity) : fun_scope.
+  (at level 42, left associativity) : function_scope.
 
 (* product morphism, aka. fork/fanout/fsplice *)
 Definition pmorphism A B1 B2 (f1 : A -> B1) (f2 : A -> B2) :=
   fun x : A => (f1 x, f2 x).
 Arguments pmorphism {A B1 B2} f1 f2 x /.
 Notation "f1 \** f2 " := (pmorphism f1 f2)
-  (at level 50, left associativity, format "f1  \** '/ '  f2") : fun_scope.
+  (at level 50, left associativity, format "f1  \** '/ '  f2") : function_scope.
 
 (* product with functions *)
 Lemma prod_feta (A B : Type) : @idfun (A * B) = fst \** snd.
@@ -238,10 +238,10 @@ Reserved Notation "[ ** f1 , f2 , f3 & f4 ]" (at level 0, format
 Reserved Notation "[ ** f1 , f2 , f3 , f4 & f5 ]"  (at level 0, format
   "'[hv' [ ** '['  f1 , '/'  f2 , '/'  f3 , '/'  f4 ']' '/ '  &  f5 ] ']'").
 
-Notation "[ ** f1 & f2 ]" := (f1 \** f2) (only parsing) : fun_scope.
-Notation "[ ** f1 , f2 & f3 ]" := ((f1 \** f2) \** f3) : fun_scope.
-Notation "[ ** f1 , f2 , f3 & f4 ]" := (((f1 \** f2) \** f3) \** f4) : fun_scope.
-Notation "[ ** f1 , f2 , f3 , f4 & f5 ]" := ((((f1 \** f2) \** f3) \** f4) \** f5) : fun_scope.
+Notation "[ ** f1 & f2 ]" := (f1 \** f2) (only parsing) : function_scope.
+Notation "[ ** f1 , f2 & f3 ]" := ((f1 \** f2) \** f3) : function_scope.
+Notation "[ ** f1 , f2 , f3 & f4 ]" := (((f1 \** f2) \** f3) \** f4) : function_scope.
+Notation "[ ** f1 , f2 , f3 , f4 & f5 ]" := ((((f1 \** f2) \** f3) \** f4) \** f5) : function_scope.
 
 (************************)
 (* extension to ssrbool *)
@@ -1187,13 +1187,13 @@ Arguments splice {T Us tg} f v.
 (* notation for building finfuns *)
 
 Notation "[ 'ffun' x : aT => E ]" := (finfun (fun x : aT => E))
-  (at level 0, x name, format "[ 'ffun'  x  :  aT  =>  E ]") : fun_scope.
+  (at level 0, x name, format "[ 'ffun'  x  :  aT  =>  E ]") : function_scope.
 
 Notation "[ 'ffun' x => E ]" := (@finfun _ (fun=> _) (fun x => E))
-  (at level 0, x name, format "[ 'ffun'  x  =>  E ]") : fun_scope.
+  (at level 0, x name, format "[ 'ffun'  x  =>  E ]") : function_scope.
 
 Notation "[ 'ffun' => E ]" := [ffun _ => E]
-  (at level 0, format "[ 'ffun'  =>  E ]") : fun_scope.
+  (at level 0, format "[ 'ffun'  =>  E ]") : function_scope.
 
 Section IteratedNotation.
 Variables (T : finType) (Us : T -> Type).
@@ -1224,7 +1224,7 @@ Notation "[ 'ext' f 'with' d1 , .. , dn ]" :=
      dapp_fdelta d1%_FUN_DELTA .. (dapp_fdelta dn%_FUN_DELTA f) ..))
   (at level 0, format
   "'[hv' [ '[' 'ext' '/ '  f ']' '/'  'with'  '[' d1 , '/'  .. , '/'  dn ']' ] ']'"
-  ) : fun_scope.
+  ) : function_scope.
 
 (* notation for iterated update of f with d1, then d2, ... *)
 (* rewrite by sel_fin peels top layer only *)
@@ -1233,7 +1233,7 @@ Notation "[ 'splice' F 'with' d1 , .. , dn ]" :=
      d1%_FUN_DELTA .. (finfun (splice' dn%_FUN_DELTA (finfun F))) ..))
   (at level 0, format
   "'[hv' [ '[' 'splice' '/ '  F ']' '/'  'with'  '[' d1 , '/'  .. , '/'  dn ']' ] ']'"
-  ) : fun_scope.
+  ) : function_scope.
 
 Section TestingNotation.
 Variables (T : finType) (Us : T -> Type).
