@@ -36,7 +36,7 @@ Lemma iffC p q : (p <-> q) <-> (q <-> p). Proof. by intuition. Qed.
 Declare Scope rel_scope.
 Delimit Scope rel_scope with rel.
 Open Scope rel_scope.
-Open Scope fun_scope.
+Open Scope function_scope.
 
 (**************************************************************************)
 (* We follow ssrbool, and provide four different types of predicates.     *)
@@ -120,15 +120,15 @@ Definition Preim {aT rT} (f : aT -> rT) (d : Pred rT) :=
   PropSimplPred (xPreim f d).
 
 Notation "[ 'Pred' : T | E ]" := (PropSimplPred (fun _ : T => E))
-  (format "[ 'Pred' :  T  |  E ]") : fun_scope.
+  (format "[ 'Pred' :  T  |  E ]") : function_scope.
 Notation "[ 'Pred' x | E ]" := (PropSimplPred (fun x => E))
-  (x name, format "[ 'Pred'  x  |  E ]") : fun_scope.
+  (x name, format "[ 'Pred'  x  |  E ]") : function_scope.
 Notation "[ 'Pred' x : T | E ]" := (PropSimplPred (fun x : T => E))
-  (x name, only parsing) : fun_scope.
+  (x name, only parsing) : function_scope.
 Notation "[ 'Pred' x | E1 & E2 ]" := [Pred x | E1 /\ E2 ] 
-  (x name) : fun_scope.
+  (x name) : function_scope.
 Notation "[ 'Pred' x : T | E1 & E2 ]" := [Pred x : T | E1 /\ E2 ] 
-  (x name, only parsing) : fun_scope.
+  (x name, only parsing) : function_scope.
 
 (* coercion for Simpl_Pred *)
 
@@ -196,9 +196,9 @@ Definition RelU {T} (r1 r2 : Rel T) := PropSimplRel (xRelU r1 r2).
 Definition RelPre {aT rT} (f : aT -> rT) (r : Rel rT) := PropSimplRel (xRelPre f r).
 
 Notation "[ 'Rel' x y | E ]" := (PropSimplRel (fun x y => E))
-  (x name, y name, only parsing) : fun_scope.
+  (x name, y name, only parsing) : function_scope.
 Notation "[ 'Rel' x y : T | E ]" := (PropSimplRel (fun x y : T => E)) 
-  (x name, y name, only parsing) : fun_scope.
+  (x name, y name, only parsing) : function_scope.
 
 Lemma subRelUl T (r1 r2 : Rel T) : subRel r1 (RelU r1 r2).
 Proof. by left. Qed.
@@ -252,26 +252,26 @@ Lemma sub_conv T (A B : Pred T) : (A ~> B) = (A <=p B).
 Proof. by []. Qed.
 
 Notation "[ 'Mem' A ]" :=
-  (Pred_Of_Simpl (Simpl_Of_Mem (Mem A))) (only parsing) : fun_scope.
+  (Pred_Of_Simpl (Simpl_Of_Mem (Mem A))) (only parsing) : function_scope.
 
 Notation "[ 'PredI' A & B ]" := (PredI [Mem A] [Mem B])
-  (format "[ 'PredI'  A  &  B ]") : fun_scope.
+  (format "[ 'PredI'  A  &  B ]") : function_scope.
 Notation "[ 'PredU' A & B ]" := (PredU [Mem A] [Mem B])
-  (format "[ 'PredU'  A  &  B ]") : fun_scope.
+  (format "[ 'PredU'  A  &  B ]") : function_scope.
 Notation "[ 'PredD' A & B ]" := (PredD [Mem A] [Mem B])
-  (format "[ 'PredD'  A  &  B ]") : fun_scope.
+  (format "[ 'PredD'  A  &  B ]") : function_scope.
 Notation "[ 'PredC' A ]" := (PredC [Mem A])
-  (format "[ 'PredC'  A ]") : fun_scope.
+  (format "[ 'PredC'  A ]") : function_scope.
 Notation "[ 'Preim' f 'of' A ]" := (Preim f [Mem A])
-  (format "[ 'Preim'  f  'of'  A ]") : fun_scope.
+  (format "[ 'Preim'  f  'of'  A ]") : function_scope.
 
 Notation "[ 'Pred' x 'In' A ]" := [Pred x | x \In A] 
-  (x name) : fun_scope.
+  (x name) : function_scope.
 Notation "[ 'Pred' x 'In' A | E ]" := [Pred x | (x \In A) /\ E] 
-  (x name) : fun_scope.
+  (x name) : function_scope.
 Notation "[ 'Pred' x 'In' A | E1 & E2 ]" := 
   [Pred x | x \In A & E1 /\ E2 ] 
-  (x name) : fun_scope.
+  (x name) : function_scope.
 
 (* infix notation for PredU and PredI *)
 (* is sometimes more readable *) 
@@ -284,16 +284,16 @@ Notation "A \*p B" := (PredOfSimpl.Coerce (PredI A B))
 Notation "[ 'Rel' x y 'In' A & B | E ]" :=
   [Rel x y | (x \In A) /\ (y \In B) /\ E]
   (at level 0, x name, y name,
-   format "[ 'Rel'  x  y  'In'  A  &  B  |  E ]") : fun_scope.
+   format "[ 'Rel'  x  y  'In'  A  &  B  |  E ]") : function_scope.
 Notation "[ 'Rel' x y 'In' A & B ]" := [Rel x y | (x \In A) /\ (y \In B)]
   (at level 0, x name, y name,
-   format "[ 'Rel'  x  y  'In'  A  &  B ]") : fun_scope.
+   format "[ 'Rel'  x  y  'In'  A  &  B ]") : function_scope.
 Notation "[ 'Rel' x y 'In' A | E ]" := [Rel x y In A & A | E]
   (at level 0, x name, y name,
-   format "[ 'Rel'  x  y  'In'  A  |  E ]") : fun_scope.
+   format "[ 'Rel'  x  y  'In'  A  |  E ]") : function_scope.
 Notation "[ 'Rel' x y 'In' A ]" := [Rel x y In A & A]
   (at level 0, x name, y name,
-   format "[ 'Rel'  x  y  'In' A ]") : fun_scope.
+   format "[ 'Rel'  x  y  'In' A ]") : function_scope.
 
 Definition Applicative_Pred T := Pred T.
 Definition Collective_Pred T := Pred T.
@@ -381,23 +381,23 @@ Lemma QualifE n T p x : (x \In @PropQualifier n T p) = p x.
 Proof. by []. Qed.
 
 Notation "x \Is A" := (x \In Has_Quality 0 A) 
-  (at level 0, only parsing) : fun_scope.
+  (at level 0, only parsing) : function_scope.
 Notation "x \Is A" := (x \In Has_Quality 0 A) 
-  (at level 0, only printing) : fun_scope.
+  (at level 0, only printing) : function_scope.
 Notation "x \Is 'a' A" := (x \In Has_Quality 1 A) 
-  (at level 0, only parsing) : fun_scope.
+  (at level 0, only parsing) : function_scope.
 Notation "x \Is 'a' A" := (x \In Has_Quality 1 A) 
-  (at level 0, only printing) : fun_scope.
+  (at level 0, only printing) : function_scope.
 Notation "x \Is 'an' A" := (x \In Has_Quality 2 A) 
-  (at level 0, only parsing) : fun_scope.
+  (at level 0, only parsing) : function_scope.
 Notation "x \Is 'an' A" := (x \In Has_Quality 2 A) 
-  (at level 0, only printing) : fun_scope.
+  (at level 0, only printing) : function_scope.
 Notation "x \Isn't A" := (x \Notin Has_Quality 0 A) 
-  (at level 0) : fun_scope.
+  (at level 0) : function_scope.
 Notation "x \Isn't 'a' A" := (x \Notin Has_Quality 1 A) 
-  (at level 0) : fun_scope.
+  (at level 0) : function_scope.
 Notation "x \Isn't 'an' A" := (x \Notin Has_Quality 2 A) 
-  (at level 0) : fun_scope.
+  (at level 0) : function_scope.
 Notation "[ 'Qualify' x | P ]" := (PropQualifier 0 (fun x => P)) : form_scope.
 Notation "[ 'Qualify' x : T | P ]" :=
   (PropQualifier 0 (fun x : T => P)) (only parsing) : form_scope.
@@ -435,7 +435,7 @@ Canonical Leyed_Mem_Simpl :=
 End KeyPred.
 
 Local Notation In_Unkey x S := (x \In @Unkey_Pred _ S _ _) (only parsing).
-Notation "x \In S" := (In_Unkey x S) (only printing) : fun_scope.
+Notation "x \In S" := (In_Unkey x S) (only printing) : function_scope.
 
 Section KeyedQualifier.
 Variables (T : Type) (n : nat) (q : Qualifier n T).
@@ -451,11 +451,11 @@ Canonical Keyed_Qualifier_Keyed := PropPackKeyedPred k Keyed_Qualifier_Subproof.
 End KeyedQualifier.
 
 Notation "x \Is A" :=
-  (In_Unkey x (Has_Quality 0 A)) (only printing) : fun_scope.
+  (In_Unkey x (Has_Quality 0 A)) (only printing) : function_scope.
 Notation "x \Is 'a' A" :=
-  (In_Unkey x (Has_Quality 1 A)) (only printing) : fun_scope.
+  (In_Unkey x (Has_Quality 1 A)) (only printing) : function_scope.
 Notation "x \Is 'an' A" :=
-  (In_Unkey x (Has_Quality 2 A)) (only printing) : fun_scope.
+  (In_Unkey x (Has_Quality 2 A)) (only printing) : function_scope.
 
 Module DefaultKeying.
 Canonical Default_Keyed_Pred T p := PropKeyedPred (@PropDefaultPredKey T p).

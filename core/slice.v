@@ -60,7 +60,7 @@ Arguments slice {A} s i : simpl never.
 
 Notation "&: s i" := (slice s i)
  (at level 1, i at next level, s at next level,
-  format "'&:' s  i") : fun_scope.
+  format "'&:' s  i") : function_scope.
 
 (* subtract n from bound, convert values past zero to -oo *)
 Definition shl_bnd (i : itv_bound nat) (n : nat) :=

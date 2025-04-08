@@ -37,7 +37,7 @@ Definition eq_slice {A : eqType} (s : seq A) (i : interval A) :=
 
 Notation "&= s i" := (eq_slice s i)
  (at level 1, i at next level, s at next level,
-  format "&= s  i") : fun_scope.
+  format "&= s  i") : function_scope.
 
 Section Lemmas.
 Variable (A : eqType).
