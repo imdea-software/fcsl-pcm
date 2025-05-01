@@ -19,12 +19,15 @@ limitations under the License.
 (******************************************************************************)
 
 From HB Require Import structures.
-From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import ssrnat eqtype seq path interval.
+From mathcomp Require Import ssreflect ssrbool ssrfun.
+From mathcomp Require Import ssrnat eqtype seq path order interval.
 From pcm Require Import axioms options prelude pred finmap rtc seqext.
 From pcm Require Export useqord uslice uconsec pcm morphism unionmap.
-Import order.Order.NatOrder. (* listed last to avoid notation clash *)
+
+Import Order.NatOrder. (* listed last to avoid notation clash *)
+
 Local Open Scope order_scope.
+Local Open Scope nat_scope.
 
 (************************)
 (* Maps over non-0 nats *)
@@ -1661,7 +1664,7 @@ have Nk : k \notin ks1.
 case/mem_xx: (K)=>// [Ks T1K T2K].
 suff {IH Uq K}-> : ks1 = &=ks `[t1, k[ by rewrite -eqsl_uoxo //; apply: IH.
 move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first.
-- by rewrite /order.Order.le/=/order.Order.le/= -!seqle_unlock T1K T2K.
+- by rewrite /Order.le/=/Order.le/= -!seqle_unlock T1K T2K.
 rewrite eqsl_xxL T2K Ks /= => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
 Qed.
@@ -1680,7 +1683,7 @@ have Nk : k \notin ks1.
 case/mem_ox: (K)=>// [Ks T1K T2K].
 suff {IH Uq K}-> : ks1 = &=ks `]t1, k[ by rewrite -eqsl_uxoo //; apply: IH.
 move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first. 
-- rewrite /order.Order.le/=/order.Order.le/=/order.Order.lt /=.
+- rewrite /Order.le/=/Order.le/=/Order.lt /=.
   by rewrite -seqlt_unlock -seqle_unlock T1K T2K.
 rewrite eqsl_xxL T2K Ks /= => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
@@ -1707,7 +1710,7 @@ have Nk : k \notin ks1.
 case/mem_ou: (K)=>// [Ks TK].
 suff {IH Uq K}-> : ks1 = &=ks `]t, k[ by rewrite -eqsl_uxoo //; apply: IH.
 move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first. 
-- by rewrite /order.Order.le/=/order.Order.lt/= -seqlt_unlock TK.
+- by rewrite /Order.le/=/Order.lt/= -seqlt_unlock TK.
 rewrite eqsl_xuL Ks /= => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
 Qed.
@@ -1726,7 +1729,7 @@ have Nk : k \notin ks1.
 case/mem_xu: (K)=>// [Ks TK].
 suff {IH Uq K}-> : ks1 = &=ks `[t, k[ by rewrite -eqsl_uoxo //; apply: IH.
 move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first. 
-- by rewrite /order.Order.le/=/order.Order.le/= -seqle_unlock TK.
+- by rewrite /Order.le/=/Order.le/= -seqle_unlock TK.
 rewrite eqsl_xuL Ks => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
 Qed.
@@ -1744,7 +1747,7 @@ have Nk : k \notin ks1.
 case/mem_ux: (K)=>// [Ks TK].
 suff {IH Uq K}-> : ks1 = &=ks `]-oo, k[ by apply: IH.
 move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) //=; last first.
-- by rewrite /order.Order.le/=/order.Order.le/= -seqle_unlock.
+- by rewrite /Order.le/=/Order.le/= -seqle_unlock.
 rewrite eqsl_xxL TK Ks /= => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
 Qed.
