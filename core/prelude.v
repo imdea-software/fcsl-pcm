@@ -17,9 +17,10 @@ limitations under the License.
 (******************************************************************************)
 
 From HB Require Import structures.
-From Coq Require Import ssreflect ssrfun Eqdep. 
-From mathcomp Require Import ssrbool ssrnat seq eqtype choice path.
-From mathcomp Require Import fintype finset finfun tuple perm fingroup.
+From Coq Require Import Eqdep.
+From mathcomp Require Import ssreflect ssrfun ssrbool ssrnat seq eqtype choice.
+From mathcomp Require Import path fintype finset finfun tuple perm fingroup.
+From mathcomp Require Import ssralg.
 From pcm Require Import options axioms.
 
 (***********)
@@ -211,8 +212,7 @@ Proof. by []. Qed.
 Definition fprod A1 A2 B1 B2 (f1 : A1 -> B1) (f2 : A2 -> B2) :=
   fun (x : A1 * A2) => (f1 x.1, f2 x.2).
 
-Notation "f1 \* f2" := (fprod f1 f2) 
-  (at level 42, left associativity) : function_scope.
+Notation "f1 \* f2" := (fprod f1 f2) : function_scope.
 
 (* product morphism, aka. fork/fanout/fsplice *)
 Definition pmorphism A B1 B2 (f1 : A -> B1) (f2 : A -> B2) :=
