@@ -17,7 +17,7 @@ limitations under the License.
 (******************************************************************************)
 
 From HB Require Import structures.
-From Coq Require Import Eqdep.
+From Stdlib Require Import Eqdep. 
 From mathcomp Require Import ssreflect ssrfun ssrbool ssrnat seq eqtype choice.
 From mathcomp Require Import path fintype finset finfun tuple perm fingroup.
 From mathcomp Require Import ssralg.
@@ -307,8 +307,8 @@ Notation "[ \/ P1 , P2 , P3 , P4 , P5 , P6 | P7 ]" := (or7 P1 P2 P3 P4 P5 P6 P7)
 (** Add the ability to rewrite with [<->] for the custom logical connectives *)
 
 
-From Coq Require Import Classes.Morphisms Program.Basics Program.Tactics.
-From Coq Require Import Relations.
+From Stdlib Require Import Classes.Morphisms Program.Basics Program.Tactics.
+From Stdlib Require Import Relations.
 
 Local Obligation Tactic := try solve [simpl_relation | firstorder auto].
 
@@ -584,6 +584,39 @@ Proof.
 move=>H1 H2 D1; apply: subset_disj H1 _ => x H /H2.
 by apply: D1 H.
 Qed.
+
+Lemma eq_subsetL {T} (p1 p2 : mem_pred T):
+        p1 =i p2 ->
+        {subset p1 <= p2}.
+Proof. by move=>E x; rewrite E. Qed.
+
+Lemma eq_subsetR {T} (p1 p2 : mem_pred T):
+        p1 =i p2 ->
+        {subset p2 <= p1}.
+Proof. by move=>E x; rewrite E. Qed.
+
+Lemma subset_eq {T} (p1 p2 : mem_pred T) :
+         {subset p1 <= p2} ->
+         {subset p2 <= p1} ->
+         p1 =i p2.
+Proof. by move=>H1 H2 x; apply/idP/idP=>[/H1|/H2]. Qed.
+
+Lemma eq_mem_sym {T} (p1 p2 : mem_pred T):
+        p1 =i p2 ->
+        p2 =i p1.
+Proof. by move=>E x; rewrite E. Qed.
+
+Lemma eq_mem_trans {T} (p1 p2 p3 : mem_pred T):
+        p1 =i p2 ->
+        p2 =i p3 ->
+        p1 =i p3.
+Proof. by move=>H1 H2 x; rewrite H1 H2. Qed.
+
+Lemma submem_trans {T} (p1 p2 p3 : mem_pred T) :
+        {subset p1 <= p2} -> 
+        {subset p2 <= p3} ->
+        {subset p1 <= p3}. 
+Proof. by move=>H1 H2 x /H1/H2. Qed.
 
 (**************)
 (* empty type *)
@@ -1185,7 +1218,7 @@ Arguments sel {T Us} tg f.
 Arguments splice {T Us tg} f v.
 
 (* notation for building finfuns *)
-
+(*
 Notation "[ 'ffun' x : aT => E ]" := (finfun (fun x : aT => E))
   (at level 0, x name, format "[ 'ffun'  x  :  aT  =>  E ]") : function_scope.
 
@@ -1194,6 +1227,7 @@ Notation "[ 'ffun' x => E ]" := (@finfun _ (fun=> _) (fun x => E))
 
 Notation "[ 'ffun' => E ]" := [ffun _ => E]
   (at level 0, format "[ 'ffun'  =>  E ]") : function_scope.
+*)
 
 Section IteratedNotation.
 Variables (T : finType) (Us : T -> Type).

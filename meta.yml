@@ -40,14 +40,10 @@ license:
   file: LICENSE
 
 supported_coq_versions:
-  text: 8.19 or later
-  opam: '{ (>= "8.19" & < "9.1~") | (= "dev") }'
+  text: 9.0 or later
+  opam: '{ (>= "9.0" & < "9.1~") | (= "dev") }'
 
 tested_coq_opam_versions:
-- version: '2.2.0-coq-8.19'
-  repo: 'mathcomp/mathcomp'
-- version: '2.3.0-coq-8.20'
-  repo: 'mathcomp/mathcomp'
 - version: '2.4.0-rocq-prover-9.0'
   repo: 'mathcomp/mathcomp'
 - version: 'rocq-prover-dev'
@@ -56,9 +52,9 @@ tested_coq_opam_versions:
 dependencies:
 - opam:
     name: coq-mathcomp-ssreflect
-    version: '{ (>= "2.2.0" & < "2.5~") | (= "dev") }'
+    version: '{ (>= "2.4.0" & < "2.5~") | (= "dev") }'
   description: |-
-    [MathComp ssreflect 2.2 or later](https://math-comp.github.io)
+    [MathComp ssreflect 2.4 or later](https://math-comp.github.io)
 - opam:
     name: coq-hierarchy-builder
     version: '{ (>= "1.7.0" & < "1.10~") | (= "dev") }'

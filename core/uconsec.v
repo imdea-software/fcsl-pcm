@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 *)
 
-From Coq Require Import ssreflect ssrbool ssrfun.
+From Stdlib Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path interval order.
 From pcm Require Import options prelude ordtype seqext slice useqord uslice.
 Local Open Scope order_scope.

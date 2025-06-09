@@ -23,9 +23,7 @@ From mathcomp Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path order interval.
 From pcm Require Import axioms options prelude pred finmap rtc seqext.
 From pcm Require Export useqord uslice uconsec pcm morphism unionmap.
-
 Import Order.NatOrder. (* listed last to avoid notation clash *)
-
 Local Open Scope order_scope.
 Local Open Scope nat_scope.
 
@@ -1360,28 +1358,26 @@ Proof. by move=>K; rewrite /oexec_le eqsl_uL_notinE. Qed.
 Arguments oexle_notin [V U R a ks t h z0].
 
 Lemma oexlt_cat V (U : natmap V) R a ks1 ks2 t (h : U) (z0 : R) :
-        t \notin ks1 ->
         oexec_lt a (ks1 ++ ks2) t h z0 =
         if t \in ks1 then oexec_lt a ks1 t h z0
         else oexec_lt a ks2 t h (oexec_lt a ks1 t h z0).
 Proof.
-move=>T; rewrite /oexec_lt eqsl_uL_catE (negbTE T).
-by rewrite oev_cat (eqsl_uL_notinE (s:=ks1)).
+rewrite /oexec_lt eqsl_uL_catE; case: ifP=>// T.
+by rewrite oev_cat (eqsl_uL_notinE (s:=ks1)) ?T.
 Qed.
 
-Arguments oexlt_cat [V U R a ks1 ks2 t h z0].
+Arguments oexlt_cat {V U R a ks1 ks2 t h z0}.
 
 Lemma oexle_cat V (U : natmap V) R a ks1 ks2 t (h : U) (z0 : R) :
-        t \notin ks1 ->
         oexec_le a (ks1 ++ ks2) t h z0 =
         if t \in ks1 then oexec_le a ks1 t h z0
         else oexec_le a ks2 t h (oexec_le a ks1 t h z0).
 Proof.
-move=>T; rewrite /oexec_le eqsl_uL_catE (negbTE T).
-by rewrite oev_cat (eqsl_uL_notinE (s:=ks1)).
+rewrite /oexec_le eqsl_uL_catE; case: ifP=>// T.
+by rewrite oev_cat (eqsl_uL_notinE (s:=ks1)) ?T.
 Qed.
 
-Arguments oexle_cat [V U R a ks1 ks2 t h z0].
+Arguments oexle_cat {V U R a ks1 ks2 t h z0}.
 
 Lemma oexlt_cons V (U : natmap V) R a ks k t v (h : U) (z0 : R) :
         (k, v) \In h -> t != k ->
@@ -2045,6 +2041,73 @@ rewrite oexlt_cons_notin ?cond_dom //.
 apply/negP=>/eqP N.
 by rewrite -N (mem_last k ks) in Uq.
 Qed.
+
+(***********************************)
+(* oexlt/oexle with <[s] and <=[s] *)
+(***********************************)
+
+Lemma oexle_sle V (U : natmap V) R (a : R -> V -> R) s t1 t2 (h : U) z0 : 
+        uniq s ->
+        oexec_le a [seq x <- s | x <=[s] t1] t2 h z0 = 
+        if t1 <=[s] t2 then oexec_le a s t1 h z0
+        else oexec_le a s t2 h z0.
+Proof.
+move=>Us; rewrite /oexec_le !uniq_ux_filter ?filter_uniq //=.
+rewrite -filter_predI; case: ifPn=>T12; congr (oevalv a _ _ _);
+apply: eq_in_filter=>z Z; rewrite inE andbC.
+- case T1 : (z <=[s] t1)=>//=.
+  by rewrite sle_filterL ?T1 ?(sle_trans T1 T12) ?orbT.
+rewrite -sltNge in T12; apply/andP/idP=>[[T2]|T1].
+- by move/sle_filterR; apply; rewrite sltW ?orbT.
+by rewrite sle_filterL // ?sltW ?(sle_slt_trans T1 T12) ?orbT.
+Qed.
+
+Lemma oexlt_sle V (U : natmap V) R (a : R -> V -> R) s t1 t2 (h : U) z0 : 
+        uniq s ->
+        oexec_lt a [seq x <- s | x <=[s] t2] t1 h z0 = 
+        if t1 <=[s] t2 then oexec_lt a s t1 h z0
+        else oexec_le a s t2 h z0.
+Proof. 
+move=>Us; rewrite /oexec_lt/oexec_le !uniq_uo_filter ?uniq_ux_filter
+?filter_uniq // -filter_predI; case: ifPn=>T12; congr (oevalv a _ _ _);
+apply: eq_in_filter=>z Z /=; rewrite andbC.
+- apply/andP/idP=>[[T2]|T1]; first by rewrite slt_filter ?T12 ?T2 ?orbT. 
+  by rewrite slt_filter ?T12 ?sltW ?(slt_sle_trans T1 T12) ?orbT.
+rewrite -sltNge in T12; case T : (z <=[s] t2)=>//=.
+by rewrite slt_filterL ?T ?(sle_slt_trans T T12) ?orbT.
+Qed.
+
+Lemma oexle_slt V (U : natmap V) R (a : R -> V -> R) s t1 t2 (h : U) z0 : 
+        uniq s ->
+        oexec_le a [seq x <- s | x <[s] t1] t2 h z0 = 
+        if t1 <=[s] t2 then oexec_lt a s t1 h z0
+        else oexec_le a s t2 h z0.
+Proof.
+move=>Us; rewrite /oexec_lt/oexec_le ?uniq_uo_filter ?uniq_ux_filter
+?filter_uniq // -filter_predI; case: ifPn=>T12; congr (oevalv a _ _ _);
+apply: eq_in_filter=>z Z /=; rewrite andbC.
+- case T1 : (z <[s] t1)=>//=.
+  by rewrite sle_filterL // ?T1 ?orbT ?sltW ?(slt_sle_trans T1 T12).
+rewrite -sltNge in T12; apply/andP/idP=>[[T1]|T2].
+- by move/sle_filterR; rewrite T12 orbT; apply.
+by rewrite sle_filterL ?(sle_slt_trans T2 T12) // orbT.
+Qed.
+
+Lemma oexlt_slt V (U : natmap V) R (a : R -> V -> R) s t1 t2 (h : U) z0 : 
+        uniq s ->
+        oexec_lt a [seq x <- s | x <[s] t1] t2 h z0 = 
+        if t1 <=[s] t2 then oexec_lt a s t1 h z0
+        else oexec_lt a s t2 h z0.
+Proof.
+move=>Us; rewrite /oexec_lt ?uniq_uo_filter ?filter_uniq // -filter_predI; case: ifPn=>T12; congr (oevalv a _ _ _);
+apply: eq_in_filter=>z Z /=; rewrite andbC.
+- case T1 : (z <[s] t1)=>//=.
+  by rewrite slt_filterL // ?T1 ?orbT ?(slt_sle_trans T1 T12).
+rewrite -sltNge in T12; apply/andP/idP=>[[T1]|T2].
+- by move/slt_filterR; apply; rewrite T12 orbT.
+by rewrite slt_filterL ?(slt_trans T2 T12) // orbT.
+Qed.
+
 
 (* The lemmas past this point are currently used for some examples, *)
 (* but will be deprecated and removed in future releases *)

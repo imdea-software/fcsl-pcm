@@ -11,9 +11,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 *)
 
-From Coq Require Import ssreflect ssrbool ssrfun.
+From Stdlib Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq eqtype path choice fintype bigop perm.
-From pcm Require Import options prelude pred.
+From pcm Require Import options prelude pred seqperm.
 
 (*********************)
 (* Extensions to seq *)
@@ -138,6 +138,22 @@ by rewrite (_ : [::x,y & s] = [::x] ++ [::y] ++ s) //
   (_ : [::y,x & s] = [::y] ++ [::x] ++ s) // perm_catCA.
 Qed.
 
+Lemma perm1P {s : seq A} (x : A) :
+        reflect (s = [:: x]) (perm_eq s [:: x]).
+Proof. by apply: (iffP idP)=>[/perm_eq_perm/pperm1|->]. Qed.
+
+Lemma undup_eq1 (x : A) xs :
+        xs =i [:: x] <-> undup xs = [:: x].
+Proof.
+split=>[/perm_undup/perm1P ->//|].
+by move/perm1P/perm_mem=>H z; rewrite -mem_undup H.
+Qed.
+
+Lemma undup_uniq_eq1 (x : A) xs :
+        uniq xs ->
+        xs =i [:: x] <-> xs = [:: x].
+Proof. by rewrite undup_eq1=>/undup_id ->. Qed.
+
 Lemma all_notin (p : pred A) xs y :
         all p xs -> 
         ~~ p y -> 
@@ -197,6 +213,14 @@ move=>X z; rewrite !inE; case/orP=>[|/X] -> //.
 by rewrite orbT.
 Qed.
 
+Lemma subset_catL (s1 s2 s : seq A) :
+        {subset s1 <= s1 ++ s2}.
+Proof. by move=>x S; rewrite mem_cat S. Qed.
+
+Lemma subset_catR (s1 s2 s : seq A) :
+        {subset s2 <= s1 ++ s2}.
+Proof. by move=>x S; rewrite mem_cat S orbT. Qed.
+
 Lemma all_mem xs ys : 
         reflect {subset ys <= xs} (all [mem xs] ys).
 Proof. 
@@ -246,6 +270,11 @@ Proof.
 case: eqP=>X; constructor; first by move/size0nil: X.
 by move=>N; rewrite N in X.
 Qed.
+
+Lemma size1cons (xs : seq A) :
+        size xs = 1 ->
+        exists x, xs = [:: x].
+Proof. by case: xs=>[//|x xs][/size0nil ->]; exists x. Qed.
 
 Lemma has_nilP xs :
         reflect (has predT xs) (xs != [::]).
@@ -392,6 +421,16 @@ rewrite drop_cat; case: ltnP=>Hn.
 by move: H; rewrite drop_oversize.
 Qed.
 
+Lemma rcons_prefix (s1 s2 : seq A) x : 
+        prefix s1 (rcons s2 x) ->
+        prefix s1 s2 \/ s1 = rcons s2 x.
+Proof.
+elim: s1 s2 x=>[|y s1 IH] s2 x; first by left; rewrite prefix0s. 
+case: s2=>[|y' s2] /= /andP [/eqP ->].
+- by case: s1 {IH}=>//; right. 
+by rewrite eqxx=>/IH [|/= ->]; [left|right].
+Qed.
+
 End LemmasEq.
 
 (* lemmas about prev and next should generally by proved using *)
@@ -466,24 +505,24 @@ Definition disjoint {A : eqType} (s1 s2 : seq A) :=
 
 Arguments disjoint {A} : simpl never.
 
-Lemma disjointC (A : eqType) (s1 s2 : seq A) :
+Lemma disjointC {A : eqType} (s1 s2 : seq A) :
         disjoint s1 s2 = disjoint s2 s1.
 Proof. 
 apply/idP/idP=>/allP S; apply/allP=>x X; 
 by apply/negP=>/S; rewrite X.
 Qed.
 
-Lemma disjoint_catR (A : eqType) (s s1 s2 : seq A) : 
+Lemma disjoint_catR {A : eqType} (s s1 s2 : seq A) : 
         disjoint s (s1 ++ s2) = 
         disjoint s s1 && disjoint s s2.
 Proof. by rewrite /disjoint all_cat. Qed.
 
-Lemma disjoint_catL (A : eqType) (s s1 s2 : seq A) : 
+Lemma disjoint_catL {A : eqType} (s s1 s2 : seq A) : 
         disjoint (s1 ++ s2) s = 
         disjoint s1 s && disjoint s2 s.
 Proof. by rewrite -!(disjointC s) disjoint_catR. Qed.
 
-Lemma disjoint1L (A : eqType) x (s : seq A) :
+Lemma disjoint1L {A : eqType} x (s : seq A) :
         disjoint [:: x] s = (x \notin s).
 Proof.
 apply/idP/idP.
@@ -491,49 +530,49 @@ apply/idP/idP.
 by apply: contraR=>/allPn [y H]; rewrite inE negbK =>/eqP <-.
 Qed.
 
-Lemma disjoint1R (A : eqType) x (s : seq A) :
+Lemma disjoint1R {A : eqType} x (s : seq A) :
         disjoint s [:: x] = (x \notin s).
 Proof. by rewrite disjointC disjoint1L. Qed.
 
-Lemma disjoint_consL (A : eqType) x (s1 s2 : seq A) :
+Lemma disjoint_consL {A : eqType} x (s1 s2 : seq A) :
         disjoint (x :: s1) s2 = 
         (x \notin s2) && disjoint s1 s2.
 Proof. by rewrite -cat1s disjoint_catL disjoint1L. Qed.
 
-Lemma disjoint_consR (A : eqType) x (s1 s2 : seq A) :
+Lemma disjoint_consR {A : eqType} x (s1 s2 : seq A) :
         disjoint s1 (x :: s2) = 
         (x \notin s1) && disjoint s1 s2.
 Proof. by rewrite -cat1s disjoint_catR disjoint1R. Qed.
 
-Lemma disjoint_consLI (A : eqType) x (s1 s2 : seq A) :
+Lemma disjoint_consLI {A : eqType} x (s1 s2 : seq A) :
         x \notin s2 ->
         disjoint s1 s2 ->
         disjoint (x :: s1) s2.
 Proof. by rewrite disjoint_consL=>->->. Qed.
 
-Lemma disjoint_consRI (A : eqType) x (s1 s2 : seq A) :
+Lemma disjoint_consRI {A : eqType} x (s1 s2 : seq A) :
         x \notin s1 ->
         disjoint s1 s2 ->
         disjoint s1 (x :: s2).
 Proof. by rewrite disjoint_consR=>->->. Qed.
 
-Lemma disjoint_consLE (A : eqType) x (s1 s2 : seq A) :
+Lemma disjoint_consLE {A : eqType} x (s1 s2 : seq A) :
         disjoint (x :: s1) s2 ->
         (x \notin s2) * (disjoint s1 s2).
 Proof. by rewrite disjoint_consL=>/andX. Qed.
 
-Lemma disjoint_consRE (A : eqType) x (s1 s2 : seq A) :
+Lemma disjoint_consRE {A : eqType} x (s1 s2 : seq A) :
         disjoint s1 (x :: s2) ->
         (x \notin s1) * (disjoint s1 s2).
 Proof. by rewrite disjoint_consR=>/andX. Qed.
 
-Lemma disjoint_subL (A : eqType) (s s1 s2 : seq A) : 
+Lemma disjoint_subL {A : eqType} (s s1 s2 : seq A) : 
         {subset s2 <= s1} ->
         disjoint s s1 ->
         disjoint s s2.
 Proof. by move=>X /allP H; apply/allP=>z /X /H. Qed.
 
-Lemma disjoint_subR (A : eqType) (s s1 s2 : seq A) : 
+Lemma disjoint_subR {A : eqType} (s s1 s2 : seq A) : 
         {subset s2 <= s1} ->
         disjoint s1 s ->
         disjoint s2 s.
@@ -552,10 +591,63 @@ Lemma disjoint_eqR {A : eqType} {s s1 s2 : seq A} :
         disjoint s s1 = disjoint s s2.
 Proof. by move=>X; apply/idP/idP; apply: disjoint_subL=>z; rewrite X. Qed.
 
-Lemma disjointN (A : eqType) (s1 s2 : seq A) : 
+Lemma disjointN {A : eqType} (s1 s2 : seq A) : 
         ~~ disjoint s1 s2 ->
         exists2 x, x \in s1 & x \in s2.
 Proof. by case/allPn=>x; rewrite negbK; exists x. Qed.
+
+(* useful renaming *)
+Lemma filter_disjC {A : eqType} {p xs : seq A} :
+        reflect (filter [predC p] xs = xs)
+                (disjoint p xs).
+Proof. exact: all_filterP. Qed.
+
+Lemma disjoint0 {A : eqType} (xs : seq A) :
+        disjoint xs xs ->
+        xs = [::].
+Proof. by case: xs=>//= x xs; rewrite disjoint_consL inE eqxx. Qed.
+
+Lemma disjointR {A : eqType} {xs1 xs2 : seq A} :
+        reflect {in xs2, forall x, x \notin xs1}
+                (disjoint xs1 xs2).
+Proof. by apply: (iffP allP). Qed.
+
+Lemma disjointL {A : eqType} {xs1 xs2 : seq A} :
+        reflect {in xs1, forall x, x \notin xs2}
+                (disjoint xs1 xs2).
+Proof. by rewrite disjointC; apply: disjointR. Qed.
+
+Lemma disj_subL {A : eqType} {xs1 xs2 : seq A} :
+        reflect {subset xs1 <= [predC xs2]}
+                (disjoint xs1 xs2).
+Proof. exact: (iffP disjointL). Qed.
+
+Lemma disj_subR {A : eqType} {xs1 xs2 : seq A} :
+        reflect {subset xs2 <= [predC xs1]}
+                (disjoint xs1 xs2).
+Proof. exact: (iffP disjointR). Qed.
+
+Lemma disj_filt_subL {A : eqType} {p : {pred A}} {xs1 xs2 : seq A} :
+        reflect {subset xs1 <= predC [predI p & xs2]}
+                (disjoint xs1 (filter p xs2)).
+Proof. by apply: (iffP disj_subL)=>S x /S; rewrite !inE mem_filter. Qed.
+
+Lemma disj_filt_subR {A : eqType} {p : {pred A}} {xs1 xs2 : seq A} :
+        reflect {subset [predI p & xs2] <= [predC xs1]}
+                (disjoint xs1 (filter p xs2)).
+Proof.
+apply: (iffP disj_filt_subL)=>/subsetC S x X; apply: S;
+by rewrite !inE /= negbK.
+Qed.
+
+Lemma cycle_head_uniq {A : eqType} (r : rel A) x (xs : seq A) :
+        x \in xs ->
+        cycle r xs ->
+        exists ys, cycle r (x :: ys) /\ uniq (x :: ys).
+Proof.
+case/splitPr=>p1 p2; rewrite cycle_catC /= rcons_path; case/andP.
+by case/shortenP=>p' P U _ R; exists p'; rewrite rcons_path P R.
+Qed.
 
 (* finding last occurrence of element in a sequence *)
 
@@ -1529,6 +1621,26 @@ Qed.
 
 End AllrelEq.
 
+
+(* if there exists no path, there's the earliest path element *)
+(* that doesn't satisfy the relation *)
+(* de-Morgan dual of pathP with a bit of generalization *)
+Lemma pathPn {T} {e : rel T} {x : T} {xs : seq T} (x0 : T) :
+        reflect (exists i,
+                [/\ i < size xs,
+                    ~~ e (nth x0 (x :: xs) i) (nth x0 xs i) &
+                    forall j, j < i -> e (nth x0 (x :: xs) j) (nth x0 xs j)])
+                (~~ path e x xs).
+Proof.
+elim: xs x=>[|y ys IH] x /=; first by constructor; case=>i []; case: i.
+rewrite negb_and; have [Ne|E] /= := boolP (e x y); last first.
+- by constructor; exists 0.
+apply: (iffP (IH y)).
+- by case=>i [H1 H2 H3]; exists i.+1; rewrite ltnS; split=>//; case.
+case; case=>[|i][] /=; first by rewrite Ne.
+by rewrite ltnS=>H1 H2 H3; exists i; split=>// j; rewrite -ltnS; apply: H3.
+Qed.
+
 Section SeqRel.
 Variable A : eqType.
 Implicit Type ltT leT : rel A.
@@ -2212,9 +2324,8 @@ by apply/big_cat_mem; exists t.
 Qed.
 
 Lemma uniq_big_cat_disj (A : finType) (B : eqType) (f : A -> seq B) t1 t2 x : 
-         uniq (\big[cat/[::]]_t f t) ->
-         x \in f t1 -> 
-         x \in f t2 -> 
-         t1 = t2.
+        uniq (\big[cat/[::]]_t f t) ->
+        x \in f t1 -> 
+        x \in f t2 -> 
+        t1 = t2.
 Proof. by case/uniq_big_cat=>_; apply. Qed.
-

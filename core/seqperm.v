@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 *)
 
-From Coq Require Import ssreflect ssrbool ssrfun.
+From Stdlib Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq path eqtype.
 From pcm Require Import options pred.
 
@@ -220,6 +220,15 @@ apply: (@pperm_trans ([:: x] ++ rev xs)); last by apply: pperm_catC.
 by rewrite pperm_cons. 
 Qed.
 
+Lemma pperm1 {s : seq A} (x : A) :
+        perm s [:: x] <-> s = [:: x].
+Proof.
+split=>[/pperm_sym H|->//].
+have X : x \In s by apply: pperm_in H _; rewrite InE.
+case/In_split: X H=>s1 [s2] ->{s} /pperm_cons_cat_cons/pperm_nil.
+by case: s1=>//; case: s2.
+Qed.
+
 End Permutations.
 
 #[export] Hint Resolve pperm_refl pperm_catC pperm_cons_catCA
@@ -235,7 +244,7 @@ by [apply/pperm_cons | apply/permutation_swap | apply/(pperm_trans IH1 IH2)].
 Qed.
 
 (* mapping to ssreflect decidable perm *)
-Lemma perm_eq_perm (A : eqType) (s1 s2 : seq A) :
+Lemma perm_eq_perm {A : eqType} (s1 s2 : seq A) :
         reflect (perm s1 s2) (perm_eq s1 s2).
 Proof.
 apply: (iffP idP); last first.
