@@ -15,7 +15,7 @@ limitations under the License.
 (* This file re-implements some of ssrbool's entities in Prop universe        *)
 (******************************************************************************)
 
-From Coq Require Import ssreflect ssrbool ssrfun Setoid Basics.
+From Stdlib Require Import ssreflect ssrbool ssrfun Setoid Basics.
 From mathcomp Require Import ssrnat seq eqtype bigop.
 From pcm Require Import options.
 

@@ -18,7 +18,7 @@ limitations under the License.
 (******************************************************************************)
 
 From HB Require Import structures.
-From Coq Require Import ssreflect ssrbool ssrfun Setoid.
+From Stdlib Require Import ssreflect ssrbool ssrfun Setoid.
 From mathcomp Require Import ssrnat eqtype seq bigop choice.
 From mathcomp Require Import fintype finset finfun.
 From pcm Require Import options axioms prelude seqperm pred seqext.
@@ -53,7 +53,8 @@ HB.mixin Record isPCM T := {
 #[short(type="pcm")]
 HB.structure Definition PCM := {T of isPCM T}.
 
-Infix "\+" := join (at level 43, left associativity) : pcm_scope.
+(* Infix "\+" := join (at level 43, left associativity) : pcm_scope. *)
+Infix "\+" := join (at level 50, left associativity) : pcm_scope.
 
 Arguments Unit {s}.
 Arguments valid {s} : simpl never.

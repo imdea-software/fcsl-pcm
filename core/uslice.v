@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 *)
 
-From Coq Require Import ssreflect ssrbool ssrfun.
+From Stdlib Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path interval order.
 From pcm Require Import options prelude ordtype seqext slice useqord.
 (* We assume the sequences are unique and use the first index,  *)
@@ -108,7 +108,7 @@ Qed.
 
 Corollary eqslice_subset_full s i :
             {subset &=s i <= s}.
-Proof. by exact: slice_subset_full. Qed.
+Proof. exact: slice_subset_full. Qed.
 
 (* splitting *)
 
@@ -500,6 +500,33 @@ move=>N.
 by rewrite -(cat0s (_ :: _ :: _)); apply: eqsl_oo_split_consec.
 Qed.
 
+Lemma eqsl_uo_prefix (s1 s2 : seq A) t : 
+        uniq s2 ->
+        t \in s2 ->
+        prefix s1 &=s2 `]-oo, t[ ->
+        exists t', [/\ s1 = &=s2 `]-oo, t'[, t' <=[s2] t & t' \in s2].
+Proof.
+elim: s1 s2 t=>[|x s1 IH][|y s2] t //=.
+- by exists y; rewrite eqsl_uL_consL sleL inE eqxx.
+rewrite inE eqsl_uL_consE.
+case: (t =P y)=>[->//|] /eqP N /andP [Uy Us] /= D /andP [/eqP ->{x} P].
+case: (IH s2 t Us D P)=>t' [E T D']; exists t'. 
+have N' : t' != y by case: eqP D' Uy=>// ->->.
+by rewrite sle_cons N inE D' orbT eqsl_uL_consE (negbTE N') -E.
+Qed.
+
+Lemma eqsl_ux_prefix (s1 s2 : seq A) t : 
+        uniq s2 ->
+        t \in s2 ->
+        prefix s1 &=s2 `]-oo, t] ->
+        exists t', [/\ s1 = &=s2 `]-oo, t'[, t' <=[s2] t & t' \in s2] \/
+                   [/\ s1 = &=s2 `]-oo, t'], t' <=[s2] t & t' \in s2]. 
+Proof.
+move=>Us D; rewrite eqsl_uxR D=>/rcons_prefix [] H.
+- by case/(eqsl_uo_prefix Us D): H=>t' [T D' E]; exists t'; left. 
+by exists t; right; rewrite eqsl_uxR D sle_refl -H.  
+Qed.
+
 (* intervals and filter *)
 
 (* TODO unify / better theory *)
@@ -581,6 +608,16 @@ move: (mem_drop_indexlast x s); rewrite indexlast_uniq //.
 by apply/contra/prefix_drop_sub/prefix_take.
 Qed.
 
+Lemma eqsl_last (x : A) s (a : A) : 
+        a \in s -> 
+        last x &=s `]-oo, a] = a.
+Proof.
+elim: s x=>[|y s IH] // x.
+rewrite inE; case/orPl=>[/eqP <-|[Nx Ax]].
+- by rewrite eqsl_uL_consL.
+by rewrite eqsl_uL_consE (negbTE Nx) /= IH.
+Qed.
+
 Lemma eqsl_lastR_uniq s x :
         uniq s ->
         s = &=s `]-oo, (last x s)].
@@ -643,6 +680,33 @@ congr (cons _); rewrite IH //; apply: eq_in_filter=>z Hz.
 rewrite slt_cons N /=.
 suff: (z != h) by move/negbTE=>->.
 by apply: contraNneq Nh=><-.
+Qed.
+
+Lemma uniq_ou_filter s i :
+        uniq s -> 
+        &=s `]i, +oo[ = [seq x <- s | i <[s] x].
+Proof.
+move=>U; rewrite /eq_slice /= /slice take_size /=.
+elim: s U=>//= h s IH /andP [Nh U]; rewrite slt_cons eqxx /=.
+case: (eqVneq i h)=>[E|N] /=.
+- rewrite -{h}E in Nh *; rewrite drop0 -{1}(filter_predT s).
+  apply: eq_in_filter=>z Hz /=; rewrite slt_cons eqxx /= andbT.
+  by case: eqP Hz Nh=>// ->->.
+rewrite IH //; apply: eq_in_filter=>z Hz /=.
+by rewrite slt_cons (negbTE N) /=; case: (z =P h) Hz Nh=>// ->->.
+Qed.
+
+Lemma uniq_xu_filter s i :
+        uniq s -> 
+        &=s `[i, +oo[ = [seq x <- s | i <=[s] x].
+Proof.
+move=>U; rewrite /eq_slice /= /slice take_size /= addn0.
+elim: s U=>//= h s IH /andP [Nh U]; rewrite sle_cons eqxx orbF.
+case: (eqVneq i h)=>[E|N] /=.
+- rewrite -{h}E in Nh *; congr (cons _); rewrite -{1}(filter_predT s).
+  by apply: eq_in_filter=>z Hz; rewrite sle_cons eqxx.
+rewrite IH //; apply: eq_in_filter=>z Hz /=.
+by rewrite sle_cons (negbTE N); case: (z =P h) Hz Nh=>// ->->.
 Qed.
 
 (* sequence ordering, intervals, and last *)

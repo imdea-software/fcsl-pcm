@@ -91,7 +91,7 @@ limitations under the License.
 (******************************************************************************)
 
 From HB Require Import structures.
-From Coq Require Import ssreflect ssrbool ssrfun.
+From Stdlib Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path bigop.
 From pcm Require Import options axioms prelude finmap seqperm pred seqext.
 From pcm Require Export ordtype.
@@ -1017,6 +1017,11 @@ Lemma dom_inNX k1 k2 f1 f2 :
         valid (f1 \+ f2) ->
         k1 \in dom f1 -> k2 \in dom f2 -> k1 <> k2. 
 Proof. by move=>W K1 K2; apply/eqP; apply: dom_inN K1 K2. Qed.
+
+Lemma disjointD f1 f2 : 
+        valid (f1 \+ f2) ->
+        disjoint (dom f1) (dom f2).
+Proof. by move=>W; apply/allP=>x /(dom_inNR W). Qed.
 
 End ValidLemmas.
 
