@@ -34,7 +34,7 @@ Record finMap := FinMap {
   seq_of : seq (K * V);
   _ : sorted ord (map key seq_of)}.
 
-Definition finMap_for of phant (K -> V) := finMap.
+Definition finMap_for & phant (K -> V) := finMap.
 
 Identity Coercion finMap_for_finMap : finMap_for >-> finMap.
 End Def.

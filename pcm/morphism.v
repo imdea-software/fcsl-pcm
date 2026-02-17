@@ -626,7 +626,7 @@ Notation sep f := (sepx (Phantom (_ -> _) f)).
 
 (* option 2 *)
 Definition sepx U V (f : pcm_morph U V) 
-  of phantom (U -> V) f : rel U := sep_op f.
+  & phantom (U -> V) f : rel U := sep_op f.
 Notation sep f := (sepx (Phantom (_ -> _) f)). 
 HB.instance Definition _ U V (f : pcm_morph U V) := 
   Seprel.on (sep f). 
@@ -634,7 +634,7 @@ HB.instance Definition _ U V (f : pcm_morph U V) :=
 (* we can similarly get uniform name for the structure itself *)
 (* but we won't use this *)
 Definition morphx (U V : pcm) (f : pcm_morph U V) 
-  of phantom (U -> V) f := f.
+  & phantom (U -> V) f := f.
 Notation morph f := (morphx (Phantom (_ -> _) f)).
 
 
@@ -765,7 +765,7 @@ Qed.
 (* morphism preimage of seprel is seprel *)
 
 Definition preimx (U V : pcm) (f : pcm_morph U V) 
-  of phantom (U -> V) f : rel V -> rel U := 
+  & phantom (U -> V) f : rel V -> rel U := 
   fun R x y => sep f x y && R (f x) (f y).
 Notation preim f := (preimx (Phantom (_ -> _) f)). 
 Arguments preimx {U V f} _ _ _ _ /.
@@ -794,7 +794,7 @@ End Preim.
 (* kernel of morphism is seprel *)
 
 Definition kerx (U V : pcm) (f : pcm_morph U V) 
-  of phantom (U -> V) f : rel U := 
+  & phantom (U -> V) f : rel U := 
   fun x y => sep f x y && sepU (f x) (f y).
 Notation ker f := (kerx (Phantom (_ -> _) f)). 
 HB.instance Definition _ U V (f : pcm_morph U V) := 
@@ -822,7 +822,7 @@ End Restriction.
 (* equalizer of morphism is seprel *)
 
 Definition eqlzx (U : pcm) (V : eqpcm) (f1 f2 : pcm_morph U V) 
-  of phantom (U -> V) f1 & phantom (U -> V) f2 : rel U := 
+  & phantom (U -> V) f1 & phantom (U -> V) f2 : rel U := 
   fun x y => [&& sep f1 x y, sep f2 x y, f1 x == f2 x & f1 y == f2 y].
 Notation eqlz f1 f2 := (eqlzx (Phantom (_ -> _) f1) (Phantom (_ -> _) f2)). 
 
@@ -846,7 +846,7 @@ End Equalizer.
 (* join of two morphism is a morphism with an appropriate seprel *)
 
 Definition join_relx (U V : pcm) (f1 f2 : pcm_morph U V) 
-  of phantom (U -> V) f1 & phantom (U -> V) f2 : rel U := 
+  & phantom (U -> V) f1 & phantom (U -> V) f2 : rel U := 
   fun x y => [&& sep f1 x y, sep f2 x y & 
                  valid ((f1 x \+ f2 x) \+ (f1 y \+ f2 y))].
 Notation join_rel f1 f2 := 
@@ -1225,7 +1225,7 @@ Definition binorm_pcm_morph_axiom (U V : pcm) (f : pcm_morph U V) :=
 
 (* structure definitions *)
 HB.mixin Record isNorm_PCM_morphism (U V : pcm) (f : U -> V) 
-  of @PCM_morphism U V f := {
+  & @PCM_morphism U V f := {
   norm_pcm_morph_subproof : norm_pcm_morph_axiom f}.
 
 #[short(type=norm_pcm_morph)]
@@ -1234,7 +1234,7 @@ HB.structure Definition Norm_PCM_morphism (U V : pcm) :=
 
 (* helper mixin to define binormal structure *)
 HB.mixin Record isBinorm_PCM_morphism U V 
-     f of @PCM_morphism U V f := {
+     f & @PCM_morphism U V f := {
    binorm_subproof : binorm_pcm_morph_axiom f}.  
 
 (* require both binorm_axiom and norm_axiom for sake of inheritance *)
@@ -1245,7 +1245,7 @@ HB.structure Definition Binorm_PCM_morphism U V :=
   {f of isBinorm_PCM_morphism U V f & @Norm_PCM_morphism U V f}.
 
 (* Norm mixin follows from Binorm mixin *)
-HB.builders Context U V f of isBinorm_PCM_morphism U V f.
+HB.builders Context U V f & isBinorm_PCM_morphism U V f.
 
 Lemma binorm_morph_is_norm_morph : norm_pcm_morph_axiom f.
 Proof. 
@@ -1461,7 +1461,7 @@ Definition full_pcm_morph_axiom (U V : pcm) (f : pcm_morph U V) :=
   sep f =2 relT.
 
 HB.mixin Record isFull_PCM_morphism (U V : pcm) (f : U -> V) 
-  of @PCM_morphism U V f := {
+  & @PCM_morphism U V f := {
   full_pcm_morphism_subproof : full_pcm_morph_axiom f}.
 
 #[short(type=full_pcm_morph)]  
@@ -2459,7 +2459,7 @@ Definition subtpcm_struct_axiom (U V : tpcm) (S : subpcm_struct U V) :=
   pval S undef = undef.
 
 HB.mixin Record isSubTPCM_struct (U V : tpcm) 
-    S of @SubPCM_struct U V S := {
+    S & @SubPCM_struct U V S := {
   subtpcm_struct_subproof : subtpcm_struct_axiom S}.
 
 #[short(type=subtpcm_struct)]

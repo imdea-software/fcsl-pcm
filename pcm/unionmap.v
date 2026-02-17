@@ -301,7 +301,7 @@ Definition union_map_axiom (K : ordType) (C : pred K) V T
     (forall f, undefb f = UM.undefb (from f)) *
     (forall k v, pts k v = to (UM.pts C k v)))))%type.
  
-HB.mixin Record isUnionMap_helper (K : ordType) (C : pred K) V T of 
+HB.mixin Record isUnionMap_helper (K : ordType) (C : pred K) V T &
   Normal_CTPCM T := {
     upd : K -> V -> T -> T;
     dom_op : T -> seq K;
@@ -356,7 +356,7 @@ HB.factory Record isUnion_map (K : ordType) (C : pred K) V T := {
                     um_free um_find um_union um_empb um_undefb um_pts 
                     um_from um_to}.
   
-HB.builders Context K C V T of isUnion_map K C V T.
+HB.builders Context K C V T & isUnion_map K C V T.
 
 Definition umEX := snd union_map_subproof.
 
@@ -454,7 +454,7 @@ HB.end.
 (* Different structures can use different syntax for pts and dom *) 
 
 (* Making pts infer union_map structure *)
-Definition ptsx K C V (U : union_map K C V) k v of phant U : U := 
+Definition ptsx K C V (U : union_map K C V) k v & phant U : U := 
   @pts_op K C V U k v.
 
 (* use ptsT to pass map type explicitly *)
@@ -466,7 +466,7 @@ Notation "@ 'pts' K C V U k v" := (@ptsx K C V U%type k v (Phant U))
   U at level 8, k at level 8, v at level 8, only parsing).
 
 (* Making dom infer union_map structure *)
-Definition domx K C V (U : union_map K C V) f of phant U : seq K := 
+Definition domx K C V (U : union_map K C V) f & phant U : seq K := 
   @dom_op K C V U f.
 
 (* use domT to pass map type explicitly *)
@@ -3422,7 +3422,7 @@ Definition omap_fun_axiom (K : ordType) (C : pred K) (V V' : Type)
 (* factory to use if full/norm/tpcm morphism property already proved *)
 (* (omap_fun isn't binormal as it can drop timestamps) *)
 HB.mixin Record isOmapFun_morph (K : ordType) (C : pred K) (V V' : Type)
-    (U : union_map K C V) (U' : union_map K C V') (f : U -> U') of 
+    (U : union_map K C V) (U' : union_map K C V') (f : U -> U') & 
     @Full_Norm_TPCM_morphism U U' f := { 
   omf_op : K * V -> option V';  
   omfE_op : omap_fun_axiom f omf_op}.
@@ -3442,7 +3442,7 @@ HB.factory Record isOmapFun (K : ordType) (C : pred K) (V V' : Type)
   omf : K * V -> option V';  
   omfE : omap_fun_axiom f omf}.
 
-HB.builders Context K C V V' U U' f of isOmapFun K C V V' U U' f.
+HB.builders Context K C V V' U U' f & isOmapFun K C V V' U U' f.
 
 Lemma omap_fun_is_pcm_morph : pcm_morph_axiom relT f.
 Proof.
@@ -3479,7 +3479,7 @@ Section OmapFunNotation.
 Variables (K : ordType) (C : pred K) (V V' : Type).
 Variables (U : union_map K C V) (U' : union_map K C V').
 
-Definition omfx (f : omap_fun U U') of phantom (U -> U') f :
+Definition omfx (f : omap_fun U U') & phantom (U -> U') f :
   K * V -> option V' := omf_op f.
 
 Notation omf f := (omfx (Phantom (_ -> _) f)).
@@ -4704,7 +4704,7 @@ Definition map_fun_axiom (K : ordType) (C : pred K) V V'
   forall x, isSome (omf f x).
 
 HB.mixin Record isMapFun (K : ordType) (C : pred K) (V V' : Type)
-    (U : @union_map K C V) (U' : @union_map K C V') (f : U -> U') of 
+    (U : @union_map K C V) (U' : @union_map K C V') (f : U -> U') & 
     @OmapFun K C V V' U U' f := { 
   mapfun_subproof : map_fun_axiom f}.
 
@@ -4715,7 +4715,7 @@ HB.structure Definition MapFun (K : ordType) (C : pred K) (V V' : Type)
         @Binorm_PCM_morphism U U' f & 
         OmapFun K f}. 
 
-HB.builders Context K C V V' U U' f of isMapFun K C V V' U U' f.
+HB.builders Context K C V V' U U' f & isMapFun K C V V' U U' f.
 Lemma map_fun_is_binorm_morph : binorm_pcm_morph_axiom f.
 Proof. 
 by move=>x y; rewrite -omfUn_some ?pfVE ?pfT //= => k; rewrite mapfun_subproof.
