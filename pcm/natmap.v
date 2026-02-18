@@ -35,7 +35,7 @@ Definition null := 0.
 Notation nat_pred := (fun x => x != 0). 
 
 (* natmap is union map of non-0 nat keys *)
-HB.mixin Record isNatMap V U of UMC nat (fun x => x != 0) V U.
+HB.mixin Record isNatMap V U & UMC nat (fun x => x != 0) V U.
 #[short(type="natmap")]
 HB.structure Definition NatMap V := {
   U of UMC nat (fun x => x != 0) V U & isNatMap V U}.

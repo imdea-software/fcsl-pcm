@@ -29,7 +29,7 @@ Definition connected (T : eqType) (ord : rel T) :=
 Definition ordtype_axiom (T : eqType) (ord : rel T) := 
   [/\ irreflexive ord, transitive ord & connected ord].
 
-HB.mixin Record isOrdered T of Equality T := {
+HB.mixin Record isOrdered T & Equality T := {
   ord : rel T;
   ordtype_subproof : ordtype_axiom ord}.
 

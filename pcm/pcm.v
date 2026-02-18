@@ -181,7 +181,7 @@ Definition cpcm_axiom (U : pcm) :=
   forall x1 x2 x : U, 
      valid (x1 \+ x) -> x1 \+ x = x2 \+ x -> x1 = x2.
 
-HB.mixin Record isCPCM U of PCM U := {
+HB.mixin Record isCPCM U & PCM U := {
   cpcm_subproof : cpcm_axiom U}. 
 
 #[short(type="cpcm")]
@@ -227,7 +227,7 @@ End CPCMLemmas.
 Definition pcmc_axiom (U : pcm) :=
   forall x1 x2 : U, unitb (x1 \+ x2) -> unitb x1 && unitb x2.
 
-HB.mixin Record isPCMC U of PCM U := {
+HB.mixin Record isPCMC U & PCM U := {
   pcmc_subproof : pcmc_axiom U}. 
 
 #[short(type="pcmc")]
@@ -271,7 +271,7 @@ Definition tpcm_axiom (U : pcm) (undef : U)
         (~~ valid undef) 
         (forall x : U, undef \+ x = undef).
 
-HB.mixin Record isTPCM U of PCM U := {
+HB.mixin Record isTPCM U & PCM U := {
   undef : U;
   undefb : U -> bool;
   tpcm_subproof : tpcm_axiom undef undefb}.
@@ -330,7 +330,7 @@ Definition tpcmE := (undef_join, join_undef, valid_undef,
 
 Definition normal_tpcm_axiom (U : tpcm) := forall x : U, valid x \/ x = undef. 
 
-HB.mixin Record isNormal_TPCM U of TPCM U := {
+HB.mixin Record isNormal_TPCM U & TPCM U := {
   normal_tpcm_subproof : normal_tpcm_axiom U}.
 
 #[short(type="normal_tpcm")]

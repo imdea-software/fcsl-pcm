@@ -29,7 +29,7 @@ From pcm Require Import options axioms prelude pcm mutex morphism.
 Definition pcms_axiom (U : pcm) (minus : U -> U -> U) := 
   forall x y z, valid x /\ x = y \+ z <-> minus x y = z /\ valid z.
 
-HB.mixin Record isPCMS (U : Type) of PCM U := {
+HB.mixin Record isPCMS (U : Type) & PCM U := {
   unjoin : U -> U -> U;
   pcms_subproof : pcms_axiom unjoin}.
 
@@ -80,7 +80,7 @@ HB.structure Definition Normal_TPCMSC := {U of TPCMSC U & isNormal_TPCM U}.
 Infix "\-" := unjoin (at level 50, left associativity) : pcm_scope.
 
 (* cancellativity substructure follows from pcms_axiom *)
-HB.builders Context U of isPCMS U.
+HB.builders Context U & isPCMS U.
 Lemma pcms_is_cpcm : cpcm_axiom U.
 Proof. 
 have subJx (x y : U) : valid (x \+ y) -> unjoin (x \+ y) x = y.
@@ -421,7 +421,7 @@ Definition sseprel_axiom (U : pcms) (sep : rel U) :=
   forall x y, valid (x \- y) -> sep x Unit -> sep y Unit ->
     sep (x \- y) Unit -> sep (x \- y) y.
 
-HB.mixin Record isSseprel (U : pcms) (sep : rel U) of Seprel U sep := {
+HB.mixin Record isSseprel (U : pcms) (sep : rel U) & Seprel U sep := {
   sseprel_subproof : sseprel_axiom sep}.
 
 #[short(type="sseprel")]

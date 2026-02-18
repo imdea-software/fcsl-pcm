@@ -893,7 +893,7 @@ Proof. by apply: bool_irrelevance. Qed.
 
 Definition inhabited_axiom (T : finType) := 0 < #|T|.
 
-HB.mixin Record isInhabited T of Finite T := {
+HB.mixin Record isInhabited T & Finite T := {
   card_inhab : inhabited_axiom T}.
 
 #[short(type="ifinType")]
