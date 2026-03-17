@@ -23,6 +23,9 @@ From mathcomp Require Import ssrnat eqtype fintype tuple finfun seq path bigop.
 From pcm Require Import options axioms prelude pred finmap.
 From pcm Require Import pcm unionmap natmap.
 
+(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+Set SsrOldRewriteGoalsOrder.  
+
 (************)
 (* Pointers *)
 (************)
@@ -375,7 +378,7 @@ Lemma updi_split {I : finType} T p k (f : {ffun I -> T}) :
                             updi (p.+(indx k).+1) (drop (indx k).+1 (fgraph f)).
 Proof.
 rewrite fgraph_codom /= codomE {1}(enum_split k) map_cat updi_cat /=.
-rewrite map_take map_drop size_takel ?joinA; last by rewrite -ptr1 ptrA addn1. 
+rewrite map_take map_drop size_takel ?joinA; first by rewrite -ptr1 ptrA addn1. 
 by rewrite size_map index_size.
 Qed.
 

@@ -25,9 +25,9 @@ This library relies on propositional and functional extentionality axioms."""
 build: [make "-j%{jobs}%"]
 install: [make "install"]
 depends: [
-  "coq" { (>= "9.0" & < "9.1~") | (= "dev") }
-  "coq-mathcomp-ssreflect" { (>= "2.4.0" & < "2.5~") | (= "dev") }
-  "coq-hierarchy-builder" { (>= "1.7.0" & < "1.10~") | (= "dev") }
+  "coq" { (>= "9.0" & < "9.2~") | (= "dev") }
+  "coq-mathcomp-ssreflect" { (>= "2.4.0" & < "2.6~") | (= "dev") }
+  "coq-hierarchy-builder" { (>= "1.7.0" & < "1.11~") | (= "dev") }
   "coq-mathcomp-algebra" 
 ]
 

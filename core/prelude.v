@@ -23,6 +23,9 @@ From mathcomp Require Import path fintype finset finfun tuple perm fingroup.
 From mathcomp Require Import ssralg.
 From pcm Require Import options axioms.
 
+(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+Set SsrOldRewriteGoalsOrder.  
+
 (***********)
 (* Prelude *)
 (***********)
@@ -775,7 +778,7 @@ elim: (enum T) (enum_uniq T)=>[|x xs IH] //.
 set f := index^~(x :: xs)=>/= /andP [H1 H2].
 rewrite {1}/f /= eqxx; congr (0 :: _).
 case: (eq_in_map f (fun x=>(index x xs).+1) xs)=>E _. 
-rewrite E.
+rewrite E; last first.
 - by move=>z R; rewrite /f /=; case: (x =P z) R H1=>//= ->->.
 by rewrite -add1n iotaDl -IH // -map_comp. 
 Qed.

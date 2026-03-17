@@ -17,6 +17,9 @@ From pcm Require Import options prelude ordtype seqext.
 Local Open Scope order_scope.
 Import Order.Theory.
 
+(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+Set SsrOldRewriteGoalsOrder.  
+
 (* We assume the sequences are unique and use the first index, however most *)
 (* lemmas don't require this condition explicitly. The ones that do are     *)
 (* grouped in a separate section.                                           *)
@@ -344,7 +347,7 @@ Qed.
 
 Lemma sle_splitR x y ks1 ks2 : y \notin ks1 -> x <=[ks1++x::ks2] y.
 Proof.
-move=>Y; rewrite sle_eqVlt.
+move=>Y; rewrite sle_eqVlt; last first.
 - by apply/orP; left; rewrite mem_cat inE eq_refl orbT.
 by case: eqP=>[|/eqP N] //=; rewrite (slt_splitR _ _ Y) // eq_sym.
 Qed.
@@ -437,7 +440,7 @@ Lemma sle_sorted_lt ltT ks x y :
         sorted ltT ks ->
         y \in ks -> x <=[ks] y -> (x == y) || ltT x y.
 Proof.
-move=>T S Y; rewrite sle_eqVlt; first by rewrite Y orbT.
+move=>T S Y; rewrite sle_eqVlt; last by rewrite Y orbT.
 by case/orP=>[->//|/(slt_sorted_lt T S Y) ->]; rewrite orbT.
 Qed.
 
@@ -464,7 +467,7 @@ Lemma sle_sorted_leE leT ks x y :
         x \in ks -> y \in ks ->
         x <=[ks] y = (x == y) || leT x y.
 Proof.
-move=>As T S X Y; rewrite sle_eqVlt; first by rewrite X.
+move=>As T S X Y; rewrite sle_eqVlt; last by rewrite X.
 by rewrite (slt_sorted_leE As T S X Y); case: eqP.
 Qed.
 
@@ -507,7 +510,7 @@ Qed.
 Lemma slt_last x k ks :
         uniq ks -> x \in ks -> last k ks != x -> x <[ks] (last k ks).
 Proof.
-move=>U X N; move: (sle_last k U X); rewrite sle_eqVlt; first by rewrite X.
+move=>U X N; move: (sle_last k U X); rewrite sle_eqVlt; last by rewrite X.
 by rewrite eq_sym (negbTE N).
 Qed.
 
@@ -515,7 +518,7 @@ Lemma slt_last_cons x k ks :
         uniq (k :: ks) -> x \in k::ks ->
         last k ks != x -> x <[k::ks] (last k ks).
 Proof.
-move=>U X N; rewrite slt_neqAle; first by rewrite X.
+move=>U X N; rewrite slt_neqAle; last by rewrite X.
 by rewrite eq_sym N sle_last_cons.
 Qed.
 

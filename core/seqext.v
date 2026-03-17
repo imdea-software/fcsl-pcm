@@ -15,6 +15,9 @@ From Stdlib Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq eqtype path choice fintype bigop perm.
 From pcm Require Import options prelude pred seqperm.
 
+(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+Set SsrOldRewriteGoalsOrder.  
+
 (*********************)
 (* Extensions to seq *)
 (*********************)
@@ -83,9 +86,9 @@ Lemma drop_take_mask {A} (s : seq A) x y :
         drop x (take y s) = mask (nseq x false ++ nseq (y-x) true) s.
 Proof.
 case: (ltnP x (size s))=>Hx; last first.
-- rewrite drop_oversize; first by rewrite size_take_min geq_min Hx orbT.
-  rewrite -{1}(subnKC Hx) nseqD -catA -{3}(cats0 s) mask_cat.
-  - by rewrite size_nseq.
+- rewrite drop_oversize; last by rewrite size_take_min geq_min Hx orbT.
+  rewrite -{1}(subnKC Hx) nseqD -catA -{3}(cats0 s) mask_cat;
+    last by rewrite size_nseq.
   by rewrite mask0 mask_false.
 have Hx': size (nseq x false) = size (take x s).
 - by rewrite size_nseq size_take_min; symmetry; apply/minn_idPl/ltnW.
@@ -400,7 +403,7 @@ case: m=>/=[|b m]; first by rewrite in_nil nth_nil andbF.
 case: b; rewrite !inE eq_sym; case: eqP=>//= _.
 - by rewrite add0n; apply: IHs.
 - rewrite -{2}(addn0 1%N) leq_add2l leqn0 => /eqP Hc.
-  rewrite IHs; first by rewrite Hc.
+  rewrite IHs; last by rewrite Hc.
   by move/count_memPn/negbTE: Hc=>->.
 by rewrite add0n; apply: IHs.
 Qed.
@@ -728,8 +731,8 @@ case/boolP: (has p s2)=>H2; last first.
   by rewrite addnC subnDl.
 have H2' : find p (rev s2) < size s2.
 - by rewrite -size_rev -has_find has_rev.
-rewrite /= orbT andbF -addnBA; first by apply: ltnW.
-rewrite -!subn1 -subnDA -addnBA; first by rewrite subn_gt0.
+rewrite /= orbT andbF -addnBA; last by apply: ltnW.
+rewrite -!subn1 -subnDA -addnBA; last by rewrite subn_gt0.
 by rewrite subnDA.
 Qed.
 
@@ -757,7 +760,7 @@ Lemma nth_findlast x0 p s :
         p (nth x0 s (findlast p s)).
 Proof.
 rewrite findlastE=>/[dup] E ->; rewrite -has_rev in E.
-rewrite -subnS -nth_rev; first by rewrite -size_rev -has_find.
+rewrite -subnS -nth_rev; last by rewrite -size_rev -has_find.
 by apply: nth_find.
 Qed.
 
@@ -771,7 +774,7 @@ have Hh: 0 < size s - find p (rev s).
 rewrite -size_rev; move/(has_take (size s - i)): (E).
 rewrite take_rev -subnS size_rev.
 case/boolP: (i < size s)=>[Hi|].
-- rewrite subnA //; first by apply: ltnW.
+- rewrite subnA //; last by apply: ltnW.
   rewrite subnn add0n has_rev=>->.
   rewrite ltn_subRL addnC -ltn_subRL subnS.
   by case: (size s - find p (rev s)) Hh.
@@ -799,7 +802,7 @@ elim: s=>//= h s IH.
 rewrite rev_cons -cats1 find_cat has_rev size_rev /=.
 case/orP; first by move=>->.
 move=>/[dup] H ->; case: ifP=>_ //.
-rewrite subSn /=.
+rewrite subSn /=; last first.
 - by rewrite -size_rev; apply: find_size.
 apply: (leq_ltn_trans (IH H)); rewrite ltn_predL subn_gt0.
 by rewrite -size_rev -has_find has_rev.
@@ -814,7 +817,7 @@ Lemma split_findlast_nth x0 p s (i := findlast p s) :
         split_findlast_nth_spec p s (take i s) (drop i.+1 s) (nth x0 s i).
 Proof.
 move=> p_s; rewrite -[X in split_findlast_nth_spec _ X](cat_take_drop i s).
-rewrite (drop_nth x0 _); first by rewrite -has_findlast.
+rewrite (drop_nth x0 _); last by rewrite -has_findlast.
 rewrite -cat_rcons; constructor; first by apply: nth_findlast.
 by rewrite has_drop // ltnn.
 Qed.
@@ -1004,11 +1007,11 @@ Lemma findall_cat p s1 s2 :
         findall p (s1 ++ s2) =
         findall p s1 ++ map (fun n => size s1 + n) (findall p s2).
 Proof.
-rewrite !findallE size_cat iotaD add0n zip_cat; first by rewrite size_iota.
+rewrite !findallE size_cat iotaD add0n zip_cat; last by rewrite size_iota.
 rewrite filter_cat {1}/unzip1 map_cat; congr (_ ++ _).
 set n := size s1.
 rewrite -{1}(addn0 n) iotaDl zip_mapl filter_map -!map_comp.
-rewrite (eq_filter (a2:=(p \o snd))); first by case.
+rewrite (eq_filter (a2:=(p \o snd))); last by case.
 by apply: eq_map; case.
 Qed.
 
@@ -1258,8 +1261,8 @@ Lemma filter_sub (p1 p2 : pred A) (s : seq A) :
         subpred p1 p2 -> 
         {subset filter p1 s <= filter p2 s}.
 Proof.
-move=>S; rewrite (_ : filter p1 s = filter p1 (filter p2 s)); 
-  last by apply: mem_subseq; apply: filter_subseq.
+move=>S; rewrite (_ : filter p1 s = filter p1 (filter p2 s)).
+- by apply: mem_subseq; apply: filter_subseq.
 rewrite -filter_predI; apply: eq_in_filter=>x X /=.
 by case E : (p1 x)=>//=; rewrite (S _ E).
 Qed.
