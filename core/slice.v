@@ -18,6 +18,9 @@ From pcm Require Import options prelude seqext.
 Open Scope order_scope.
 Import Order.Theory.
 
+(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+Set SsrOldRewriteGoalsOrder.  
+
 Section BSimp_Extension.
 Context disp (T : porderType disp).
 Implicit Types (x y : T) (b c : bool).
@@ -222,7 +225,7 @@ by exact: geq_minl.
 Qed.
 
 Corollary slice_usize s : s = &:s `]-oo, size s[.
-Proof. by rewrite itv_overR /=; [rewrite addn0|rewrite slice_uu]. Qed.
+Proof. by rewrite itv_overR /=; [rewrite slice_uu|rewrite addn0]. Qed.
 
 (* slice size *)
 
@@ -367,7 +370,7 @@ move: (onth_size H)=>Hk; case: l; case: r=>/=;
 rewrite ?addn0 ?addn1.
 - by apply: drop_oversize; rewrite size_take Hk.
 - rewrite -addn1 addnC -take_drop.
-  rewrite (take_nth v); first by rewrite size_drop subn_gt0.
+  rewrite (take_nth v); last by rewrite size_drop subn_gt0.
   by rewrite take0 /= nth_drop addn0 nth_onth H.
 - by apply: drop_oversize; rewrite size_take Hk.
 apply: drop_oversize; rewrite size_take; case: ifP=>// /negbT.
@@ -441,7 +444,7 @@ Lemma slice_xR a x s :
                     (&:s (Interval a +oo))
              (onth s x).
 Proof.
-move=>Hax; rewrite (slice_split _ true (x:=x)) /=.
+move=>Hax; rewrite (slice_split _ true (x:=x)) /=; last first.
 - rewrite in_itv /= lexx andbT.
   by case: a Hax=>/=[ax av|ax]; case: ax.
 rewrite slice_kk /=; case: (onth_sizeP s x)=>[|v] H;
@@ -457,7 +460,7 @@ Lemma slice_xL b x s :
                      [::]
              (onth s x).
 Proof.
-move=>Hxb; rewrite (slice_split _ false (x:=x)) /=.
+move=>Hxb; rewrite (slice_split _ false (x:=x)) /=; last first.
 - rewrite in_itv /= lexx /=.
   by case: b Hxb=>/=[bx bv|bx]; case: bx.
 rewrite slice_kk /=; case: (onth_sizeP s x)=>[|v] H; rewrite H //=.
@@ -556,7 +559,7 @@ Lemma slice_cat_piecewise s1 s2 i :
 Proof.
 rewrite slice_cat; case: i=>i j /=; case: ifP.
 - rewrite in_itv; case/andP=>Hi Hj.
-  rewrite (itv_overR _ (j:=j)).
+  rewrite (itv_overR _ (j:=j)); last first.
   - case: j Hj=>[[] j|[]] //=.
     - by rewrite addn0; move/ltnW.
     by rewrite addn1 leEnat; move/(ltnW (n:=j.+1)).
@@ -566,7 +569,7 @@ rewrite slice_cat; case: i=>i j /=; case: ifP.
   by rewrite ltnn /= subnn.
 rewrite in_itv=>/negbT; rewrite negb_and=>H.
 case: ifP=>Hj.
-- rewrite (itv_underR (s:=s2)); last by rewrite cats0.
+- rewrite (itv_underR (s:=s2)); first by rewrite cats0.
   case: {H}j Hj=>[[] j|[]] //=.
   - rewrite addn0 leEnat leq_eqVlt; case/orP=>[/eqP->|->] //=.
     by rewrite ltnn /= subnn.
@@ -678,10 +681,10 @@ move=>x Hx.
 have Hij : i1 <= j1.
 - apply: contraLR Hx; rewrite -ltNge=>/ltW Hji.
   by rewrite itv_swapped_bnd.
-rewrite (@slice_split_bnd _ _ _ i1) /=.
+rewrite (@slice_split_bnd _ _ _ i1) /=; last first.
 - by rewrite Hi /=; apply/le_trans/Hj.
 rewrite mem_cat; apply/orP; right.
-rewrite (@slice_split_bnd _ _ _ j1) /=.
+rewrite (@slice_split_bnd _ _ _ j1) /=; last first.
 - by rewrite Hj andbT.
 by rewrite mem_cat Hx.
 Qed.

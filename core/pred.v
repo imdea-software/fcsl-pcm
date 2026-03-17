@@ -19,8 +19,10 @@ From Stdlib Require Import ssreflect ssrbool ssrfun Setoid Basics.
 From mathcomp Require Import ssrnat seq eqtype bigop.
 From pcm Require Import options.
 
-(* First some basic propositional equalities *)
+(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+Set SsrOldRewriteGoalsOrder.  
 
+(* First some basic propositional equalities *)
 
 Lemma andTp p : True /\ p <-> p.      Proof. by intuition. Qed.
 Lemma andpT p : p /\ True <-> p.      Proof. by intuition. Qed.
@@ -867,7 +869,7 @@ Lemma eq_In_filter (T : Type) a1 a2 (s : seq T) :
         filter a1 s = filter a2 s.
 Proof.
 elim: s => //= x s IHs eq_a.
-rewrite eq_a; first by rewrite InE; left.
+rewrite eq_a; last by rewrite InE; left.
 rewrite IHs // => y s_y; apply: eq_a.
 by rewrite InE; right.
 Qed.
