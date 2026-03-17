@@ -41,7 +41,7 @@ license:
 
 supported_coq_versions:
   text: 9.0 or later
-  opam: '{ (>= "9.0" & < "9.1~") | (= "dev") }'
+  opam: '{ (>= "9.0" & < "9.2~") | (= "dev") }'
 
 tested_coq_opam_versions:
 - version: '2.4.0-rocq-prover-9.0'
