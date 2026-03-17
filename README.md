@@ -29,12 +29,12 @@ This library relies on propositional and functional extentionality axioms.
   - Anton Trunov
   - Alexander Gryzlov
 - License: [Apache-2.0](LICENSE)
-- Compatible Coq versions: 9.0 or later
+- Compatible Rocq/Coq versions: 9.0 or later
 - Additional dependencies:
   - [MathComp ssreflect 2.4 or later](https://math-comp.github.io)
   - [Hierarchy Builder 1.7.0 or later](https://github.com/math-comp/hierarchy-builder)
   - [MathComp algebra](https://math-comp.github.io)
-- Coq namespace: `pcm`
+- Rocq/Coq namespace: `pcm`
 - Related publication(s): none
 
 ## Building and installation instructions
@@ -43,15 +43,19 @@ The easiest way to install the latest released version of The PCM library
 is via [OPAM](https://opam.ocaml.org/doc/Install.html):
 
 ```shell
-opam repo add coq-released https://coq.inria.fr/opam/released
+opam repo add rocq-released https://rocq-prover.org/opam/released
 opam install coq-fcsl-pcm
 ```
 
-To instead build and install manually, do:
+To instead build and install manually, you need to make sure that all the
+libraries this development depends on are installed.  The easiest way to do that
+is still to rely on opam:
 
 ``` shell
 git clone https://github.com/imdea-software/fcsl-pcm.git
 cd fcsl-pcm
+opam repo add rocq-released https://rocq-prover.org/opam/released
+opam install --deps-only .
 make   # or make -j <number-of-cores-on-your-machine> 
 make install
 ```
