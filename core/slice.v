@@ -16,6 +16,8 @@ From mathcomp Require Import ssrnat eqtype seq path interval order.
 From mathcomp Require Import fintype finfun tuple.
 From pcm Require Import options prelude seqext.
 
+Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+
 Open Scope order_scope.
 Import Order.Theory.
 

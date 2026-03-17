@@ -15,6 +15,8 @@ From Stdlib Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq eqtype path choice fintype bigop perm.
 From pcm Require Import options prelude pred seqperm.
 
+Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+
 (*********************)
 (* Extensions to seq *)
 (*********************)

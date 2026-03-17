@@ -17,6 +17,8 @@ From pcm Require Import options pred prelude.
 From pcm Require Export auto.
 From pcm Require Import pcm unionmap natmap.
 
+Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+
 (**************************************************************************)
 (**************************************************************************)
 (* Canonical structure lemmas for automating three tasks:                 *)

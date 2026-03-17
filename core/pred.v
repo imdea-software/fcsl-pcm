@@ -19,6 +19,8 @@ From Stdlib Require Import ssreflect ssrbool ssrfun Setoid Basics.
 From mathcomp Require Import ssrnat seq eqtype bigop.
 From pcm Require Import options.
 
+Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+
 (* First some basic propositional equalities *)
 
 

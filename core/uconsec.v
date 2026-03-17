@@ -17,6 +17,8 @@ From pcm Require Import options prelude ordtype seqext slice useqord uslice.
 Local Open Scope order_scope.
 Import Order.Theory.
 
+Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+
 (* We assume the sequences are unique and most lemmas do require this *)
 (* condition explicitly. Should it be added to `consec` itself?       *)
 

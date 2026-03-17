@@ -16,6 +16,8 @@ From Stdlib Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import choice ssrnat eqtype ssrint ssrnum order.
 From pcm Require Import options axioms prelude pcm mutex morphism.
 
+Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+
 (*************************)
 (*************************)
 (* PCMs with subtraction *)

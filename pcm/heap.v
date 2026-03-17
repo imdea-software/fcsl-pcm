@@ -23,6 +23,8 @@ From mathcomp Require Import ssrnat eqtype fintype tuple finfun seq path bigop.
 From pcm Require Import options axioms prelude pred finmap.
 From pcm Require Import pcm unionmap natmap.
 
+Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+
 (************)
 (* Pointers *)
 (************)

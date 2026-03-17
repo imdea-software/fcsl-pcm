@@ -23,6 +23,8 @@ From mathcomp Require Import ssrnat eqtype seq bigop choice.
 From mathcomp Require Import fintype finset finfun.
 From pcm Require Import options axioms prelude seqperm pred seqext.
 
+Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+
 Declare Scope pcm_scope.
 Delimit Scope pcm_scope with pcm.
 Open Scope pcm_scope.

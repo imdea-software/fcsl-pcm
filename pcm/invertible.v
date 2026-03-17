@@ -21,6 +21,8 @@ From mathcomp Require Import eqtype.
 From pcm Require Import options axioms prelude.
 From pcm Require Import pcm morphism.
 
+Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+
 (* in the POPL21 paper, we use the notation
    x D y D z =def= x D y /\ (x \+ y) D z
 *)
