@@ -23,6 +23,8 @@ From mathcomp Require Import path fintype finset finfun tuple perm fingroup.
 From mathcomp Require Import ssralg.
 From pcm Require Import options axioms.
 
+Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+
 (***********)
 (* Prelude *)
 (***********)

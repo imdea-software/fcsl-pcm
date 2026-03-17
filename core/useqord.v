@@ -17,6 +17,8 @@ From pcm Require Import options prelude ordtype seqext.
 Local Open Scope order_scope.
 Import Order.Theory.
 
+Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+
 (* We assume the sequences are unique and use the first index, however most *)
 (* lemmas don't require this condition explicitly. The ones that do are     *)
 (* grouped in a separate section.                                           *)

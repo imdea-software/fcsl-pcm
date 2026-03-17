@@ -20,6 +20,8 @@ From pcm Require Import options prelude ordtype seqext slice useqord.
 Local Open Scope order_scope.
 Import Order.Theory.
 
+Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+
 (* slicing by element index *)
 
 Definition ix_bnd {A : eqType} (s : seq A) (i : itv_bound A) : itv_bound nat :=

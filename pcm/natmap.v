@@ -27,6 +27,8 @@ Import Order.NatOrder. (* listed last to avoid notation clash *)
 Local Open Scope order_scope.
 Local Open Scope nat_scope.
 
+Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+
 (************************)
 (* Maps over non-0 nats *)
 (************************)

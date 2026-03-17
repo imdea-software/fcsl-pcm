@@ -17,6 +17,8 @@ From mathcomp Require Import ssrnat eqtype fintype finfun.
 From pcm Require Import options pred axioms prelude.
 From pcm Require Import pcm.
 
+Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+
 (*****************)
 (*****************)
 (* PCM Morphisms *)
