@@ -22,9 +22,6 @@ From Stdlib Require Import ssreflect ssrbool ssrfun Setoid.
 From mathcomp Require Import ssrnat eqtype seq bigop choice.
 From mathcomp Require Import fintype finset finfun.
 From pcm Require Import options axioms prelude seqperm pred seqext.
-
-Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-
 Declare Scope pcm_scope.
 Delimit Scope pcm_scope with pcm.
 Open Scope pcm_scope.
@@ -1466,7 +1463,7 @@ Lemma foldr_helper (s1 s2 : seq A) (z0 : R) x :
         foldr a z0 (s1 ++ x :: s2) = foldr a z0 (s1 ++ rcons s2 x).
 Proof.
 rewrite -!foldl_rev rev_cat rev_cons cat_rcons.
-rewrite foldl_helper; last by move=>*; rewrite H. 
+rewrite foldl_helper; first by move=>*; rewrite H. 
 by rewrite -[x :: _ ++ _]revK rev_cons rev_cat !revK rcons_cat.
 Qed.
 
@@ -1749,7 +1746,7 @@ Lemma sepitseq_emp (s : seq A) (f : A -> Pred U) :
 Proof.
 move=>H; rewrite sepit_seqE.
 elim: s H=>[|a xs IH] H; first by rewrite big_nil.
-rewrite big_cons H ?InE; last by left.
+rewrite big_cons H ?InE; first by left.
 by rewrite starL IH // => x X; apply: H; rewrite InE; right.
 Qed.
 

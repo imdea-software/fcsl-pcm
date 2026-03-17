@@ -2,6 +2,7 @@
 -arg -w -arg -notation-overridden
 -arg -w -arg -redundant-canonical-projection
 -arg -w -arg -HB.no-new-instance
+-arg -w -arg -notation-for-abbreviation
 # release-specific args
 -arg -w -arg -notation-incompatible-prefix # specific to coq8.20.0 
 -arg -w -arg -deprecated-from-Coq # specific to coq8.21 

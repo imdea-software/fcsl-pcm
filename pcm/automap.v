@@ -17,8 +17,6 @@ From pcm Require Import options pred prelude.
 From pcm Require Export auto.
 From pcm Require Import pcm unionmap natmap.
 
-Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-
 (**************************************************************************)
 (**************************************************************************)
 (* Canonical structure lemmas for automating three tasks:                 *)
@@ -748,7 +746,7 @@ case: g=>eq g /=; elim: ts eq=>[|s a|ts1 IH1 ts2 IH2|t] /= eq pf X.
 - by rewrite pf !pfunit.
 - rewrite validPt in X; rewrite pf omfPt // omf_comp /=. 
   by case: (omf g _)=>[x|]; rewrite ?omfPt ?pfunit.
-- rewrite pf /= !omfUn //; last by rewrite -omfUn ?pfVE.
+- rewrite pf /= !omfUn //; first by rewrite -omfUn ?pfVE.
   by rewrite IH1 ?(validL X) // IH2 ?(validR X).
 by rewrite pf.
 Qed.

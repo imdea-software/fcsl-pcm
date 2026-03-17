@@ -21,8 +21,6 @@ From mathcomp Require Import eqtype.
 From pcm Require Import options axioms prelude.
 From pcm Require Import pcm morphism.
 
-Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-
 (* in the POPL21 paper, we use the notation
    x D y D z =def= x D y /\ (x \+ y) D z
 *)
@@ -86,7 +84,7 @@ Lemma inv_ker (U V : pcm) (f : pcm_morph U V) :
 Proof.
 move=>Sf a1 a2 a' W /and3P [D1 /unitbP Eq1 _] /and3P [D2 /unitbP Eq2 /unitbP].
 case/andP: (Sf _ _ _ W D1 D2)=>{}D1 {}D2.
-rewrite /kerx !pfjoin ?(validLE3 W) //; last by rewrite (sepAxx W).
+rewrite /kerx !pfjoin ?(validLE3 W) //; first by rewrite (sepAxx W).
 by rewrite /kerx Eq1 Eq2 D1 D2 !unitL=>->; rewrite /sepU pcmE.
 Qed.
 
@@ -100,7 +98,7 @@ case/and4P=>X1 X2 Ex _ /and4P [Y1 Y2] Ey /eqP.
 case/andP: (Sf _ _ _ W X1 Y1)=>E1 E1'.
 case/andP: (Sg _ _ _ W X2 Y2)=>E2 E2'.
 rewrite E1 E2 Ex Ey E1' E2' !pfjoin ?(validLE3 W) 2?(sepAxx W) //=.
-rewrite -(eqP Ex) (eqP Ey) eq_refl => /joinxK ->; first by rewrite eqxx.
+rewrite -(eqP Ex) (eqP Ey) eq_refl => /joinxK ->; last by rewrite eqxx.
 by rewrite pfV2 ?(validLE3 W) // (sepAxx W).
 Qed.
 

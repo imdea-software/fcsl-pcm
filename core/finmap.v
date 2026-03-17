@@ -22,8 +22,6 @@ From mathcomp Require Import ssrnat eqtype seq path.
 From pcm Require Export ordtype seqperm.
 From pcm Require Import options.
 
-Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-
 Section Def.
 Variables (K : ordType) (V : Type).
 
@@ -418,7 +416,7 @@ case: (ordP k2 k3)=>H2 /=.
 - rewrite eq_sym H1 /=.
   case: (ordP k3 k1)=>H3 /=; case: (ordP k2 k3) (H2)=>//=.
   rewrite -(eqP H3) in H1 *.
-  rewrite -IH //; last by apply: path_sorted H.
+  rewrite -IH //; first by apply: path_sorted H.
   rewrite last_ins' /= 1?eq_sym ?H1 //.
   by apply: ord_path H.
 - by move: H1; rewrite (eqP H2) /= eq_sym => -> /=; rewrite irr eq_refl.
@@ -522,9 +520,10 @@ Lemma fmap_ind' (P : fmap -> Prop) :
         forall s, P s.
 Proof.
 move=>H1 H2; case; elim=>[|[k v] s IH] /= H.
-- by rewrite (_ : FinMap _ = nil); last by rewrite fmapE.
+- by rewrite (_ : FinMap _ = nil); first by rewrite fmapE.
 have S: sorted ord (map key s) by apply: path_sorted H.
-rewrite (_ : FinMap _ = ins k v (FinMap S)); last by rewrite fmapE /= last_ins'.
+rewrite (_ : FinMap _ = ins k v (FinMap S)). 
+- by rewrite fmapE /= last_ins'.
 by apply: H2.
 Qed.
 
@@ -535,7 +534,7 @@ Lemma fmap_ind'' (P : fmap -> Prop) :
         forall s, P s.
 Proof.
 move=>H1 H2; case; elim/last_ind=>[|s [k v] IH] /= H.
-- by rewrite (_ : FinMap _ = nil); last by rewrite fmapE.
+- by rewrite (_ : FinMap _ = nil); first by rewrite fmapE.
 have Sb: subseq (map key s) (map key (rcons s (k, v))).
 - by elim: s {IH H}=>[|x s IH] //=; rewrite eq_refl.
 have S : sorted ord (map key s).
@@ -546,8 +545,8 @@ have T : forall x : K, x \in map key s -> ord x k.
   move/eqP=>->; elim: s {IH} L=>[|[x1 w1] s IH] /=; first by rewrite andbT.
   by case/andP=>O /(ord_path O) /IH.
 rewrite (_ : FinMap _ = ins k v (FinMap S)).
-- by apply: H2 (IH _)=>x /T.
-by rewrite fmapE /= first_ins'.
+- by rewrite fmapE /= first_ins'.
+by apply: H2 (IH _)=>x /T.
 Qed.
 
 Fixpoint fcat' (s1 : fmap) (s2 : seq (K * V)) {struct s2} : fmap :=
@@ -986,7 +985,7 @@ Lemma sorted_map_key (m : seq (K * U)) :
         sorted ord (map key m) -> sorted ord (map key (mapf' m)).
 Proof.
 elim: m=>[|[k v] m IH] //= H.
-rewrite path_min_sorted; first by apply: IH; apply: path_sorted H.
+rewrite path_min_sorted; last by apply: IH; apply: path_sorted H.
 rewrite map_key_mapf.
 by apply/(order_path_min _ H);apply/trans.
 Qed.
@@ -1100,7 +1099,7 @@ Lemma mapk_comp m:
 Proof.
 elim/fmap_ind': m  =>//= k v s P IH.
 rewrite [mapk (g \o f) _]mapk_ins //.
-rewrite mapk_ins // mapk_ins //; first by rewrite IH.
+rewrite mapk_ins // mapk_ins //; last by rewrite IH.
 exact: (path_mapk Hf P).
 Qed.
 End KeyMap.

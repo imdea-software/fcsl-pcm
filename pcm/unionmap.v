@@ -97,8 +97,6 @@ From pcm Require Import options axioms prelude finmap seqperm pred seqext.
 From pcm Require Export ordtype.
 From pcm Require Import pcm morphism.
 
-Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-
 (****************************)
 (****************************)
 (* Reference Implementation *)
@@ -234,8 +232,7 @@ have: valid (union (pts k v) (Def T2)).
   case: decP; last by rewrite T1.
   by move=>T; case: ifP=>//; rewrite E disjC disj_ins N disj_nil.
 move/(H3 k v _ (IH T2)).
-rewrite (_ : union (pts k v) (Def T2) = Def H).
-- by apply.
+rewrite (_ : union (pts k v) (Def T2) = Def H); last by apply.
 rewrite umapE /union /pts /upd /=.
 case: decP=>// T; rewrite /disj /= N /=.
 by rewrite E fcat_inss // fcat0s.
@@ -263,7 +260,7 @@ have: valid (union (Def T2) (pts k v)).
   case: decP; last by rewrite T1.
   by move=>T; case: ifP=>//; rewrite E disj_ins N disj_nil.
 move/(H3 k v _ (IH T2)).
-rewrite (_ : union (pts k v) (Def T2) = Def H); first by apply; apply: S.
+rewrite (_ : union (pts k v) (Def T2) = Def H); last by apply; apply: S.
 rewrite umapE /union /pts /upd /=.
 case: decP=>// T; rewrite /disj /= N /=.
 by rewrite E fcat_inss // fcat0s.
@@ -1382,7 +1379,7 @@ rewrite /domx !umEX /UM.free /UM.union /UM.dom.
 case: (UMC_from f1) (UMC_from f2)=>[|f1' F1][|f2' F2] //.
 case: ifP=>// E1; rewrite supp_fcat inE /=.
 case: ifP=>E2; last by rewrite !umEX rem_supp // supp_fcat inE E2.
-rewrite disj_rem; last by rewrite disjC disj_rem // disjC.
+rewrite disj_rem; first by rewrite disjC disj_rem // disjC.
 rewrite !umEX; case/orP: E2=>E2.
 - suff E3: k \notin supp f2' by rewrite -fcat_rems // (rem_supp E3).
   by case: disjP E1 E2=>// H _; move/H.
@@ -2738,7 +2735,7 @@ case: (normalP f)=>[->|W].
 - by rewrite range_undef; constructor=>k1 k2 v /In_undef.
 case H : (uniq (range f)); constructor; last first.
 - move=>H'; move/negbT/negP: H; elim.
-  rewrite map_inj_in_uniq; first by apply: uniq_assocs.
+  rewrite map_inj_in_uniq; last by apply: uniq_assocs.
   case=>/= k1 v [k2 v'] /mem_seqP/In_assocs H1 /mem_seqP/In_assocs H2 /= H3.
   by rewrite -H3 in H2 *; rewrite (H' _ _ _ H1 H2).
 move/uniqP: H=>H k1 k2 v H1 H2.
@@ -2756,10 +2753,10 @@ have InjF : {in assocs f &, injective fst}.
 - case=>a1 v1 [a2 v2] /mem_seqP X1 /mem_seqP X2 /= E.
   by move: E X1 X2 => -> X1 /(assocs_map X1) ->.
 have /eqP E1 : j1 == index (k1,v) (assocs f).
-- rewrite -(nth_uniq (k1,v) R1 _ (uniq_assocs _)); last by rewrite index_mem.
+- rewrite -(nth_uniq (k1,v) R1 _ (uniq_assocs _)); first by rewrite index_mem.
   by rewrite /j1 assocs_dom (nth_index_map _ InjF A1) nth_index.
 have /eqP E2 : j2 == index (k2,v) (assocs f).
-- rewrite -(nth_uniq (k2,v) R2 _ (uniq_assocs _)); last by rewrite index_mem.
+- rewrite -(nth_uniq (k2,v) R2 _ (uniq_assocs _)); first by rewrite index_mem.
   by rewrite /j2 assocs_dom (nth_index_map _ InjF A2) nth_index.
 have E : nth v (range f) j1 = nth v (range f) j2.
 - rewrite /range (nth_map (k1,v) v _ R1) (nth_map (k2,v) v _ R2).
@@ -2878,7 +2875,7 @@ apply/(equivP idP); elim/um_indf: f=>[||k v f IH W P].
 - by rewrite assocs_undef; split=>// _ ???? /In_undef.
 - by rewrite assocs0; split=>// _ ???? /In0.
 rewrite assocsPtUn ?(order_path_min (@trans _) P) //=; split=>H; last first.
-- rewrite path_min_sorted; first by apply/IH=>??????; apply: H; apply/InR.
+- rewrite path_min_sorted; last by apply/IH=>??????; apply: H; apply/InR.
   apply/allP=>x /mapP [[y w]] /mem_seqP/In_assocs X ->.
   by apply: H (path_mem (@trans K) P (In_dom X)); [apply/InPtUnL|apply/InR].
 move=>x x' w w'; rewrite !InPtUnE //.
@@ -3075,11 +3072,11 @@ Proof.
 move: f2; apply: um_indb=>[W H|W H|k v f2 IH W' P W H].
 - by rewrite join_undef !umfoldl_undef.
 - by rewrite unitR umfoldl0.
-rewrite -(joinC f2) joinA in W *; rewrite umfoldlUnPt //; last first.
+rewrite -(joinC f2) joinA in W *; rewrite umfoldlUnPt //.
 - apply/allP=>x; rewrite domUn inE (validL W).
   case/orP=>[/H|]; last by apply: P.
   by apply; rewrite domPtUn inE joinC W' eq_refl.
-rewrite umfoldlUnPt ?(validAR W) //; last by apply/allP.
+rewrite umfoldlUnPt ?(validAR W) //; first by apply/allP.
 rewrite (IH (validL W)) // => k1 k2 D1 D2; apply: H D1 _.
 by rewrite domPtUn inE joinC W' D2 orbT.
 Qed.
@@ -3091,7 +3088,7 @@ Proof.
 move: f1; apply: um_indf=>[W H|W H|k v f1 IH W' P W H].
 - by rewrite undef_join !umfoldr_undef.
 - by rewrite unitL umfoldr0.
-rewrite -!joinA in W *; rewrite umfoldrPtUn //.
+rewrite -!joinA in W *; rewrite umfoldrPtUn //; last first.
 - rewrite umfoldrPtUn ?(order_path_min (@trans K) P) // (IH (validR W)) //.
   by move=>k1 k2 D1; apply: H; rewrite domPtUn inE W' D1 orbT.
 apply/allP=>x; rewrite domUn inE (validR W) /=.
@@ -3144,8 +3141,8 @@ Lemma umfoldl_ind (P : R -> Prop) a z0 d f :
         P (um_foldl a z0 d f).
 Proof.
 move=>W H1 H2; elim/um_indf: f z0 W H1 H2=>[||k v f IH W O] z0;
-rewrite ?valid_undef ?umfoldl0 // => _ H1 H2; rewrite umfoldlPtUn //;
-last by apply: order_path_min O; apply: trans.
+rewrite ?valid_undef ?umfoldl0 // => _ H1 H2; rewrite umfoldlPtUn //.
+- by apply: order_path_min O; apply: trans.
 apply: IH (validR W) _ _; first by apply: H2 (InPtUnL W) H1.
 by move=>z1 k0 v0 F; apply: H2 (InR W F).
 Qed.
@@ -3270,7 +3267,7 @@ move: h1 h2; apply: um_indf=>[h1|h2 W H|
   k v f IH W1 /(order_path_min (@trans _)) P h2 W2 H].
 - by rewrite undef_join valid_undef.
 - by rewrite assocs0 unitL.
-rewrite -joinA in W2; rewrite -joinA !assocsPtUn //= ?IH //.
+rewrite -joinA in W2; rewrite -joinA !assocsPtUn //= ?IH //; last 2 first.
 - by rewrite (validR W2).
 - by move=>k1 k2 K1 K2; apply: H=>//; rewrite domPtUn inE K1 orbT W1.
 apply/allP=>x; rewrite domUn inE (validR W2) /=.
@@ -3844,16 +3841,16 @@ have B : (k, v) \In pts k v \+ x by apply: InPtUnL.
 case E1 : (omf f1 (k, v))=>[x1|].
 - have /(H _ B): (omf f1 (k, v)) by rewrite E1.
   case: (omf f2 (k, v))=>// x2 _.
-  rewrite !domPtUnK //=; last first.
-  - by apply/allP=>? /In_dom_omfX [?][] /In_dom Y _; apply: path_mem Y.
+  rewrite !domPtUnK //=.
   - by rewrite valid_omfPtUn.
   - by apply/allP=>? /In_dom_omfX [?][] /In_dom Y _; apply: path_mem Y.
   - by rewrite valid_omfPtUn.
+  - by apply/allP=>? /In_dom_omfX [?][] /In_dom Y _; apply: path_mem Y.
   by rewrite eq_refl; apply: IH=>kx X; apply: H (InR _ _).
 case E2 : (omf f2 (k, v))=>[x2|]; last by apply: IH=>kx X; apply: H (InR _ _).
-rewrite domPtUnK /=; last first.
-- by apply/allP=>? /In_dom_omfX [?][] /In_dom Y _; apply: path_mem Y.
+rewrite domPtUnK /=.
 - by rewrite valid_omfPtUn.
+- by apply/allP=>? /In_dom_omfX [?][] /In_dom Y _; apply: path_mem Y.
 case D : (dom (f1 x))=>[//|t ts].
 case: eqP D=>[-> D|_ <-]; last by apply: IH=>kv X; apply: H (InR _ _).
 have : k \in dom (f1 x) by rewrite D inE eq_refl.
@@ -4338,9 +4335,9 @@ Lemma umfilt_predU p1 p2 f :
         um_filter (predU p1 p2) f =
         um_filter p1 f \+ um_filter (predD p2 p1) f.
 Proof.
-rewrite omf_predU=>[|kv].
-- by rewrite eq_in_omf !omf_omap /= => kv; case: (p1 _).
-by rewrite !omf_omap /=; case: (p1 _)=>/=; [right|left].
+rewrite omf_predU=>[kv|].
+- by rewrite !omf_omap /=; case: (p1 _)=>/=; [right|left].
+by rewrite eq_in_omf !omf_omap /= => kv; case: (p1 _).
 Qed.
 
 (* we put localization back In for xor *)
@@ -4374,7 +4371,7 @@ Qed.
 
 Corollary umfilt_predC f p : f = um_filter p f \+ um_filter (predC p) f.
 Proof.
-rewrite -umfilt_dpredU; last by move=>? /=; rewrite negbK.
+rewrite -umfilt_dpredU; first by move=>? /=; rewrite negbK.
 rewrite -[LHS]umfilt_predT; apply: eq_in_umfiltE=>kv /=.
 by rewrite orbN.
 Qed.
@@ -4450,7 +4447,7 @@ elim/um_indf: f=>[||k v f IH W /(order_path_min (@trans K)) P].
 - by rewrite pfundef assocs_undef.
 - by rewrite pfunit assocs0. 
 rewrite umfiltPtUn W assocsPtUn //=.
-case: ifP W=>// H W; rewrite assocsPtUn; first by rewrite IH.
+case: ifP W=>// H W; rewrite assocsPtUn; last by rewrite IH.
 - suff: valid (um_filter p (pts k v \+ f)) by rewrite umfiltPtUn W H.
   by rewrite pfVE.
 by apply/allP=>x; move/allP: P=>P; move/omf_subdom/P.
@@ -4651,11 +4648,11 @@ Lemma umfiltkC1 (f : U) x :
 Proof.
 case: (normalP f)=>[->|W]; first by rewrite pfundef free_undef.
 rewrite [in RHS](umfilt_predC f (pred1 x \o fst)).
-rewrite freeUnL; last first.
+rewrite freeUnL.
 - rewrite dom_umfiltE mem_filter.
   by case: dom_find=>//= v; rewrite eqxx.
 rewrite (_ : free (um_filterk (pred1 x) f) x =
-  um_filterk (pred1 x) (free f x)); last first.
+  um_filterk (pred1 x) (free f x)).
 - by rewrite umfiltkF /= eqxx.
 rewrite [in RHS]umfilt_mem0L ?unitL ?validF //.
 by move=>k v /InF [].
@@ -4923,8 +4920,8 @@ move=>V1 E; case X : (valid (x1 \+ y2)); constructor; last first.
   by move=>n; rewrite H dom_umfiltk inE; case/andP.
 move: (umfiltk_dom V1); rewrite E umfiltUn -?E //.
 rewrite (eq_in_umfiltk (f:=y2) (p2:=pred0)).
-- by rewrite umfilt_pred0 ?unitR //; rewrite E in V1; rewrite (validE2 V1).
-by move=>n; case: validUn X=>// _ _ L _ /(contraL (L _)) /negbTE.
+- by move=>n; case: validUn X=>// _ _ L _ /(contraL (L _)) /negbTE.
+by rewrite umfilt_pred0 ?unitR //; rewrite E in V1; rewrite (validE2 V1).
 Qed.
 
 End Precision.
@@ -5120,7 +5117,7 @@ Lemma oevU a k ks v1 v2 f z0 :
 Proof.
 move=>X H.
 have [C' W] : C k /\ valid f by move/In_dom/dom_cond: (X); case: (X).
-rewrite [in RHS](_ : f = upd k v2 f); first by apply: oevUE.
+rewrite [in RHS](_ : f = upd k v2 f); last by apply: oevUE.
 apply: umem_eq=>//; first by rewrite validU C' W.
 case=>k' v'; rewrite InU validU C' W /=.
 case: ifP=>[/eqP ->|_]; last by split=>//; case.
@@ -5296,7 +5293,7 @@ rewrite /eval umfiltPtUn W.
 case: (p (k, v))=>W'; last first.
 - rewrite oevPtUn //; apply/negP=>/omf_subdom.
   by rewrite (negbTE (validPtUnD W)).
-rewrite domPtUnK //=; last by apply/allP=>x /omf_subdom /H.
+rewrite domPtUnK //=; first by apply/allP=>x /omf_subdom /H.
 by rewrite findPtUn // oevPtUn // (validPtUnD W').
 Qed.
 
@@ -5310,7 +5307,7 @@ rewrite /eval umfiltUnPt W.
 case: (p (k, v))=>W'; last first.
 - rewrite joinC oevPtUn //; first by rewrite joinC.
   by apply/negP=>/omf_subdom; rewrite (negbTE (validUnPtD W)).
-rewrite domUnPtK //=; last by apply/allP=>x /omf_subdom /H.
+rewrite domUnPtK //=; first by apply/allP=>x /omf_subdom /H.
 rewrite (oev_rconsP _ (v:=v)) // joinC oevPtUn //; first by rewrite joinC.
 by apply/negP=>/omf_subdom; rewrite (negbTE (validUnPtD W)).
 Qed.
@@ -5322,11 +5319,11 @@ Proof.
 elim/um_indb: f2=>[||k v f2 IH W' P W H].
 - by rewrite join_undef valid_undef.
 - by rewrite dom0 !unitR eval0.
-rewrite -(joinC f2) joinA in W *; rewrite evalUnPt //; last first.
+rewrite -(joinC f2) joinA in W *; rewrite evalUnPt //.
 - apply/allP=>x; rewrite domUn inE (validL W).
   case/orP=>[/H|]; last by apply: P.
   by apply; rewrite domPtUn inE joinC W' eq_refl.
-rewrite evalUnPt //; last by apply/allP.
+rewrite evalUnPt //; first by apply/allP.
 rewrite (IH (validL W)) // => k1 k2 D1 D2; apply: H D1 _.
 by rewrite domPtUn inE joinC W' D2 orbT.
 Qed.
@@ -5509,10 +5506,10 @@ have D2 : dom phi2 = dom f1.
   by case: eqP=>// ->{x}; rewrite (negbTE (validPtUnD W)).
 have R2' : range phi2 = dom (free f2 k2).
   move/In_eta: (I1) (R)=>E1; rewrite E1 rangePtUnK.
-  - by rewrite {1}E2 domPtUnK //; [case | rewrite -E2].
   - by rewrite -E1.
-  apply/allP=>x; rewrite domF D1 inE.
-  by case: eqP=>//= _; apply/allP/A1.
+  - apply/allP=>x; rewrite domF D1 inE.
+    by case: eqP=>//= _; apply/allP/A1.
+  - by rewrite {1}E2 domPtUnK //; [rewrite -E2|case].
 have {}H x1 w1 x2 w2 t1 t2 : (x1, x2) \In phi2 -> (x1, w1) \In f1 ->
   (x2, w2) \In free f2 k2 -> P t1 t2 ->
   P (if p1 (x1, w1) then a1 t1 x1 w1 else t1)
@@ -5546,7 +5543,7 @@ have Ck : C k by apply: (validPtUn_cond W).
 case: ifP=>_; last by apply: oevPtUn_sub=>//; apply: omf_subdom.
 rewrite oevUn // -(oev_sub_filter (p:=mem [:: k])) ?(domPtK,Ck) //.
 rewrite -dom_umfiltkE umfiltPtUn /= valid_omfUnR // inE eq_refl.
-rewrite umfilt_mem0L ?(inE,pfV,validR W) //=; first last.
+rewrite umfilt_mem0L ?(inE,pfV,validR W) //=.
 - by move=>?? /In_umfiltX [] _ /In_dom Df; rewrite inE; case: eqP Df D=>// ->->.
 rewrite unitR domPtK Ck /= findPt Ck -frame unitL.
 rewrite -(oev_sub_filter (p:=mem (dom f))) //.
@@ -6232,7 +6229,7 @@ Lemma dom_invert f : valid (invert f) -> dom (invert f) =i range f.
 Proof.
 rewrite /invert/um_foldl/range; case: ifP=>_; last by rewrite valid_undef.
 elim: (assocs f)=>[|x g IH] /= W k; first by rewrite dom0.
-rewrite foldl_init in W *; last by move=>*; rewrite joinAC.
+rewrite foldl_init in W *; first by move=>*; rewrite joinAC.
 by rewrite domUnPt !inE W /= eq_sym IH // (validL W).
 Qed.
 
@@ -6276,8 +6273,8 @@ Proof.
 elim/um_indf: f k v=>[||x w f IH W /(order_path_min (@trans K)) P] k v.
 - by rewrite invert_undef valid_undef.
 - by rewrite invert0; split=>/In0.
-move=>W'; rewrite invertPtUn // !InPtUnE //; last by rewrite -invertPtUn.
-rewrite IH; first by split; case=>[[->->]|]; auto.
+move=>W'; rewrite invertPtUn // !InPtUnE //; first by rewrite -invertPtUn.
+rewrite IH; last by split; case=>[[->->]|]; auto.
 rewrite !valid_invert rangePtUnK // (validR W) in W' *.
 by case/and3P: W'=>_ /= /andP [_ ->] /andP [_ ->].
 Qed.
@@ -6285,7 +6282,7 @@ Qed.
 Lemma uniq_range_invert f : uniq (range (invert f)).
 Proof.
 case: (normalP (invert f))=>[->|W]; first by rewrite range_undef.
-rewrite /range map_inj_in_uniq.
+rewrite /range map_inj_in_uniq; last first.
 - by apply: (@map_uniq _ _ fst); rewrite -assocs_dom; apply: uniq_dom.
 case=>x1 x2 [y1 y] /= H1 H2 E; rewrite {x2}E in H1 *.
 move/mem_seqP/In_assocs/(In_invert _ _ W): H1=>H1.
@@ -6380,8 +6377,8 @@ Proof.
 rewrite /um_comp; elim/um_indf: f=>[||k v f IH W P] x.
 - by rewrite umfoldl_undef dom_undef.
 - by rewrite umfoldl0 dom0.
-rewrite umfoldlUn_frame //;
-last by move=>*; case: (find _ _)=>// a; rewrite joinA.
+rewrite umfoldlUn_frame //.
+- by move=>*; case: (find _ _)=>// a; rewrite joinA.
 rewrite unitR umfoldlPt (validPtUn_cond W).
 case E : (find v g)=>[b|]; last first.
 - by rewrite unitL=>/IH; rewrite domPtUn inE W =>->; rewrite orbT.
@@ -6395,8 +6392,8 @@ Proof.
 rewrite /um_comp; elim/um_indf: f=>[||k v f IH W P].
 - by rewrite umfoldl_undef !valid_undef.
 - by rewrite umfoldl0 !valid_unit.
-rewrite umfoldlUn_frame //;
-  last by move=>*; case: (find _ _)=>// a; rewrite joinA.
+rewrite umfoldlUn_frame //.
+- by move=>*; case: (find _ _)=>// a; rewrite joinA.
 rewrite unitR W umfoldlPt (validPtUn_cond W).
 case: (find v g)=>[a|]; last by rewrite unitL IH (validR W).
 rewrite unitR validPtUn (validPtUn_cond W) IH (validR W).
@@ -6487,8 +6484,8 @@ split=>[H|[W][k'][]].
   elim/um_indf: f H=>[||x w f IH P W].
   - by rewrite umcomp_fundef=>/In_undef.
   - by rewrite umcompf0=>/In0.
-  rewrite /um_comp umfoldlUn_frame //;
-  last by move=>*; case: (find _ _)=>// a; rewrite joinA.
+  rewrite /um_comp umfoldlUn_frame //.
+  - by move=>*; case: (find _ _)=>// a; rewrite joinA.
   rewrite unitR !umfoldlPt; case: ifP=>C; last first.
   - by rewrite undef_join=>/In_undef.
   case/InUn; last by case/IH=>k' [H1 H2]; exists k'; split=>//; apply/InR.
@@ -6905,10 +6902,10 @@ Lemma big_validV2I (xs : seq I) :
 Proof.
 elim: xs=>[|x xs IH] /=; first by rewrite big_nil valid_unit.
 case=>X Uq H1 H2; rewrite big_cons validUnAE.
-rewrite H1 /=; last by rewrite InE; left.
-rewrite IH //=; last first.
-- by move=>i j Xi Xj; apply: H2; rewrite InE; right.
+rewrite H1 /=; first by rewrite InE; left.
+rewrite IH //=.
 - by move=>i Xi; apply: H1; rewrite InE; right.
+- by move=>i j Xi Xj; apply: H2; rewrite InE; right.
 apply/allP=>a /=; apply: contraL=>Dx; apply/negP.
 rewrite big_domUn inE=>/andP [V] /hasPIn [y Y Dy].
 have : x <> y by move=>N; rewrite N in X; move/X: Y.
@@ -6935,7 +6932,7 @@ Proof.
 elim: xs=>[|x xs IH /[swap]] //; rewrite big_cons InE.
 case=>[<-{x}|Xi] V E; first by rewrite findUnL // (find_some E).
 rewrite findUnR // big_domUnE ?(validR V) //=.
-rewrite ifT; first by apply: IH (validR V) Xi E.
+rewrite ifT; last by apply: IH (validR V) Xi E.
 by apply/hasPIn; exists i=>//; apply: find_some E.
 Qed.
 
@@ -6948,7 +6945,7 @@ Proof.
 elim: xs v=>[|y xs IH] v //=; rewrite big_cons InE.
 case=>[->|Xi] Da /[dup]/In_find/In_valid V; first by rewrite findUnL // Da.
 rewrite findUnR // big_domUnE ?(validR V) //=.
-by rewrite ifT; [apply: IH | apply/hasPIn; exists i].
+by rewrite ifT; [apply/hasPIn; exists i|apply: IH].
 Qed.
 
 Lemma big_find_someX (xs : seq I) a v :

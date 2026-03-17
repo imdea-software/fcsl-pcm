@@ -16,8 +16,6 @@ From Stdlib Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import choice ssrnat eqtype ssrint ssrnum order.
 From pcm Require Import options axioms prelude pcm mutex morphism.
 
-Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-
 (*************************)
 (*************************)
 (* PCMs with subtraction *)
@@ -445,7 +443,7 @@ Lemma sepyS (U : pcms) (sep : sseprel U) (x y : U) :
         sep (x \- y) Unit ->
         sep y (x \- y).
 Proof. 
-move=>V Sx Sy S; rewrite sepC; first by apply: sepSy.
+move=>V Sx Sy S; rewrite sepC; last by apply: sepSy.
 by rewrite joinxS // (validSL V).
 Qed.
 
@@ -469,9 +467,9 @@ move: (validSR V). rewrite valid_pvalE. move=>Vy.
 case/(valid_sep (xsub R)): Vx=>Vx Sx.
 case/(valid_sep (xsub R)): Vy=>Vy Sy.
 rewrite -{1}(psub_pval (xsub R) y) -pfjoin /=.
-- by rewrite joinxS // psub_pval.
 - by rewrite joinxS.
-by rewrite /sepx /= sepyS. 
+- by rewrite /sepx /= sepyS. 
+by rewrite joinxS // psub_pval.
 Qed.
 
 HB.instance Definition _ := isPCMS.Build (xsep R) sub_is_tpcms.

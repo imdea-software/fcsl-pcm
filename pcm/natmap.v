@@ -27,8 +27,6 @@ Import Order.NatOrder. (* listed last to avoid notation clash *)
 Local Open Scope order_scope.
 Local Open Scope nat_scope.
 
-Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-
 (************************)
 (* Maps over non-0 nats *)
 (************************)
@@ -1332,7 +1330,7 @@ Lemma oexleNE V (U : natmap V) R a t (h : U) ks (z0 : R) :
         oexec_le a ks t h z0 = oexec_lt a ks t h z0.
 Proof.
 rewrite /oexec_le/oexec_lt; case K: (t \in ks)=>/= H; last first.
-- rewrite (eqsl_uoxx (t1:=t) (t2:=t)); last by exact: sle_refl.
+- rewrite (eqsl_uoxx (t1:=t) (t2:=t)); first exact: sle_refl.
   by rewrite eqsl_kk1 /= K cats0.
 rewrite [LHS]oevFK [RHS]oevFK; congr oeval.
 by rewrite eqsl_uxR K filter_rcons (negbTE H).
@@ -1617,7 +1615,7 @@ have Nk : k \notin ks1.
   by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
 case/mem_oo: (K)=>// [_ T1K T2K].
 suff {IH Uq K}-> : ks1 = &=ks `]t1, k[ by rewrite -eqsl_uxoo //; apply: IH.
-move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=.
 - rewrite !lteBSide /= leEnat -seqlt_unlockE -seqle_unlock.
   by rewrite T1K (sltW T2K).
 rewrite eqsl_xoL T2K /= => Eh; rewrite (cat_cancel _ _ Eh) //.
@@ -1642,7 +1640,7 @@ have Nk : k \notin ks1.
   by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
 case/mem_xo: (K)=>// [_ T1K T2K].
 suff {IH Uq K}-> : ks1 = &=ks `[t1, k[ by rewrite -eqsl_uoxo //; apply: IH.
-move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=.
 - by rewrite !lteBSide /= !leEnat -!seqle_unlock T1K (sltW T2K).
 rewrite (eqsl_xoL k) T2K /= => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
@@ -1661,7 +1659,7 @@ have Nk : k \notin ks1.
   by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
 case/mem_xx: (K)=>// [Ks T1K T2K].
 suff {IH Uq K}-> : ks1 = &=ks `[t1, k[ by rewrite -eqsl_uoxo //; apply: IH.
-move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=.
 - by rewrite /Order.le/=/Order.le/= -!seqle_unlock T1K T2K.
 rewrite eqsl_xxL T2K Ks /= => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
@@ -1680,7 +1678,7 @@ have Nk : k \notin ks1.
   by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
 case/mem_ox: (K)=>// [Ks T1K T2K].
 suff {IH Uq K}-> : ks1 = &=ks `]t1, k[ by rewrite -eqsl_uxoo //; apply: IH.
-move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first. 
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=.
 - rewrite /Order.le/=/Order.le/=/Order.lt /=.
   by rewrite -seqlt_unlock -seqle_unlock T1K T2K.
 rewrite eqsl_xxL T2K Ks /= => Eh; rewrite (cat_cancel _ _ Eh) //.
@@ -1707,7 +1705,7 @@ have Nk : k \notin ks1.
   by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
 case/mem_ou: (K)=>// [Ks TK].
 suff {IH Uq K}-> : ks1 = &=ks `]t, k[ by rewrite -eqsl_uxoo //; apply: IH.
-move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first. 
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=.
 - by rewrite /Order.le/=/Order.lt/= -seqlt_unlock TK.
 rewrite eqsl_xuL Ks /= => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
@@ -1726,7 +1724,7 @@ have Nk : k \notin ks1.
   by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
 case/mem_xu: (K)=>// [Ks TK].
 suff {IH Uq K}-> : ks1 = &=ks `[t, k[ by rewrite -eqsl_uoxo //; apply: IH.
-move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first. 
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=.
 - by rewrite /Order.le/=/Order.le/= -seqle_unlock TK.
 rewrite eqsl_xuL Ks => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
@@ -1744,7 +1742,7 @@ have Nk : k \notin ks1.
   by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
 case/mem_ux: (K)=>// [Ks TK].
 suff {IH Uq K}-> : ks1 = &=ks `]-oo, k[ by apply: IH.
-move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) //=; last first.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) //=.
 - by rewrite /Order.le/=/Order.le/= -seqle_unlock.
 rewrite eqsl_xxL TK Ks /= => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
@@ -1762,7 +1760,7 @@ have Nk : k \notin ks1.
   by rewrite Eh cat_uniq /= negb_or -andbA; case/and5P.
 case/mem_uo: (K)=>// [Ks TK].
 suff {IH Uq K}-> : ks1 = &=ks `]-oo, k[ by apply: IH.
-move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=; last first.
+move: Eh; rewrite (eqslice_split (b:=true) (x:=k)) /=.
 - by rewrite lteBSide /= leEnat -seqle_unlock (sltW TK).
 rewrite eqsl_xoL TK => Eh; rewrite (cat_cancel _ _ Eh) //.
 by apply: eqsliceRO_notin.
@@ -2289,7 +2287,7 @@ Lemma cn_fresh v h x :
 Proof.
 rewrite -(freshPtUnV x (leqnn _))=>V; split; last first.
 - case=>C H k y; rewrite !findPtUn2 // eqSS; case: ltngtP=>N.
-  - by rewrite ltn_eqF; [apply: C | apply: (ltn_trans N _)].
+  - by rewrite ltn_eqF; [apply: (ltn_trans N _)|apply: C].
   - by move/find_some/dom_fresh/(ltn_trans N); rewrite ltnn.
   by case=><-; rewrite N ltn_eqF.
 move=>C; split; last first.
@@ -2437,7 +2435,7 @@ Lemma umfilt_le_split A (U : natmap A) (h : U) t1 t2 :
         um_filter (le t2) h =
         um_filter (le t1) h \+ um_filter (fun '(k, _) => t1 < k <= t2) h.
 Proof.
-move=>T; rewrite -umfilt_dpredU; last first.
+move=>T; rewrite -umfilt_dpredU.
 - by case=>x y /= N; rewrite negb_and -leqNgt N.
 apply/eq_in_umfilt; case=>k v _ => /=.
 by case: (leqP k t1)=>//= /leq_trans; apply.
@@ -2449,7 +2447,7 @@ Lemma umfilt_lt_split A (U : natmap A) (h : U) t1 t2 k :
         um_filter (fun '(x, _)=>t1 < x <= k) h \+
         um_filter (fun '(x, _)=>k < x <= t2) h.
 Proof.
-move=>/andP [T1 T2]; rewrite -umfilt_dpredU; last first.
+move=>/andP [T1 T2]; rewrite -umfilt_dpredU.
 - by case=>x y /andP [N1 N2]; rewrite /= negb_and -leqNgt N2.
 apply/eq_in_umfilt; case=>k1 v1 _ /=.
 case: (leqP k1 k)=>//=; last by move/(leq_ltn_trans T1)=>->.
@@ -2536,10 +2534,10 @@ Lemma eval_le_split A (U : natmap A) R a (h : U) t1 t2 (z0 : R) :
         eval a (fun '(k, _)=>t1 < k <= t2) h (eval a (le t1) h z0).
 Proof.
 move=>T; case: (normalP h)=>[->|V]; first by rewrite !eval_undef.
-rewrite eval_umfilt (umfilt_predD h (pts_sub T)) evalUn; last first.
+rewrite eval_umfilt (umfilt_predD h (pts_sub T)) evalUn.
+- by rewrite -(umfilt_predD h (pts_sub T)) pfV.
 - move=>x y /In_dom_umfilt [vx X _] /In_dom_umfilt [wy /= /andP][].
   by rewrite /= -ltnNge; move/(leq_ltn_trans X).
-- by rewrite -(umfilt_predD h (pts_sub T)) pfV.
 by rewrite -!eval_umfilt; apply: eq_in_eval; case=>k v _; apply: ptsD.
 Qed.
 
@@ -2549,10 +2547,10 @@ Lemma eval_lt_split A (U : natmap A) R a (h : U) t1 t2 (z0 : R) :
         eval a (fun '(k, _)=>t1 < k < t2) h (eval a (le t1) h z0).
 Proof.
 move=>T; case: (normalP h)=>[->|V]; first by rewrite !eval_undef.
-rewrite eval_umfilt (umfilt_predD h (pts_sub_lt T)) evalUn; last first.
+rewrite eval_umfilt (umfilt_predD h (pts_sub_lt T)) evalUn.
+- by rewrite -(umfilt_predD h (pts_sub_lt T)) pfV.
 - move=>x y /In_dom_umfilt [vx X _] /In_dom_umfilt [wy /= /andP][].
   by rewrite /= -ltnNge; move/(leq_ltn_trans X).
-- by rewrite -(umfilt_predD h (pts_sub_lt T)) pfV.
 by rewrite -!eval_umfilt; apply: eq_in_eval; case=>k v _; apply: ptsD_lt.
 Qed.
 
@@ -2562,10 +2560,10 @@ Lemma eval_le_lt_split A (U : natmap A) R a (h : U) t (z0 : R) :
 Proof.
 case: (normalP h)=>[->|V]; first by rewrite !eval_undef.
 have D : subpred (T:=nat*A) (lt t) (le t) by case=>k v /ltnW.
-rewrite eval_umfilt (umfilt_predD h D) evalUn; last first.
+rewrite eval_umfilt (umfilt_predD h D) evalUn.
+- by rewrite -(umfilt_predD h D) pfV.
 - move=>x y /In_dom_umfilt [vx X _] /In_dom_umfilt [wy /= /andP][].
   by rewrite /= -ltnNge; move/(leq_ltn_trans X).
-- by rewrite -(umfilt_predD h D) pfV.
 rewrite -!eval_umfilt; apply: eq_in_eval; case=>k v _ /=.
 by case: ltngtP.
 Qed.
@@ -2598,9 +2596,9 @@ case: (normalP h)=>[->|V].
 - by rewrite join_undef !eval_undef; case: ifP.
 case: ifP=>H.
 - by rewrite eval_umfilt umfiltPtUn freshPtUnV // V ltnNge H -eval_umfilt.
-rewrite joinC evalUnPt; last first.
-- by apply/allP=>x; apply: dom_lastkey.
+rewrite joinC evalUnPt.
 - by rewrite joinC freshPtUnV.
+- by apply/allP=>x; apply: dom_lastkey.
 rewrite ltnNge H; congr a; apply: eq_in_eval.
 case=>k w /In_dom/dom_lastkey /=.
 by case: ltngtP H=>// /ltnW H _ /leq_trans; apply.
@@ -2615,9 +2613,9 @@ case: (normalP h)=>[->|V].
 - by rewrite join_undef !eval_undef; case: ifP.
 case: ifPn=>H.
 - by rewrite eval_umfilt umfiltPtUn valid_fresh // V ltnNge H -eval_umfilt.
-rewrite joinC evalUnPt; last first.
-- by apply/allP=>x; apply: dom_lastkey.
+rewrite joinC evalUnPt.
 - by rewrite joinC valid_fresh.
+- by apply/allP=>x; apply: dom_lastkey.
 rewrite ltnNge H; congr a; apply: eq_in_eval.
 case=>k w /In_dom/dom_lastkey /=; rewrite /fresh -ltnNge in H.
 by case: ltngtP H=>// /ltnW H _ /leq_ltn_trans; apply.
@@ -2720,7 +2718,7 @@ case: (normalP h)=>[->|V].
 case: ifP=>H.
 - by rewrite -!umcnt_umfilt umfiltPtUn valid_fresh // V ltnNge H.
 rewrite umcntPtUn ?valid_fresh //= ltnNge H /=.
-by rewrite umcnt_le_last; [case: ifP | case: ltngtP H].
+by rewrite umcnt_le_last; [case: ltngtP H|case: ifP].
 Qed.
 
 Lemma umcnt_le_fresh A (U : natmap A) p (h : U) t v :
@@ -2807,7 +2805,7 @@ Lemma helper2 p h1 h2 z0 k v :
         f (evalv a p (h1 \+ (pts k v \+ h2)) z0) = f z0 ->
         f (a (evalv a p h1 z0) v) = f (evalv a p h1 z0).
 Proof.
-move=>G W D1 D2 P E1; rewrite evalUn ?W // in E1; last first.
+move=>G W D1 D2 P E1; rewrite evalUn ?W // in E1.
 - move=>x y /D1 X1; rewrite domPtUn inE (validR W).
   by case/orP=>[/eqP <-|/(allP D2)] //; apply: ltn_trans.
 suff E2 : f (evalv a p h1 z0) = f z0.
@@ -2826,7 +2824,7 @@ Proof.
 move=>G N; case W: (valid h); last first.
 - by move/negbT/invalidE: W=>->; rewrite !eval_undef.
 rewrite eval_umfilt [in X in oleq _ X]eval_umfilt (umfilt_le_split h N).
-rewrite evalUn; first by apply: helper0=>x y z /In_umfiltX [_ /G].
+rewrite evalUn; last by apply: helper0=>x y z /In_umfiltX [_ /G].
 - by rewrite -(umfilt_le_split h N) pfV.
 by move=>??/In_dom_umfilt[? /leq_ltn_trans Y _]/In_dom_umfilt[? /andP[/Y]].
 Qed.
@@ -2850,7 +2848,7 @@ have Eh: um_filter (le t2) h = h0 \+ (h1 \+ (pts k v \+ h2)).
 - rewrite (umfilt_le_split h N2) (umfilt_le_split h K1).
   by rewrite (umfilt_le_split h K2) (umfilt_pt_split H) -!joinA.
 have W1 : valid (h0 \+ (h1 \+ (pts k v \+ h2))) by rewrite -Eh pfV.
-rewrite eval_umfilt (umfilt_le_split h K2) evalUn ?(validAL W1) //; last first.
+rewrite eval_umfilt (umfilt_le_split h K2) evalUn ?(validAL W1) //.
 - by move=>??/In_dom_umfilt[?/leq_ltn_trans Y] _ /In_dom_umfilt[?] /andP [/Y].
 rewrite -(eval_umfilt (le t1)); apply: helper2 (validR W1) _ _ _ _ =>//.
 - by apply: growR W1 _; rewrite -Eh=>k1 v1 z1 /In_umfiltX [] _ /G.

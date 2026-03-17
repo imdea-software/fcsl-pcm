@@ -20,8 +20,6 @@ From pcm Require Import options prelude ordtype seqext slice useqord.
 Local Open Scope order_scope.
 Import Order.Theory.
 
-Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-
 (* slicing by element index *)
 
 Definition ix_bnd {A : eqType} (s : seq A) (i : itv_bound A) : itv_bound nat :=
@@ -191,7 +189,7 @@ Lemma eqsl_uxR t s :
                           then rcons (&=s `]-oo, t[) t
                           else &=s `]-oo, t[.
 Proof.
-rewrite /eq_slice /= (@slice_split _ _ _ true (index t s)) /=; last first.
+rewrite /eq_slice /= (@slice_split _ _ _ true (index t s)) /=.
 - by rewrite in_itv /=.
 rewrite slice_kk /= onth_index; case: ifP=>/= H.
 - by rewrite cats1.
@@ -203,7 +201,7 @@ Lemma eqsl_xuL t s :
                           then t :: &=s `]t, +oo[
                           else &=s `]t, +oo[.
 Proof.
-rewrite /eq_slice /= (@slice_split _ _ _ false (index t s)) //=; last first.
+rewrite /eq_slice /= (@slice_split _ _ _ false (index t s)) //=.
 - by rewrite in_itv /= andbT.
 by rewrite slice_kk /= onth_index; case: ifP.
 Qed.
@@ -215,7 +213,7 @@ Lemma eqsl_xxL t1 t2 s :
 Proof.
 rewrite /eq_slice seqle_unlock /=.
 case: leqP=>I /=; last by rewrite itv_swapped_bnd.
-rewrite (@slice_split _ _ _ false (index t1 s)) /=; last first.
+rewrite (@slice_split _ _ _ false (index t1 s)) /=.
 - by rewrite in_itv /= lexx.
 rewrite slice_kk /= onth_index; case: ifP=>//= /negbT N1.
 by rewrite (memNindex N1) itv_overL //= addn1.
@@ -230,7 +228,7 @@ Lemma eqsl_xxR t1 t2 s :
 Proof.
 rewrite /eq_slice seqle_unlock /=.
 case: leqP=>I /=; last by rewrite itv_swapped_bnd //.
-rewrite (@slice_split _ _ _ true (index t2 s)) /=; last first.
+rewrite (@slice_split _ _ _ true (index t2 s)) /=.
 - by rewrite in_itv /= lexx andbT.
 rewrite slice_kk /= onth_index /=; case: ifP=>/=; first by rewrite cats1.
 rewrite cats0 => /negbT/memNindex->.
@@ -244,7 +242,7 @@ Lemma eqsl_xoL t1 t2 s :
 Proof.
 rewrite /eq_slice seqlt_unlock /=.
 case: ltnP=>I; last by rewrite itv_swapped_bnd.
-rewrite (@slice_split _ _ _ false (index t1 s)) /=; last first.
+rewrite (@slice_split _ _ _ false (index t1 s)) /=.
 - by rewrite in_itv /= lexx.
 rewrite slice_kk /= onth_index; case: ifP=>//= /negbT/memNindex E.
 by move: I; rewrite E ltnNge index_size.
@@ -259,7 +257,7 @@ Lemma eqsl_oxR t1 t2 s :
 Proof.
 rewrite /eq_slice seqlt_unlock /=.
 case: ltnP=>I; last by rewrite itv_swapped_bnd.
-rewrite (@slice_split _ _ _ true (index t2 s)) /=; last first.
+rewrite (@slice_split _ _ _ true (index t2 s)) /=.
 - by rewrite in_itv /= lexx andbT.
 rewrite slice_kk /= onth_index /=; case: ifP=>/=; first by rewrite cats1.
 rewrite cats0 =>/negbT/memNindex->.
@@ -272,7 +270,7 @@ Lemma eqsl_uL_notinE s b t :
         t \notin s ->
         &=s `(Interval -oo (BSide b t)) = s.
 Proof.
-move=>N; rewrite /eq_slice /= itv_overR /=; first by exact: slice_uu.
+move=>N; rewrite /eq_slice /= itv_overR /=; last by exact: slice_uu.
 by rewrite (memNindex N); exact: leq_addr.
 Qed.
 
@@ -299,7 +297,7 @@ Lemma eqsl_uL_catE s1 s2 b t :
 Proof.
 rewrite /eq_slice slice_cat /= index_cat; case: ifP=>H1.
 - by rewrite index_mem H1 itv_minfR cats0.
-rewrite ltnNge leq_addr /= addnC addnK itv_overR /=; first by rewrite slice_uu.
+rewrite ltnNge leq_addr /= addnC addnK itv_overR /=; last by rewrite slice_uu.
 by rewrite -addnA addnCA; exact: leq_addr.
 Qed.
 
@@ -327,10 +325,13 @@ Proof.
 rewrite /eq_slice slice_cat /= !index_cat.
 case/boolP: (t1 \in s1)=>H1; case/boolP: (t2 \in s1)=>H2.
 - by rewrite !index_mem H1 H2 itv_minfR cats0.
-- rewrite index_mem H1 ltnNge leq_addr /= itv_overR /=; last by rewrite -addnA; exact: leq_addr.
+- rewrite index_mem H1 ltnNge leq_addr /= itv_overR /=. 
+  - by rewrite -addnA; exact: leq_addr.
   by congr (_ ++ _); rewrite addnC addnK.
-- by rewrite ltnNge leq_addr /= index_mem H2 itv_minfR cats0 itv_overL //= -addnA; exact: leq_addr.
-rewrite !ltnNge !leq_addr /= itv_overL /=; last by rewrite -addnA; exact: leq_addr.
+- rewrite ltnNge leq_addr index_mem H2 itv_minfR cats0 itv_overL //= -addnA. 
+  exact: leq_addr.
+rewrite !ltnNge !leq_addr /= itv_overL /=. 
+- by rewrite -addnA; exact: leq_addr.
 by do 2!rewrite addnC addnK.
 Qed.
 
@@ -537,7 +538,7 @@ Lemma eqsl_filterL (p : pred A) b (y : A) s :
         &= (filter p s) (Interval -oo (BSide b y)) = filter p (&= s (Interval -oo (BSide b y))).
 Proof.
 case/orP=>Hy.
-- rewrite !eqsl_notinR //=; first by rewrite !eqsl_uu.
+- rewrite !eqsl_notinR //=; last by rewrite !eqsl_uu.
   by apply: contra Hy; rewrite mem_filter; case/andP.
 elim: s=>//= h s IH.
 case/boolP: (p h)=>/= Hp; last first.
@@ -572,8 +573,8 @@ case/orP=>[N1|/andP [H1]].
 - by rewrite !eqsl_notinL //= mem_filter negb_and N1 orbT.
 case/orP=>H2.
 - rewrite !eqsl_notinR //=.
-  - by rewrite eqsl_filterR // H1 orbT.
-  by rewrite mem_filter negb_and H2 orbT.
+  - by rewrite mem_filter negb_and H2 orbT.
+  by rewrite eqsl_filterR // H1 orbT.
 elim: s=>//= h s IH.
 case/boolP: (p h)=>/= Hp; last first.
 - rewrite {}IH eqsl_consE; case: eqVneq=>[E1|_].
@@ -582,7 +583,7 @@ case/boolP: (p h)=>/= Hp; last first.
   by rewrite -E2 H2 in Hp.
 rewrite !eqsl_consE; case: eqVneq=>/=_; case: eqVneq=>//=_.
 - by case: ifP=>//= _; rewrite Hp.
-rewrite eqsl_filterL; last by rewrite H2 orbT.
+rewrite eqsl_filterL; first by rewrite H2 orbT.
 by case: ifP=>//= _; rewrite Hp.
 Qed.
 

@@ -17,8 +17,6 @@ From pcm Require Import options prelude ordtype seqext slice useqord uslice.
 Local Open Scope order_scope.
 Import Order.Theory.
 
-Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-
 (* We assume the sequences are unique and most lemmas do require this *)
 (* condition explicitly. Should it be added to `consec` itself?       *)
 
@@ -111,7 +109,7 @@ Lemma consec_prevN (ks : seq A) x y z :
         z != x -> consec ks x y -> z <[ks] y -> z <[ks] x.
 Proof.
 move=>U N C /(consec_prev U C).
-by rewrite sle_eqVlt; [rewrite (negbTE N) | rewrite (consec_mem C) orbT].
+by rewrite sle_eqVlt; [rewrite (consec_mem C) orbT|rewrite (negbTE N)].
 Qed.
 
 Lemma consec_next (ks : seq A) x y z :
@@ -165,7 +163,7 @@ case/andP=>Nx Ux; case: ifP=>X; rewrite ?andbF ?andbT.
 - move=>Nt; split=>//; case=>ks' /rcons_inj [??]; subst ks' x.
   by rewrite (slt_memE Nt) in Nx.
 move/contra: (H x)=>/(_ erefl).
-rewrite eqslice_mem_uniq /=; last by rewrite rcons_uniq Nx.
+rewrite eqslice_mem_uniq /=; first by rewrite rcons_uniq Nx.
 rewrite mem_rcons inE eqxx /= in_itv /= negb_and ltEnat /=.
 rewrite -!seqlt_unlock -!sleNgt !sle_rcons (negbTE Nx) X /=.
 rewrite eqxx /= orbF andbT (eq_sym x).
@@ -201,7 +199,7 @@ case=>xs E; rewrite E /consec rcons_uniq mem_rcons inE negb_or eq_sym in U T2 *.
 case/andP: U T2=>T1 U /andP [N T2].
 rewrite slt_rcons (negbTE T2) (negbTE T1) N eq_refl /= nilp_hasPn.
 rewrite -all_predC; apply/allP=>x /=; apply: contraTeq=>_.
-rewrite eqslice_mem_uniq; last by rewrite rcons_uniq T1.
+rewrite eqslice_mem_uniq; first by rewrite rcons_uniq T1.
 rewrite mem_rcons inE in_itv /= ltEnat /= !negb_and negb_or.
 rewrite -!seqlt_unlock -!sleNgt !sle_rcons (eq_sym x) eqxx.
 rewrite orbF T1 (negbTE T2) (negbTE N) /= andbC orbCA orbb.
@@ -683,7 +681,7 @@ apply/eqP/contraT; rewrite eq_sym=>M; exfalso.
 move: (last_change M)=>L.
 move: (E (last k1 ks)); rewrite mem_rcons inE L orbT=>/(_ erefl).
 rewrite slt_rcons sle_rcons (negbTE K2) L /=.
-move/esym; rewrite sle_eqVlt; last by rewrite L.
+move/esym; rewrite sle_eqVlt; first by rewrite L.
 rewrite (negbTE M) /=.
 by move/(sle_slt_trans (sle_last k1 U K1)); rewrite slt_irr.
 Qed.
@@ -745,9 +743,9 @@ Lemma consec_rcons (s : seq A) a x y :
 Proof.
 rewrite /= mem_rcons inE negb_or rcons_uniq -andbA.
 case/and4P=>U1 U2 U3 U4.
-rewrite -rcons_cons consec_rconsE; last first.
-- by rewrite inE negb_or eq_sym U1 U3.
+rewrite -rcons_cons consec_rconsE.
 - by rewrite /= U2 U4.
+- by rewrite inE negb_or eq_sym U1 U3.
 case: (x =P y)=>[->{x}|/eqP N] /=.
 - rewrite inE negb_or eq_sym U1 mem_rcons inE eqxx /=.
   split=>// E; move: (mem_last a s).
@@ -1061,9 +1059,9 @@ Lemma consec_nthI (A : eqType) (ks : seq A) a i :
 Proof.
 elim: ks a {3 4}a i=>[|k ks IH] a b i //=.
 rewrite inE negb_or -andbA; case/and4P=>U1 U2 U3 U4.
-rewrite ltnS=>S; rewrite consec_consE //=; last first.
-- by rewrite inE negb_or U1 U2.
+rewrite ltnS=>S; rewrite consec_consE //=.
 - by rewrite U3 U4.
+- by rewrite inE negb_or U1 U2.
 rewrite nth_cons; case: i S=>[|i] S /=.
 - rewrite (eq_sym k) (negbTE U1) /= nth0.
   case: ks {U1 IH} U2 U3 U4 S=>//= c ks U2 U3 U4 S. 
@@ -1099,9 +1097,9 @@ case: ks U H S=>[|k ks] //= U H S; apply: H.
 - by rewrite inE eqxx.
 rewrite inE negb_or -andbA in U.
 case/and4P: U=>U1 U2 U3 U4.
-rewrite consec_consE /=; last first.
-- by rewrite inE negb_or U1.
+rewrite consec_consE /=.
 - by rewrite U3 U4. 
+- by rewrite inE negb_or U1.
 by rewrite eqxx inE eqxx.
 Qed.
 

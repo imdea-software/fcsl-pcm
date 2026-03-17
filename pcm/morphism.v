@@ -17,8 +17,6 @@ From mathcomp Require Import ssrnat eqtype fintype finfun.
 From pcm Require Import options pred axioms prelude.
 From pcm Require Import pcm.
 
-Set SsrOldRewriteGoalsOrder.  (* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-
 (*****************)
 (*****************)
 (* PCM Morphisms *)
@@ -3024,8 +3022,8 @@ Proof.
 move=>W sf; rewrite seponC // => Sf.
 rewrite sepC //= in sf; rewrite joinC in W.
 rewrite -(pfunit f) -(@seponC y) ?pfunit ?unitR ?(validE2 W) //.
-- by apply: seponx0 W sf Sf.
-by apply: sepx0 W sf.
+- by apply: sepx0 W sf.
+by apply: seponx0 W sf Sf.
 Qed.
 
 Lemma sepon0E x y : 
@@ -3036,8 +3034,8 @@ Lemma sepon0E x y :
 Proof.
 move=>W sf Sf; rewrite (seponx0 W sf Sf).
 rewrite -(pfunit f) seponC ?pfunit ?unitR ?(validE2 W) //.
-- by rewrite (sepon0x W sf Sf).
-by rewrite (sep0E W sf).
+- by rewrite (sep0E W sf).
+by rewrite (sepon0x W sf Sf).
 Qed.
 
 Lemma seponAx23_helper x y z :
