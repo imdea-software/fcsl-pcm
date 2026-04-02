@@ -688,8 +688,11 @@ Lemma or0r r : Pred0 \+p r <~> r.
 Proof. by rewrite orrC orr0. Qed.
 
 Lemma orrCA r1 r2 r3 : 
-        r1 \+p r2 \+p r3 <~> r2 \+p r1 \+p r3.  simpl.
-Proof. by move=>x /=; intuition. Qed.
+  r1 \+p r2 \+p r3 <~> r2 \+p r1 \+p r3.
+Proof.
+  simpl.
+  by move=>x /=; intuition.
+Qed.
 
 Lemma orrAC r1 r2 r3 : 
         (r1 \+p r2) \+p r3 <~> (r1 \+p r3) \+p r2.
