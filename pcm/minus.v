@@ -488,8 +488,8 @@ HB.instance Definition _ := TPCMS.on oint2.
 
 Module RWsep.
 Import intZmod intOrdered ssralg.GRing ssralg.GRing.Theory Num.Theory Num.Def.
-Import order.Order.TTheory order.Order.DefaultProdOrder order.Order.ProdSyntax.
-Import order.Order.DefaultProdLexiOrder order.Order.LexiSyntax.  
+Import Order.TTheory Order.DefaultProdOrder Order.ProdSyntax.
+Import Order.DefaultProdLexiOrder Order.LexiSyntax.
 Local Open Scope order_scope.
 Local Open Scope ring_scope.
 
