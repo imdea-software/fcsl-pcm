@@ -46,7 +46,7 @@ limitations under the License.
 (*                      increasing order.                                     *)
 (* um_foldl a z0 d f == if f is valid, a result of a left fold over its       *)
 (*                      key-value pairs using function a and starting         *)
-(*                      value z0, d otherewriteise.                                *)
+(*                      value z0, d otherwise.                                *)
 (* um_foldr a z0 d f == if f is valid, a result of a right fold over its      *)
 (*                      key-value pairs using function a and starting         *)
 (*                      value z0, d otherise.                                 *)
@@ -2205,7 +2205,7 @@ move=>k v g H V1; move: (H3 k v _ H); rewrite !umEX.
 by apply.
 Qed.
 
-(* validity holds pairewriteise *)
+(* validity holds pairwise *)
 Lemma um_valid3 f1 f2 f3 :
         valid (f1 \+ f2 \+ f3) =
         [&& valid (f1 \+ f2), valid (f2 \+ f3) & valid (f1 \+ f3)].
@@ -3684,7 +3684,7 @@ HB.instance Definition _ :=
 HB.end.
 
 (* notation to hide the structure when projecting omf *)
-Section OmapFunAbbreviation.
+Section OmapFunNotation.
 Variables (K : ordType) (C : pred K) (V V' : Type).
 Variables (U : union_map K C V) (U' : union_map K C V').
 
@@ -3695,7 +3695,7 @@ Abbreviation omf f := (omfx (Phantom (_ -> _) f)).
 
 Lemma omfE (f : omap_fun U U') : f =1 omap (omf f).
 Proof. exact: omfE_op. Qed.
-End OmapFunAbbreviation.
+End OmapFunNotation.
 
 Abbreviation omf f := (omfx (Phantom (_ -> _) f)).
 
