@@ -40,8 +40,8 @@ license:
   file: LICENSE
 
 supported_coq_versions:
-  text: 9.1 or later
-  opam: '{ (>= "9.1" & < "9.3~") | (= "dev") }'
+  text: 9.2 or later
+  opam: '{ (>= "9.2" & < "9.3~") | (= "dev") }'
 
 tested_coq_opam_versions:
 - version: '2.6.0-rocq-prover-9.2'
