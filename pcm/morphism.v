@@ -13,12 +13,9 @@ limitations under the License.
 
 From HB Require Import structures.
 From Stdlib Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import ssrnat eqtype fintype finfun.
+From mathcomp Require Import ssrnat eqtype fintype finfun bigop.
 From pcm Require Import options pred axioms prelude.
 From pcm Require Import pcm.
-
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
 
 (*****************)
 (*****************)
@@ -367,7 +364,7 @@ HB.instance Definition _ := isSeprel.Build U (rel4I X Y Z W) rel4I_is_seprel.
 End Sep4I.
 
 (************************************)
-(* projections and pairwise product *)
+(* projections and pairewriteise product *)
 (************************************)
 
 Definition rel_fst U V (X : rel U) (x y : U * V) := X x.1 y.1.
@@ -624,13 +621,13 @@ Arguments pcm_morph_subproof {U V}.
 (* option 1 *)
 Definition sepx U V (f : pcm_morph U V) 
   of phantom (U -> V) f := sep_op f.
-Notation sep f := (sepx (Phantom (_ -> _) f)). 
+Abbreviation sep f := (sepx (Phantom (_ -> _) f)). 
 *)
 
 (* option 2 *)
 Definition sepx U V (f : pcm_morph U V) 
   & phantom (U -> V) f : rel U := sep_op f.
-Notation sep f := (sepx (Phantom (_ -> _) f)). 
+Abbreviation sep f := (sepx (Phantom (_ -> _) f)). 
 HB.instance Definition _ U V (f : pcm_morph U V) := 
   Seprel.on (sep f). 
 
@@ -638,7 +635,7 @@ HB.instance Definition _ U V (f : pcm_morph U V) :=
 (* but we won't use this *)
 Definition morphx (U V : pcm) (f : pcm_morph U V) 
   & phantom (U -> V) f := f.
-Notation morph f := (morphx (Phantom (_ -> _) f)).
+Abbreviation morph f := (morphx (Phantom (_ -> _) f)).
 
 
 Section Laws.
@@ -735,6 +732,7 @@ Arguments pfR {U V} f {x y}.
 Arguments pfunitL {U V}.
 Arguments pfunitR {U V}.
 
+
 (*********************)
 (* Morphism equality *)
 (*********************)
@@ -770,7 +768,7 @@ Qed.
 Definition preimx (U V : pcm) (f : pcm_morph U V) 
   & phantom (U -> V) f : rel V -> rel U := 
   fun R x y => sep f x y && R (f x) (f y).
-Notation preim f := (preimx (Phantom (_ -> _) f)). 
+Abbreviation preim f := (preimx (Phantom (_ -> _) f)). 
 Arguments preimx {U V f} _ _ _ _ /.
   
 Section Preim.
@@ -799,7 +797,7 @@ End Preim.
 Definition kerx (U V : pcm) (f : pcm_morph U V) 
   & phantom (U -> V) f : rel U := 
   fun x y => sep f x y && sepU (f x) (f y).
-Notation ker f := (kerx (Phantom (_ -> _) f)). 
+Abbreviation ker f := (kerx (Phantom (_ -> _) f)). 
 HB.instance Definition _ U V (f : pcm_morph U V) := 
   isSeprel.Build U (ker f) (preim_is_seprel f _). 
 
@@ -827,7 +825,7 @@ End Restriction.
 Definition eqlzx (U : pcm) (V : eqpcm) (f1 f2 : pcm_morph U V) 
   & phantom (U -> V) f1 & phantom (U -> V) f2 : rel U := 
   fun x y => [&& sep f1 x y, sep f2 x y, f1 x == f2 x & f1 y == f2 y].
-Notation eqlz f1 f2 := (eqlzx (Phantom (_ -> _) f1) (Phantom (_ -> _) f2)). 
+Abbreviation eqlz f1 f2 := (eqlzx (Phantom (_ -> _) f1) (Phantom (_ -> _) f2)). 
 
 Section Equalizer.
 Variables (U : pcm) (V : eqpcm) (f1 f2 : pcm_morph U V).
@@ -852,7 +850,7 @@ Definition join_relx (U V : pcm) (f1 f2 : pcm_morph U V)
   & phantom (U -> V) f1 & phantom (U -> V) f2 : rel U := 
   fun x y => [&& sep f1 x y, sep f2 x y & 
                  valid ((f1 x \+ f2 x) \+ (f1 y \+ f2 y))].
-Notation join_rel f1 f2 := 
+Abbreviation join_rel f1 f2 := 
   (join_relx (Phantom (_ -> _) f1) (Phantom (_ -> _) f2)).
 
 Definition join_fun (U V : pcm) (f1 f2 : U -> V) : U -> V := 
@@ -954,7 +952,7 @@ HB.instance Definition _ :=
     unit_fun unitfun_is_pcm_morph.
 End UnitFun.
 
-(* pairwise product of morphisms is a morphism *)
+(* pairewriteise product of morphisms is a morphism *)
 Section FProdMorph.
 Variables U1 U2 V1 V2 : pcm.
 Variables (f1 : pcm_morph U1 V1) (f2 : pcm_morph U2 V2).
@@ -989,7 +987,7 @@ End ProjMorph.
 
 Section Proj3Morph.
 Variables U1 U2 U3 : pcm.
-Notation tp := (Prod3 U1 U2 U3).
+Abbreviation tp := (Prod3 U1 U2 U3).
 
 Lemma proj31_morph_ax : pcm_morph_axiom relT (proj31 : tp -> _).
 Proof. by split=>[|x y] // /and3P []. Qed.
@@ -1005,7 +1003,7 @@ End Proj3Morph.
 
 Section Proj4Morph.
 Variables U1 U2 U3 U4 : pcm.
-Notation tp := (Prod4 U1 U2 U3 U4).
+Abbreviation tp := (Prod4 U1 U2 U3 U4).
 
 Lemma proj41_morph_ax : pcm_morph_axiom relT (proj41 : tp -> _).
 Proof. by split=>[|x y] // /and4P []. Qed.
@@ -1024,7 +1022,7 @@ End Proj4Morph.
 
 Section Proj5Morph.
 Variables U1 U2 U3 U4 U5 : pcm.
-Notation tp := (Prod5 U1 U2 U3 U4 U5).
+Abbreviation tp := (Prod5 U1 U2 U3 U4 U5).
 
 Lemma proj51_morph_ax : pcm_morph_axiom relT (proj51 : tp -> _).
 Proof. by split=>[|x y] // /and5P []. Qed.
@@ -1046,7 +1044,7 @@ End Proj5Morph.
 
 Section Proj6Morph.
 Variables U1 U2 U3 U4 U5 U6 : pcm.
-Notation tp := (Prod6 U1 U2 U3 U4 U5 U6).
+Abbreviation tp := (Prod6 U1 U2 U3 U4 U5 U6).
 
 Lemma proj61_morph_ax : pcm_morph_axiom relT (proj61 : tp -> _).
 Proof. by split=>[|x y] // /and6P []. Qed.
@@ -1071,7 +1069,7 @@ End Proj6Morph.
 
 Section Proj7Morph.
 Variables U1 U2 U3 U4 U5 U6 U7 : pcm.
-Notation tp := (Prod7 U1 U2 U3 U4 U5 U6 U7).
+Abbreviation tp := (Prod7 U1 U2 U3 U4 U5 U6 U7).
 
 Lemma proj71_morph_ax : pcm_morph_axiom relT (proj71 : tp -> _).
 Proof. by split=>[|x y] // /and7P []. Qed.
@@ -1481,10 +1479,10 @@ HB.structure Definition Full_Binorm_PCM_morphism (U V : pcm) :=
 
 (* fullness lemmas *)
 
-Lemma pfSE (U V : pcm) (f : full_pcm_morph U V) : sep f =2 relT.
+Lemma pfSE {U V : pcm} {f : full_pcm_morph U V} : sep f =2 relT.
 Proof. by apply: full_pcm_morphism_subproof. Qed.
 
-Lemma pfT (U V : pcm) (f : full_pcm_morph U V) x y : sep f x y.
+Lemma pfT {U V : pcm} {f : full_pcm_morph U V} {x y} : sep f x y.
 Proof. by rewrite pfSE. Qed.
 
 #[export] Hint Resolve pfT : core.
@@ -1576,6 +1574,17 @@ End FullCompIsFull.
 
 (* instances for combinations must declare PCM_morphism.on *)
 (* before declaring fullness structure. *)
+(* DEVCOMMENT: *)
+(* Alternative is to write the definition explicitly as below, *)
+(* but that's too low level. *)
+(*
+HB.instance Definition _ (f : full_norm_pcm_morph U V) 
+                         (g : full_norm_pcm_morph V W) :=
+  Full_Norm_PCM_morphism.copy (g \o f) 
+    (Full_Norm_PCM_morphism.pack_ 
+       (Norm_PCM_morphism.class (g \o f))
+       (Full_PCM_morphism.class (g \o f))). *)
+(* /DEVCOMMENT *)
 
 HB.instance Definition _  
     (f : full_norm_pcm_morph U V) 
@@ -1612,7 +1621,7 @@ End UnitFun.
 
 
 Section Cartesians.
-Notation pf := (fun _ _ => erefl _).
+Abbreviation pf := (fun _ _ => erefl _).
 
 Section FProdMorph.
 Variables U1 U2 V1 V2 : pcm.
@@ -1634,7 +1643,7 @@ End ProjMorph.
 
 Section Proj3Morph.
 Variables U1 U2 U3 : pcm.
-Notation tp := (Prod3 U1 U2 U3).
+Abbreviation tp := (Prod3 U1 U2 U3).
 HB.instance Definition _ := isFull_PCM_morphism.Build tp U1 proj31 pf.
 HB.instance Definition _ := isFull_PCM_morphism.Build tp U2 proj32 pf.
 HB.instance Definition _ := isFull_PCM_morphism.Build tp U3 proj33 pf.
@@ -1642,7 +1651,7 @@ End Proj3Morph.
 
 Section Proj4Morph.
 Variables U1 U2 U3 U4 : pcm.
-Notation tp := (Prod4 U1 U2 U3 U4).
+Abbreviation tp := (Prod4 U1 U2 U3 U4).
 HB.instance Definition _ := isFull_PCM_morphism.Build tp U1 proj41 pf.
 HB.instance Definition _ := isFull_PCM_morphism.Build tp U2 proj42 pf.
 HB.instance Definition _ := isFull_PCM_morphism.Build tp U3 proj43 pf.
@@ -1651,7 +1660,7 @@ End Proj4Morph.
 
 Section Proj5Morph.
 Variables U1 U2 U3 U4 U5 : pcm.
-Notation tp := (Prod5 U1 U2 U3 U4 U5).
+Abbreviation tp := (Prod5 U1 U2 U3 U4 U5).
 HB.instance Definition _ := isFull_PCM_morphism.Build tp U1 proj51 pf.
 HB.instance Definition _ := isFull_PCM_morphism.Build tp U2 proj52 pf.
 HB.instance Definition _ := isFull_PCM_morphism.Build tp U3 proj53 pf.
@@ -1661,7 +1670,7 @@ End Proj5Morph.
 
 Section Proj6Morph.
 Variables U1 U2 U3 U4 U5 U6 : pcm.
-Notation tp := (Prod6 U1 U2 U3 U4 U5 U6).
+Abbreviation tp := (Prod6 U1 U2 U3 U4 U5 U6).
 HB.instance Definition _ := isFull_PCM_morphism.Build tp U1 proj61 pf.
 HB.instance Definition _ := isFull_PCM_morphism.Build tp U2 proj62 pf.
 HB.instance Definition _ := isFull_PCM_morphism.Build tp U3 proj63 pf.
@@ -1672,7 +1681,7 @@ End Proj6Morph.
 
 Section Proj7Morph.
 Variables U1 U2 U3 U4 U5 U6 U7 : pcm.
-Notation tp := (Prod7 U1 U2 U3 U4 U5 U6 U7).
+Abbreviation tp := (Prod7 U1 U2 U3 U4 U5 U6 U7).
 HB.instance Definition _ := isFull_PCM_morphism.Build tp U1 proj71 pf.
 HB.instance Definition _ := isFull_PCM_morphism.Build tp U2 proj72 pf.
 HB.instance Definition _ := isFull_PCM_morphism.Build tp U3 proj73 pf.
@@ -1735,6 +1744,20 @@ HB.instance Definition _ :=
   isFull_PCM_morphism.Build U (V1 * V2)%type 
     (f1 \** f2) pmorphism_is_full.
 End Pmorph.
+
+(* bigops and full morphisms *)
+
+Section BigFullPCMmorph.
+Context {U1 U2 : pcm} (f : full_pcm_morph U2 U1).
+
+Lemma big_pfjoin I r (P : pred I) F :
+        valid (\big[join/Unit]_(i <- r | P i) F i) ->
+        f (\big[join/Unit]_(i <- r | P i) F i) =
+          \big[join/Unit]_(i <- r | P i) f (F i).
+Proof. by apply/big_pmorph/pfunit/@pfjoinT. Qed.
+
+End BigFullPCMmorph.
+
 
 (******************)
 (******************)
@@ -1911,7 +1934,7 @@ End ProjMorph.
 
 Section Proj3Morph.
 Variables U1 U2 U3 : tpcm.
-Notation tp := (Prod3 U1 U2 U3).
+Abbreviation tp := (Prod3 U1 U2 U3).
 
 Lemma proj31_is_tpcm_morph : tpcm_morph_axiom (proj31 : tp -> _).
 Proof. by rewrite /tpcm_morph_axiom /undef. Qed.
@@ -1927,7 +1950,7 @@ End Proj3Morph.
 
 Section Proj4Morph.
 Variables U1 U2 U3 U4 : tpcm.
-Notation tp := (Prod4 U1 U2 U3 U4).
+Abbreviation tp := (Prod4 U1 U2 U3 U4).
 
 Lemma proj41_is_tpcm_morph : tpcm_morph_axiom (proj41 : tp -> _).
 Proof. by rewrite /tpcm_morph_axiom /undef. Qed.
@@ -1946,7 +1969,7 @@ End Proj4Morph.
 
 Section Proj5Morph.
 Variables U1 U2 U3 U4 U5 : tpcm.
-Notation tp := (Prod5 U1 U2 U3 U4 U5).
+Abbreviation tp := (Prod5 U1 U2 U3 U4 U5).
 
 Lemma proj51_is_tpcm_morph : tpcm_morph_axiom (proj51 : tp -> _).
 Proof. by rewrite /tpcm_morph_axiom /undef. Qed.
@@ -1968,7 +1991,7 @@ End Proj5Morph.
 
 Section Proj6Morph.
 Variables U1 U2 U3 U4 U5 U6 : tpcm.
-Notation tp := (Prod6 U1 U2 U3 U4 U5 U6).
+Abbreviation tp := (Prod6 U1 U2 U3 U4 U5 U6).
 
 Lemma proj61_is_tpcm_morph : tpcm_morph_axiom (proj61 : tp -> _).
 Proof. by rewrite /tpcm_morph_axiom /undef. Qed.
@@ -1993,7 +2016,7 @@ End Proj6Morph.
 
 Section Proj7Morph.
 Variables U1 U2 U3 U4 U5 U6 U7 : tpcm.
-Notation tp := (Prod7 U1 U2 U3 U4 U5 U6 U7).
+Abbreviation tp := (Prod7 U1 U2 U3 U4 U5 U6 U7).
 
 Lemma proj71_is_tpcm_morph : tpcm_morph_axiom (proj71 : tp -> _).
 Proof. by rewrite /tpcm_morph_axiom /undef. Qed.
@@ -2192,7 +2215,7 @@ Definition subpcm_struct_axiom' (U V : pcm)
       (* retract then inject is id on valid elements *)
       forall v, valid v -> sep psub v Unit -> pval (psub v) = v].
 
-Notation subpcm_struct_axiom S := 
+Abbreviation subpcm_struct_axiom S := 
   (subpcm_struct_axiom' (pval S) (psub S)).
 
 HB.mixin Record isSubPCM_struct (U V : pcm) (S : sub_struct U V) := {
@@ -2216,7 +2239,7 @@ HB.instance Definition _ (U V : pcm) (S : subpcm_struct U V) :=
   Binorm_PCM_morphism.copy (psub S) 
     (Binorm_PCM_morphism.Pack psub_submix).
 
-Notation subsep S := (sep (psub S)).
+Abbreviation subsep S := (sep (psub S)).
 
 Section Repack.
 Variables (U V : pcm) (S : subpcm_struct U V).
@@ -2362,10 +2385,13 @@ Proof. by rewrite joinC=>/pvalXUn <-; rewrite joinC. Qed.
 
 (* injectivity *)
 
-Lemma pval_inj : injective (pval S).
+Lemma inj_pval : injective (pval S).
 Proof. by move=>x y E; rewrite -(psub_pval S x) E psub_pval. Qed.
 
-Lemma psub_inj (x y : V) : valid (psub S x) -> psub S x = psub S y -> x = y.
+Lemma inj_psub (x y : V) : 
+        valid (psub S x) -> 
+        psub S x = psub S y -> 
+        x = y.
 Proof.
 move/[swap]=>E /[dup]; rewrite {2}E.
 case/fpVI=>/= W1 H1 /fpVI [/= W2 H2].
@@ -2377,20 +2403,20 @@ Qed.
 Lemma unitb_psub (x : V) : unitb (psub S x) = unitb x.
 Proof.
 apply/unitbP/unitbP=>[E|->]; last by rewrite pfunit.
-by apply: psub_inj; [rewrite E|rewrite pfunit].
+by apply: inj_psub; [rewrite E|rewrite pfunit].
 Qed.
 
 Lemma unitb_pval (x : U) : unitb (pval S x) = unitb x.
 Proof.
 apply/unitbP/unitbP=>[E|->]; last by rewrite pfunit.
-by apply: pval_inj; rewrite pfunit.
+by apply: inj_pval; rewrite pfunit.
 Qed.
 
 End DerivedLemmas.
 
 Prenex Implicits valid_sepE valid_pvalE valid_pvalEP valid_pvalS valid_psubS 
 valid_sepUnE valid_pvalUnE valid_pvalUnS valid_sep3E valid_psubUnX valid_psubXUn 
-psubUnX psubXUn pvalXUn pvalUnX pval_inj psub_inj unitb_psub unitb_pval.
+psubUnX psubXUn pvalXUn pvalUnX inj_pval inj_psub unitb_psub unitb_pval.
 
 
 (* properties of V propagate to U *)
@@ -2407,7 +2433,7 @@ Proof.
 move=>x1 x2 x W E; move: (W) (W).
 rewrite {1}E !(valid_sepUnE S)=>/andP [W2 D2] /andP [W1 D1].
 move: E; rewrite -(psub_pval S x1) -(psub_pval S x2) -(psub_pval S x).
-rewrite -pfjoin // -[R in _ = R]pfjoin //; move/psub_inj.
+rewrite -pfjoin // -[R in _ = R]pfjoin //; move/inj_psub.
 by rewrite fpVE W1 sepU0 // => /(_ (erefl _))  /(joinKx W1) ->.
 Qed.
 
@@ -2616,7 +2642,7 @@ Section XSepSubPCM.
 Variables (V : tpcm) (D : seprel V).
 
 (* helper lemma *)
-Lemma valx_inj (x y : xsep D) : 
+Lemma inj_valx (x y : xsep D) : 
         valx x = valx y -> 
         x = y.
 Proof. 
@@ -2625,26 +2651,26 @@ by subst y; rewrite (pf_irr Hx).
 Qed.
 
 (* unary and binary orthogonality relations *)
-Notation orth1 x := (valid x && D x Unit).
-Notation orth2 x y := (valid (x \+ y) && D x y). 
+Abbreviation orth1 x := (valid x && D x Unit).
+Abbreviation orth2 x y := (valid (x \+ y) && D x y). 
 
-Notation xsep_valid := (@xsep_valid V D).
-Notation xsep_join := (@xsep_join V D).
-Notation xsep_unit := (@xsep_unit V D).
-Notation xsep_unitb := (@xsep_unitb V D).
-Notation xsep_undef := (@xsep_undef V D).
-Notation xsep_undefb := (@xsep_undefb V D).
+Abbreviation xsep_valid := (@xsep_valid V D).
+Abbreviation xsep_join := (@xsep_join V D).
+Abbreviation xsep_unit := (@xsep_unit V D).
+Abbreviation xsep_unitb := (@xsep_unitb V D).
+Abbreviation xsep_undef := (@xsep_undef V D).
+Abbreviation xsep_undefb := (@xsep_undefb V D).
 
 (* xsep is pcm *)
 Lemma xsep_is_pcm : pcm_axiom xsep_valid xsep_join xsep_unit xsep_unitb.
 Proof.
 have joinC : commutative xsep_join.
-- case=>x Hx [y Hy]; apply: valx_inj; rewrite valxE xsep_joinE xsep_joinE'.
+- case=>x Hx [y Hy]; apply: inj_valx; rewrite valxE xsep_joinE xsep_joinE'.
   by rewrite joinC; case W: (valid _)=>//=; rewrite -sepC.
 split=>[//||[x Hx]|x y||x]. 
 - suff joinAC : right_commutative xsep_join.
   - by move=>a b c; rewrite !(joinC a) joinAC. 
-  case=>a Ha [b Hb][c Hc]; apply: valx_inj; rewrite valxE.
+  case=>a Ha [b Hb][c Hc]; apply: inj_valx; rewrite valxE.
   rewrite xsep_joinE; do ![rewrite {1}xsep_joinE' !valxE /=]. 
   case Sab: (orth2 a b); case Sac: (orth2 a c); rewrite ?tpcmE //=; last first.
   - case/andP: Sac=>_ Sac; case: andP=>//; case=>W Sacb.
@@ -2658,7 +2684,7 @@ split=>[//||[x Hx]|x y||x].
   case Sacb: (orth2 (a \+ c) b)=>//.
   case/andP: Sacb=>W Sacb; rewrite sepC (joinAC a b c) W // in Sabc.
   by rewrite (sepAxx W Sac Sacb) in Sabc.
-- apply: valx_inj; rewrite !valxE /=.
+- apply: inj_valx; rewrite !valxE /=.
   rewrite xsep_joinE xsep_unitE xsep_joinE' !{1}valxE.
   rewrite unitL; case: Hx=>[|->]; last by rewrite tpcmE.
   by case/andP=>W E; rewrite sepC ?unitL // W E.
@@ -2682,7 +2708,7 @@ split=>[/= x||/= x].
   case: undefbP=>X; constructor; last by case=>/X.
   by rewrite X in H *; rewrite (pf_irr H (xsep_undefP D)).
 - by rewrite pcmE /= xsep_validE xsep_undefE valxE tpcmE.
-apply: valx_inj; rewrite xsep_undefE !valxE.
+apply: inj_valx; rewrite xsep_undefE !valxE.
 by rewrite /join/= xsep_joinE xsep_joinE' valxE /= !tpcmE.
 Qed.
 
@@ -2694,7 +2720,7 @@ Lemma xsep_is_normal : normal_tpcm_axiom (xsep D).
 Proof. 
 case=>x [] H; [left|right].
 - by rewrite /valid/= xsep_validE valxE.
-by apply/valx_inj; rewrite !valxE /undef /= xsep_undefE.
+by apply/inj_valx; rewrite !valxE /undef /= xsep_undefE.
 Qed.
 
 HB.instance Definition _ : isNormal_TPCM (xsep D) := 
@@ -2750,7 +2776,7 @@ Abort.
 Lemma subx_is_morph : pcm_morph_axiom D (@subx V D).
 Proof.
 rewrite subxE; split=>[|x y W E].
-- apply: valx_inj; rewrite !valxE /Unit /= xsep_unitE; case: eqP=>//=.
+- apply: inj_valx; rewrite !valxE /Unit /= xsep_unitE; case: eqP=>//=.
   by rewrite valid_unit /= sep00.
 case: eqP=>Hx /=; last by rewrite (sep0E W E) (validE2 W) in Hx.
 case: eqP=>Hy /=; last by rewrite (sep0E W E) (validE2 W) in Hy.
@@ -2758,7 +2784,7 @@ case: eqP=>H /=; last by rewrite W (sepU0 W E) in H.
 rewrite /valid/= xsep_validE pcm_joinE valxE /= xsep_joinE /=.
 do ![rewrite {1}xsep_joinE' valxE].
 rewrite {1 2}W {1 2}E {1}W {1}(sepU0 W E) /=.
-split=>//; apply: valx_inj; rewrite valxE /=. 
+split=>//; apply: inj_valx; rewrite valxE /=. 
 by rewrite xsep_joinE' valxE W E.
 Qed.
 
@@ -2788,7 +2814,7 @@ Proof.
 split=>[x|x] //=; last first.
 - rewrite /sepx/= subxE valxE => W H.
   by case: eqP=>//=; rewrite W H.   
-apply: valx_inj; rewrite valxE subxE /=.
+apply: inj_valx; rewrite valxE subxE /=.
 by case: eqP; case: x=>// x []. 
 Qed.
 
@@ -2809,7 +2835,7 @@ Lemma psub_undefN (V : tpcm) (D : seprel V) (x : V) :
         ~~ D x Unit ->
         psub (xsub D) x = undef.
 Proof.
-move=>X; apply: valx_inj.
+move=>X; apply: inj_valx.
 rewrite /undef/= xsep_undefE valxE /psub/= subxE /=.
 by case: decP=>//; rewrite (negbTE X) andbF.  
 Qed.
@@ -3024,7 +3050,7 @@ Lemma sepon0x x y :
 Proof.
 move=>W sf; rewrite seponC // => Sf.
 rewrite sepC //= in sf; rewrite joinC in W.
-rewrite -(pfunit f) -(@seponC y) ?pfunit ?unitR ?(validE2 W) //; last first.
+rewrite -(pfunit f) -(@seponC y) ?pfunit ?unitR ?(validE2 W) //.
 - by apply: sepx0 W sf.
 by apply: seponx0 W sf Sf.
 Qed.
@@ -3036,7 +3062,7 @@ Lemma sepon0E x y :
         S (f x) Unit * S (f y) Unit.
 Proof.
 move=>W sf Sf; rewrite (seponx0 W sf Sf).
-rewrite -(pfunit f) seponC ?pfunit ?unitR ?(validE2 W) //; last first.
+rewrite -(pfunit f) seponC ?pfunit ?unitR ?(validE2 W) //.
 - by rewrite (sep0E W sf).
 by rewrite (sepon0x W sf Sf).
 Qed.

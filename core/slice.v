@@ -18,9 +18,10 @@ From pcm Require Import options prelude seqext.
 Open Scope order_scope.
 Import Order.Theory.
 
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
-
+(* DEVCOMMENT *)
+(* intervals used to do these simplifications automatically *)
+(* but that changed with mathcomp 2.0 *)
+(* /DEVCOMMENT *)
 Section BSimp_Extension.
 Context disp (T : porderType disp).
 Implicit Types (x y : T) (b c : bool).
@@ -225,14 +226,14 @@ by exact: geq_minl.
 Qed.
 
 Corollary slice_usize s : s = &:s `]-oo, size s[.
-Proof. by rewrite itv_overR /=; [rewrite slice_uu|rewrite addn0]. Qed.
+Proof. by rewrite itv_overR /=; [rewrite addn0|rewrite slice_uu]. Qed.
 
 (* slice size *)
 
 Lemma slice_size s (i : interval nat) :
         size (&:s i) = minn (bnd i.2 (size s)) (size s) - bnd i.1 (size s).
 Proof.
-rewrite /slice; case: i=>[[l i|[]][r j|[]]] //=;
+rewrite /slice; case: i=>[[l i|[]][r j|[]]] //=; 
 rewrite ?take0 ?drop0 ?take_size ?drop_size ?minnn ?min0n ?subn0 //=.
 - by rewrite size_drop size_take_min.
 - by rewrite size_drop.
@@ -370,7 +371,7 @@ move: (onth_size H)=>Hk; case: l; case: r=>/=;
 rewrite ?addn0 ?addn1.
 - by apply: drop_oversize; rewrite size_take Hk.
 - rewrite -addn1 addnC -take_drop.
-  rewrite (take_nth v); last by rewrite size_drop subn_gt0.
+  rewrite (take_nth v); first by rewrite size_drop subn_gt0.
   by rewrite take0 /= nth_drop addn0 nth_onth H.
 - by apply: drop_oversize; rewrite size_take Hk.
 apply: drop_oversize; rewrite size_take; case: ifP=>// /negbT.
@@ -444,7 +445,7 @@ Lemma slice_xR a x s :
                     (&:s (Interval a +oo))
              (onth s x).
 Proof.
-move=>Hax; rewrite (slice_split _ true (x:=x)) /=; last first.
+move=>Hax; rewrite (slice_split _ true (x:=x)) /=.
 - rewrite in_itv /= lexx andbT.
   by case: a Hax=>/=[ax av|ax]; case: ax.
 rewrite slice_kk /=; case: (onth_sizeP s x)=>[|v] H;
@@ -460,7 +461,7 @@ Lemma slice_xL b x s :
                      [::]
              (onth s x).
 Proof.
-move=>Hxb; rewrite (slice_split _ false (x:=x)) /=; last first.
+move=>Hxb; rewrite (slice_split _ false (x:=x)) /=.
 - rewrite in_itv /= lexx /=.
   by case: b Hxb=>/=[bx bv|bx]; case: bx.
 rewrite slice_kk /=; case: (onth_sizeP s x)=>[|v] H; rewrite H //=.
@@ -559,7 +560,7 @@ Lemma slice_cat_piecewise s1 s2 i :
 Proof.
 rewrite slice_cat; case: i=>i j /=; case: ifP.
 - rewrite in_itv; case/andP=>Hi Hj.
-  rewrite (itv_overR _ (j:=j)); last first.
+  rewrite (itv_overR _ (j:=j)).
   - case: j Hj=>[[] j|[]] //=.
     - by rewrite addn0; move/ltnW.
     by rewrite addn1 leEnat; move/(ltnW (n:=j.+1)).
@@ -569,7 +570,7 @@ rewrite slice_cat; case: i=>i j /=; case: ifP.
   by rewrite ltnn /= subnn.
 rewrite in_itv=>/negbT; rewrite negb_and=>H.
 case: ifP=>Hj.
-- rewrite (itv_underR (s:=s2)); first by rewrite cats0.
+- rewrite (itv_underR (s:=s2)); last by rewrite cats0.
   case: {H}j Hj=>[[] j|[]] //=.
   - rewrite addn0 leEnat leq_eqVlt; case/orP=>[/eqP->|->] //=.
     by rewrite ltnn /= subnn.
@@ -649,13 +650,13 @@ Implicit Type (s : seq A).
 (* membership *)
 
 Corollary slice_memE x s i :
-            x \in &:s i =
+            (x \in &:s i) =
             has (fun j => j \in i) (indexall x s).
 Proof. by rewrite /indexall -has_pred1; apply: slice_has. Qed.
 
 Corollary slice_memE1 x s i :
             (count_mem x s <= 1)%N ->
-            x \in &:s i =
+            (x \in &:s i) =
             (x \in s) && (bnd i.1 (size s) <= index x s < bnd i.2 (size s)).
 Proof.
 move=>H; rewrite slice_memE indexall_count1 //; case: ifP=>//= Hx; rewrite orbF.
@@ -665,15 +666,15 @@ Qed.
 
 Corollary slice_uniq_memE x s i :
             uniq s ->
-            x \in &:s i =
+            (x \in &:s i) =
             (x \in s) && (bnd i.1 (size s) <= index x s < bnd i.2 (size s)).
 Proof. by move=>U; apply: slice_memE1; rewrite (count_uniq_mem _ U) leq_b1. Qed.
 
 (* subset *)
 
 Lemma slice_subset s i1 i2 :
-  i1 <= i2 ->
-  {subset (&:s i1) <= &:s i2}.
+        i1 <= i2 ->
+        {subset (&:s i1) <= &:s i2}.
 Proof.
 case: i1=>i1 j1; case: i2=>i2 j2.
 rewrite subitvE; case/andP=>Hi Hj.
@@ -681,19 +682,17 @@ move=>x Hx.
 have Hij : i1 <= j1.
 - apply: contraLR Hx; rewrite -ltNge=>/ltW Hji.
   by rewrite itv_swapped_bnd.
-rewrite (@slice_split_bnd _ _ _ i1) /=; last first.
+rewrite (@slice_split_bnd _ _ _ i1) /=.
 - by rewrite Hi /=; apply/le_trans/Hj.
 rewrite mem_cat; apply/orP; right.
-rewrite (@slice_split_bnd _ _ _ j1) /=; last first.
+rewrite (@slice_split_bnd _ _ _ j1) /=.
 - by rewrite Hj andbT.
 by rewrite mem_cat Hx.
 Qed.
 
 Corollary slice_subset_full s i :
             {subset &:s i <= s}.
-Proof.
-by rewrite -{2}(slice_uu s); apply/slice_subset/itv_lex1.
-Qed.
+Proof. by rewrite -{2}(slice_uu s); apply/slice_subset/itv_lex1. Qed.
 
 (* slicing preserves uniqueness *)
 

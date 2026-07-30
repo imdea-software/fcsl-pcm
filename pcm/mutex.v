@@ -111,12 +111,12 @@ HB.instance Definition _ := hasDecEq.Build (mutex T) mutex_eqP.
 End Equality.
 
 (* mutexes with distingusihed own element *)
-Notation mtx T := (mutex (option T)).
-Notation mtx2 := (mtx False).
-Notation mtx3 := (mtx unit).
-Notation own := (mx None).
-Notation auth x := (mx (Some x)).
-Notation auth1 := (mx (Some tt)).
+Abbreviation mtx T := (mutex (option T)).
+Abbreviation mtx2 := (mtx False).
+Abbreviation mtx3 := (mtx unit).
+Abbreviation own := (mx None).
+Abbreviation auth x := (mx (Some x)).
+Abbreviation auth1 := (mx (Some tt)).
 
 (* some lemmas for generalized mutexes *)
 
@@ -142,6 +142,9 @@ Proof. by case: x=>[||x] //=; split=>//; case=>->. Qed.
 Lemma cancelxM t1 t2 x : (x \+ mx t1 = mx t2) <-> (t1 = t2) * (x = Unit).
 Proof. by rewrite joinC cancelMx. Qed.
 
+(* DEVCOMMENT *)
+(* the next batch of lemmas about validity should be automated *)
+(* /DEVCOMMENT *)
 Lemma mxMx t x : valid (mx t \+ x) -> x = Unit.
 Proof. by case: x. Qed.
 
@@ -175,6 +178,9 @@ End MutexLemmas.
 
 Prenex Implicits mxMx mxxM mxxyM mxMxy mxxMy mxyMx.
 
+(* DEVCOMMENT *)
+(* and the same for own; do we need to repeat? *)
+(* /DEVCOMMENT *)
 Section OwnMutex.
 Variables T : Type.
 Implicit Types x y : mtx T.
@@ -202,6 +208,9 @@ Prenex Implicits  mxOx mxxO mxxyO mxOxy mxxOy mxyOx.
 
 (* specific lemmas for binary mutexes *)
 
+(* DEVCOMMENT *)
+(* these also are a bit of a featuritis *)
+(* /DEVCOMMENT *)
 Lemma mxON (x : mtx2) : valid x -> x != own -> x = Unit.
 Proof. by case: x=>//; case. Qed.
 
@@ -384,6 +393,12 @@ Definition omg (x : U) : mtx2 :=
   if undefb x then undef else
     if last_atval false x then own else nown.
 
+(* DEVCOMMENT *)
+(*   omg isn't tpcm morphism because it doesn't preserve undef *)
+(*   this makes it less useful than it might be *)
+(*   but we wait with fixing the definition until it becomes necessary *)
+(*   (the definition should branch on x being undef *)
+(* /DEVCOMMENT *)
 
 Lemma omg_is_pcm_morph : pcm_morph_axiom omg_sep omg.
 Proof.
@@ -508,6 +523,10 @@ Qed.
 
 Definition omg_fresh := (omg_fresh_val, omg_fresh_sep).
 
+(* DEVCOMMENT *)
+(* some extra properties the need for which appeared later *)
+(* TODO eventually organize into their proper places *)
+(* /DEVCOMMENT *)
 Lemma omg_eta (h : U):
         valid h -> omg h = own ->
         exists h' v, [/\ h' = free h (last_key h),

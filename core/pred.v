@@ -16,13 +16,14 @@ limitations under the License.
 (******************************************************************************)
 
 From Stdlib Require Import ssreflect ssrbool ssrfun Setoid Basics.
-From mathcomp Require Import ssrnat seq eqtype bigop.
+From mathcomp Require Import ssrnat seq eqtype fintype bigop.
 From pcm Require Import options.
 
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
-
 (* First some basic propositional equalities *)
+
+(* DEVCOMMENT *)
+(* Basically, we need to repeat most of ssrbool.v here but we'll do it as we go. *)
+(* /DEVCOMMENT *)
 
 Lemma andTp p : True /\ p <-> p.      Proof. by intuition. Qed.
 Lemma andpT p : p /\ True <-> p.      Proof. by intuition. Qed.
@@ -61,14 +62,14 @@ Identity Coercion Fun_Of_Pred : Pred >-> Funclass.
 
 Definition SubPred T (p1 p2 : Pred T) := forall x : T, p1 x -> p2 x.
 
-Notation xPred0 := (fun _ => False).
-Notation xPred1 := (fun x => eq^~ x).
-Notation xPredT := (fun _ => True).
-Notation xPredI := (fun (p1 p2 : Pred _) x => p1 x /\ p2 x).
-Notation xPredU := (fun (p1 p2 : Pred _) x => p1 x \/ p2 x).
-Notation xPredC := (fun (p : Pred _) x => ~ p x).
-Notation xPredD := (fun (p1 p2 : Pred _) x => ~ p2 x /\ p1 x).
-Notation xPreim := (fun f (p : Pred _) x => p (f x)).
+Abbreviation xPred0 := (fun _ => False).
+Abbreviation xPred1 := (fun x => eq^~ x).
+Abbreviation xPredT := (fun _ => True).
+Abbreviation xPredI := (fun (p1 p2 : Pred _) x => p1 x /\ p2 x).
+Abbreviation xPredU := (fun (p1 p2 : Pred _) x => p1 x \/ p2 x).
+Abbreviation xPredC := (fun (p : Pred _) x => ~ p x).
+Abbreviation xPredD := (fun (p1 p2 : Pred _) x => ~ p2 x /\ p1 x).
+Abbreviation xPreim := (fun f (p : Pred _) x => p (f x)).
 
 (* The packed class interface for pred-like types. *)
 
@@ -137,7 +138,7 @@ Notation "[ 'Pred' x : T | E1 & E2 ]" := [Pred x : T | E1 /\ E2 ]
 Module PredOfSimpl.
 Definition Coerce T (sp : Simpl_Pred T) : Pred T := fun_of_simpl sp.
 End PredOfSimpl.
-Notation Pred_Of_Simpl := PredOfSimpl.Coerce.
+Abbreviation Pred_Of_Simpl := PredOfSimpl.Coerce.
 Coercion Pred_Of_Simpl : Simpl_Pred >-> Pred.
 Canonical SimplPredType T := PropPredType (@Pred_Of_Simpl T).
 
@@ -189,8 +190,8 @@ Definition Simpl_Rel T := T -> Simpl_Pred T.
 Coercion Rel_Of_Simpl T (sr : Simpl_Rel T) : Rel T := fun x : T => sr x.
 Arguments Rel_Of_Simpl {T} sr x /.
 
-Notation xRelU := (fun (r1 r2 : Rel _) x y => r1 x y \/ r2 x y).
-Notation xRelPre := (fun f (r : Rel _) x y => r (f x) (f y)).
+Abbreviation xRelU := (fun (r1 r2 : Rel _) x y => r1 x y \/ r2 x y).
+Abbreviation xRelPre := (fun f (r : Rel _) x y => r (f x) (f y)).
 
 Definition PropSimplRel {T} (r : Rel T) : Simpl_Rel T := 
   fun x => PropSimplPred (r x).
@@ -382,24 +383,41 @@ Arguments Has_Quality n {T}.
 Lemma QualifE n T p x : (x \In @PropQualifier n T p) = p x.
 Proof. by []. Qed.
 
-Notation "x \Is A" := (x \In Has_Quality 0 A) 
-  (at level 0, only parsing) : function_scope.
-Notation "x \Is A" := (x \In Has_Quality 0 A) 
-  (at level 0, only printing) : function_scope.
-Notation "x \Is 'a' A" := (x \In Has_Quality 1 A) 
-  (at level 0, only parsing) : function_scope.
-Notation "x \Is 'a' A" := (x \In Has_Quality 1 A) 
-  (at level 0, only printing) : function_scope.
-Notation "x \Is 'an' A" := (x \In Has_Quality 2 A) 
-  (at level 0, only parsing) : function_scope.
-Notation "x \Is 'an' A" := (x \In Has_Quality 2 A) 
-  (at level 0, only printing) : function_scope.
-Notation "x \Isn't A" := (x \Notin Has_Quality 0 A) 
-  (at level 0) : function_scope.
-Notation "x \Isn't 'a' A" := (x \Notin Has_Quality 1 A) 
-  (at level 0) : function_scope.
-Notation "x \Isn't 'an' A" := (x \Notin Has_Quality 2 A) 
-  (at level 0) : function_scope.
+Reserved Notation "x \Is A" (at level 70, no associativity,
+  format "'[hv' x '/ ' \Is A ']'").
+Reserved Notation "x \Isn't A" (at level 70, no associativity,
+  format "'[hv' x '/ ' \Isn't A ']'").
+Reserved Notation "x \Is 'a' A" (at level 70, no associativity,
+  format "'[hv' x '/ ' \Is 'a' A ']'").
+Reserved Notation "x \Isn't 'a' A" (at level 70, no associativity,
+  format "'[hv' x '/ ' \Isn't 'a' A ']'").
+Reserved Notation "x \Is 'an' A" (at level 70, no associativity,
+  format "'[hv' x '/ ' \Is 'an' A ']'").
+Reserved Notation "x \Isn't 'an' A" (at level 70, no associativity,
+  format "'[hv' x '/ ' \Isn't 'an' A ']'").
+Reserved Notation "[ 'Qualify' x | P ]" (at level 0, x at level 99,
+  format "'[hv' [ 'Qualify' x | '/ ' P ] ']'").
+Reserved Notation "[ 'Qualify' x : T | P ]" (at level 0, x at level 99,
+  format "'[hv' [ 'Qualify' x : T | '/ ' P ] ']'").
+Reserved Notation "[ 'Qualify' 'a' x | P ]" (at level 0, x at level 99,
+  format "'[hv' [ 'Qualify' 'a' x | '/ ' P ] ']'").
+Reserved Notation "[ 'Qualify' 'a' x : T | P ]" (at level 0, x at level 99,
+  format "'[hv' [ 'Qualify' 'a' x : T | '/ ' P ] ']'").
+Reserved Notation "[ 'Qualify' 'an' x | P ]" (at level 0, x at level 99,
+  format "'[hv' [ 'Qualify' 'an' x | '/ ' P ] ']'").
+Reserved Notation "[ 'Qualify' 'an' x : T | P ]" (at level 0, x at level 99,
+  format "'[hv' [ 'Qualify' 'an' x : T | '/ ' P ] ']'").
+
+Notation "x \Is A" := (x \In Has_Quality 0 A) (only parsing) : function_scope.
+Notation "x \Is A" := (x \In Has_Quality 0 A) (only printing) : function_scope.
+Notation "x \Is 'a' A" := (x \In Has_Quality 1 A) (only parsing) : function_scope.
+Notation "x \Is 'a' A" := (x \In Has_Quality 1 A) (only printing) : function_scope.
+Notation "x \Is 'an' A" := (x \In Has_Quality 2 A) (only parsing) : function_scope.
+Notation "x \Is 'an' A" := (x \In Has_Quality 2 A) (only printing) : function_scope.
+Notation "x \Isn't A" := (x \Notin Has_Quality 0 A) : function_scope.
+Notation "x \Isn't 'a' A" := (x \Notin Has_Quality 1 A) : function_scope.
+Notation "x \Isn't 'an' A" := (x \Notin Has_Quality 2 A) : function_scope.
+
 Notation "[ 'Qualify' x | P ]" := (PropQualifier 0 (fun x => P)) : form_scope.
 Notation "[ 'Qualify' x : T | P ]" :=
   (PropQualifier 0 (fun x : T => P)) (only parsing) : form_scope.
@@ -436,7 +454,7 @@ Canonical Leyed_Mem_Simpl :=
 
 End KeyPred.
 
-Local Notation In_Unkey x S := (x \In @Unkey_Pred _ S _ _) (only parsing).
+Local Abbreviation In_Unkey x S := (x \In @Unkey_Pred _ S _ _) (only parsing).
 Notation "x \In S" := (In_Unkey x S) (only printing) : function_scope.
 
 Section KeyedQualifier.
@@ -550,6 +568,9 @@ Add Parametric Relation (T : Type) : (Rel T) (@subRel T)
 
 (* Declaring morphisms. *)
 
+(* DEVCOMMENT *)
+(* Annoyingly, even the coercions must be declared *)
+(* /DEVCOMMENT *)
 
 (*
 Add Parametric Morphism T : (@Pred_of_Simpl T) with signature
@@ -557,6 +578,21 @@ Add Parametric Morphism T : (@Pred_of_Simpl T) with signature
 Proof. by []. Qed.
 *)
 
+(* DEVCOMMENT *)
+(* Do we need other coercions? We'll discover as we go *)
+
+(* Now the other morphisms. Again, not clear which ones are needed.   *)
+(* However, for all this to work, it seems that morphisms must be     *)
+(* declared with most specific signatures, or else the system         *)
+(* complains. For example, we use EqPred _ instead of EqPredType _ _, *)
+(* even though the former is an instance of the later.                *)
+
+(*
+Add Parametric Morphism T : (@EqPred T) with signature
+    @EqPred _ ==> @EqPred _ ==> iff as EqPred_morph.
+Proof. by move=>r1 s1 H1 r2 s2 H2; rewrite H1 H2. Qed.
+*)
+(* /DEVCOMMENT *)
 
 Add Parametric Morphism T (pT : PredType T) : (@Eq_Pred T pT) 
   with signature
@@ -630,14 +666,14 @@ Add Parametric Morphism T : (@PredU T) with signature
   @Eq_Pred T _ ==> @Eq_Pred T _ ==> @Eq_Pred T _ as predU_morph.
 Proof.
 move=>r1 s1 H1 r2 h2 H2 x; split;
-by case; [move/H1 | move/H2]=>/=; auto.
+by case=>[/H1|/H2]=>/=; auto.
 Qed.
 
 Add Parametric Morphism T : (@PredI T) with signature
   @Eq_Pred _ _ ==> @Eq_Pred _ _ ==> @Eq_Pred _ _ as predI_morph.
 Proof.
 move=>r1 s1 H1 r2 s2 H2 x; split;
-by case; move/H1=>T1; move/H2=>T2.
+by case=>/H1 T1 /H2 T2.
 Qed.
 
 Add Parametric Morphism T : (@PredC T) with signature
@@ -688,11 +724,8 @@ Lemma or0r r : Pred0 \+p r <~> r.
 Proof. by rewrite orrC orr0. Qed.
 
 Lemma orrCA r1 r2 r3 : 
-  r1 \+p r2 \+p r3 <~> r2 \+p r1 \+p r3.
-Proof.
-  simpl.
-  by move=>x /=; intuition.
-Qed.
+        r1 \+p r2 \+p r3 <~> r2 \+p r1 \+p r3.  
+Proof. by move=>x /=; intuition. Qed.
 
 Lemma orrAC r1 r2 r3 : 
         (r1 \+p r2) \+p r3 <~> (r1 \+p r3) \+p r2.
@@ -703,6 +736,12 @@ Lemma orrA r1 r2 r3 :
 Proof. by rewrite (orrC r2) orrCA (orrC r3). Qed.
 
 (* absorption *)
+(* DEVCOMMENT: when lemmas use sub_rel, it's usually better *)
+(* to use the collective form sub_mem *)
+(* Typically, with sub_rel, there will be lemma application *)
+(* that will turn expression of the from x \In A into A x *)
+(* and the latter immediately prevents setoid rewriting *)
+(* /DEVCOMMENT *)
 Lemma orrAb r1 r2 : 
         r1 <~> r1 \+p r2 <-> 
         r2 <=p r1.
@@ -790,15 +829,11 @@ Definition InE :=
   (Mem_Seq1, In_cons, 
      (In_Applicative, In_Simpl, Simpl_PredE)).
 
-Lemma Mem_cat x : forall s1 s2, (x \In s1 ++ s2) <-> x \In s1 \/ x \In s2.
+Lemma In_cat (s1 s2 : seq T) x : 
+        x \In s1 ++ s2 <-> x \In s1 \/ x \In s2.
 Proof.
-elim=>[|y s1 IH] s2 /=; first by split; [right | case].
-rewrite !InE /=.
-split.
-- case=>[->|/IH]; first by left; left.
-  by case; [left; right | right].
-case; first by case; [left | move=>H; right; apply/IH; left].
-by move=>H; right; apply/IH; right.
+elim: s1=>[|a s1 IH] //=; first by split; [right|case].
+by rewrite !InE IH; intuition.
 Qed.
 
 Lemma In_split x s : x \In s -> exists s1 s2, s = s1 ++ x :: s2.
@@ -808,9 +843,34 @@ case=>[<-|]; first by exists [::], s.
 by case/IH=>s1 [s2 ->]; exists (y :: s1), s2.
 Qed.
 
+Lemma In_rcons y s x : x \In rcons s y <-> x \In s \/ x = y.
+Proof. 
+rewrite or_comm; elim: s y x=>[|a s IH] y x //.
+rewrite rcons_cons !InE IH; tauto. 
+Qed.
+
+Lemma In_rev x s : x \In rev s <-> x \In s.
+Proof. 
+elim: s=>[|y s IH] //=.
+by rewrite rev_cons In_rcons or_comm InE IH. 
+Qed.
+
+Lemma In_filter (p : pred T) (x : T) s : 
+        x \In filter p s <-> x \In s /\ p x.
+Proof.
+elim: s=>[|a s IH] /=; first by split=>//; case.
+case: ifP=>P; last first.
+- rewrite IH InE; split; first by case=>H1 H2; split=>//; right.
+  by case; case=>[->|//]; rewrite P.
+rewrite !InE IH; split; last first.
+- by case; case=>H1 H2; [left|right].
+case=>[->|]; first by split=>//; left.
+by case=>H1 H2; split=>//; right.
+Qed.
+
 End ListMembership.
 
-Prenex Implicits In_split.
+Prenex Implicits In_split In_rcons In_rev.
 
 (* for equality types, membership predicates coincide *)
 Lemma mem_seqP (A : eqType) x (s : seq A) : reflect (x \In s) (x \in s).
@@ -837,20 +897,48 @@ Qed.
 
 Prenex Implicits Mem_map_inv.
 
-Lemma MapP T1 T2 (f : T1 -> T2) (s : seq T1) (y : T2) :
-        y \In map f s <-> exists2 x, x \In s & y = f x.
+Lemma In_map T1 T2 (f : T1 -> T2) (s : seq T1) (y : T2) :
+        y \In map f s <-> exists2 x, y = f x & x \In s.
 Proof.
 elim: s => [|x s IHs] /=; first by split=>//; case.
 rewrite In_cons; split.
 - case=>[->|]; first by exists x=>//; apply/In_cons; left.
-  by case/IHs=>k H ->; exists k=>//; apply/In_cons; right.
-case=>k /In_cons [->|H E]; first by left.
+  by case/IHs=>k -> H; exists k=>//; apply/In_cons; right.
+case=>k=>E /In_cons [<-|H]; first by left.
 by right; apply/IHs; exists k.
 Qed.
 
 Lemma mapPP T1 (T2 : eqType) (f : T1 -> T2) (s : seq T1) y :
-        reflect (exists2 x, x \In s & y = f x) (y \in map f s).
-Proof. by apply: (iffP idP)=>[/mem_seqP/MapP|/MapP/mem_seqP]. Qed.
+        reflect (exists2 x, y = f x & x \In s) (y \in map f s).
+Proof. by apply: (iffP idP)=>[/mem_seqP/In_map|/In_map/mem_seqP]. Qed.
+
+(* pmap *)
+
+Lemma pmap_none T (s : seq T) : pmap (fun => @None T) s = [::].
+Proof. by elim: s. Qed.
+
+Lemma In_pmap T1 T2 (f : T1 -> option T2) (s : seq T1) (y : T2) : 
+        y \In pmap f s <-> exists2 x, f x = Some y & x \In s.
+Proof.
+elim: s=>[|x s IHs] /=; first by split=>//; case.
+case F: (f x)=>[a|] /=; last first.
+- rewrite IHs; split=>[[z H1 H2]|[z]]; first by exists z=>//; right.
+  by rewrite InE=>/[swap] -[->{z}|Z]; [rewrite F|exists z].
+rewrite InE IHs; split=>[X|[z]]. 
+- case: X F=>[<-{a}|[z H1 H2]] F; first by exists x=>//; left.
+  by exists z=>//; right.
+rewrite InE=>/[swap] -[->{z}|H1 H2]; last by right; exists z.
+by rewrite F; case; left.
+Qed.
+
+Lemma pmapPP T1 (T2 : eqType) (f : T1 -> option T2) (s : seq T1) (y : T2) : 
+        reflect (exists2 x, f x = Some y & x \In s) (y \in pmap f s).
+Proof. by apply: (iffP idP); [move/mem_seqP/In_pmap|move/In_pmap/mem_seqP]. Qed.
+
+Lemma map_pmap T1 T2 (f : T1 -> T2) : map f =1 pmap (Some \o f).
+Proof. by elim. Qed.
+
+(* filter *)
 
 Lemma Mem_filter (T : Type) (a : pred T) (x : T) (s : seq T) :
         x \In filter a s <-> a x /\ x \In s.
@@ -872,7 +960,7 @@ Lemma eq_In_filter (T : Type) a1 a2 (s : seq T) :
         filter a1 s = filter a2 s.
 Proof.
 elim: s => //= x s IHs eq_a.
-rewrite eq_a; last by rewrite InE; left.
+rewrite eq_a; first by rewrite InE; left.
 rewrite IHs // => y s_y; apply: eq_a.
 by rewrite InE; right.
 Qed.
@@ -886,6 +974,26 @@ elim: s=>[|x s IH] //=; split=>[H|[H1 /IH H2 k]].
 by rewrite InE; case=>[->|/H2].
 Qed.
 
+Lemma eq_In_pmap S T (f g : S -> option T) (s : seq S) :
+        (forall x, x \In s -> f x = g x) ->
+        pmap f s = pmap g s.
+Proof.
+elim: s=>[|x s IH] //= H; rewrite /oapp -H; first by left.
+suff /IH -> : forall y, y \In s -> f y = g y by [].
+by move=>y X; apply: H; right.
+Qed.
+
+(* DEVCOMMENT *)
+(* this interferes with the usage of inE, see
+   https://gitlab.software.imdea.org/mathador/fcsl/-/issues/97 *)
+(*
+(* Setoids for extensional equality of functions *)
+Add Parametric Relation A B : (A -> B) (@eqfun _ _)
+  reflexivity proved by (@frefl B A)
+  symmetry proved by (@fsym B A)
+  transitivity proved by (@ftrans B A) as eqfun_morph.
+*)
+(* /DEVCOMMENT *)
 
 (* Big \In equivalences for all and has *)
 
@@ -958,8 +1066,8 @@ Lemma All_cat (s1 s2 : seq T) :
         All (s1 ++ s2) <-> All s1 /\ All s2.
 Proof.
 split.
-- by move/AllP=>H; split; apply/AllP=>x Hx; apply/H/Mem_cat; [left|right].
-by case=>/AllP H1 /AllP H2; apply/AllP=>x /Mem_cat; case=>Hx; [apply: H1| apply: H2].
+- by move/AllP=>H; split; apply/AllP=>x Hx; apply/H/In_cat; [left|right].
+by case=>/AllP H1 /AllP H2; apply/AllP=>x /In_cat; case=>Hx; [apply: H1| apply: H2].
 Qed.
 
 Fixpoint Has xs := if xs is x :: xs then P x \/ Has xs else False.
@@ -978,8 +1086,8 @@ Lemma Has_cat (s1 s2 : seq T) :
         Has (s1 ++ s2) <-> Has s1 \/ Has s2.
 Proof.
 split.
-- by move/HasP=>[x] /Mem_cat; case=>Hx Px; [left|right]; apply/HasP; exists x.
-by case=>/HasP [x Hx Px]; apply/HasP; exists x=>//; apply/Mem_cat; [left|right].
+- by move/HasP=>[x] /In_cat; case=>Hx Px; [left|right]; apply/HasP; exists x.
+by case=>/HasP [x Hx Px]; apply/HasP; exists x=>//; apply/In_cat; [left|right].
 Qed.
 
 End AllHasP.
@@ -1007,12 +1115,77 @@ case: andP=>H; constructor.
 by case=>/mem_seqP H1 /IH H2; elim: H.
 Qed.
 
-Lemma map_Uniq T1 (T2 : eqType) (f : T1 -> T2) (s : seq T1) :
-        uniq [seq f i | i <- s] -> Uniq s.
+Lemma filter_Uniq T (a : pred T) s : 
+        Uniq s ->
+        Uniq (filter a s).
 Proof.
-elim: s=>//= x s IH /andP [nsfx /IH H]; split=>//.
-apply: contraNnot nsfx=>Hx.
-by apply/mapPP; exists x.
+elim: s=>[|x s IH] //= [Uq /IH Uq'].
+case: ifP=>//= A; split=>//.
+by case/In_filter=>/Uq.
+Qed.
+
+Lemma map_Uniq T1 T2 (f : T1 -> T2) (s : seq T1) :
+        Uniq [seq f i | i <- s] -> Uniq s.
+Proof.
+elim: s=>//= x s IH [nsfx /IH H]; split=>//.
+by move=>Hx; apply/nsfx/In_map; exists x.
+Qed.
+
+Lemma map_inj_In_Uniq T1 T2 (f : T1 -> T2) (s : seq T1) :
+       (forall x y, x \In s -> y \In s -> 
+                    f x = f y -> x = y) ->
+       Uniq [seq f i | i <- s] <-> Uniq s.
+Proof.
+elim: s=>[|x s IH] I //=; split; case=>X /IH J; split.
+- by move=>Z; apply/X/In_map; exists x.
+- by apply: J=>x' y X' Y; apply: I; right.  
+- by case/In_map=>z E Z; apply/X; move/I: E=>-> //; [left|right].
+by apply: J=>x' y X' Y; apply: I; right.
+Qed.
+
+Lemma cat_Uniq T (s1 s2 : seq T) : 
+        Uniq (s1 ++ s2) <->
+        [/\ Uniq s1, ~ Has [Mem s1] s2 & Uniq s2].
+Proof.
+elim: s1 s2=>[|x s1 IH] s2 /=.
+- by split=>[U2|[//]]; split=>// /HasP [].
+split.
+- case=>H /IH [H1 H2 H3]; split=>//.
+  - by split=>// Z; apply/H/In_cat; left.
+  case/HasP=>z Z1 /= Z2; apply/H2/HasP; exists z=>//=.  
+  rewrite InE in Z2; case: Z2 Z1=>// -> {z} Z1; suff : False by []. 
+  by apply/H/In_cat; right. 
+case; case=>H1 H2 H3 H4; split.
+- case/In_cat=>Z; first by apply: H1. 
+  by apply/H3/HasP; exists x=>//=; left.
+rewrite IH; split=>//; case/HasP=>z Z2 /= Z1. 
+by apply/H3/HasP; exists z=>//=; right.
+Qed.
+
+Lemma pmap_Uniq T1 T2 (f : T1 -> option T2) (g : T2 -> T1) :
+        ocancel f g -> 
+        forall s, Uniq s -> Uniq (pmap f s).
+Proof.
+move=>O; elim=>[|x s IH] //= [H Uq].
+case D: (f x)=>[a|] //=; last by apply: IH.
+split; last by apply: IH.
+case/In_pmap=>z E Z; apply: H.
+by move: D E (O x) (O z)=>->-> /= ->->.
+Qed.
+
+Lemma pmap_filter_Uniq T1 T2 (f : T1 -> option T2) (s : seq T1) :
+        (forall x y z, x \In s -> y \In s -> 
+           f x = Some z -> f y = Some z -> x = y) ->
+        Uniq (filter f s) ->
+        Uniq (pmap f s).
+Proof.
+move=>H Uq; rewrite (_ : Uniq (pmap f s) <-> Uniq (map Some (pmap f s))).
+- by rewrite map_inj_In_Uniq //; move=>x y _ _ [].
+rewrite (@pmapS_filter _ _ f s) map_inj_In_Uniq //.
+move=>x y /In_filter [H1 H2] /In_filter [H3 H4] E.
+case Dx: (f x) H2 E=>[zx|//] _ E.
+case Dy: (f y) H4 E Dx=>[zy|//] _ [->] Dx.
+by apply: H H1 H3 Dx Dy.
 Qed.
 
 (* \In and big operators *)
@@ -1060,7 +1233,6 @@ Lemma eq_bigR R (idx : R) (op : R -> R -> R) (I : eqType) (r : seq I)
          \big[op/idx]_(i <- r | P i) F1 i = \big[op/idx]_(i <- r | P i) F2 i.
 Proof. by move=>eqF12; apply: eq_Bigr=>i /mem_seqP/eqF12. Qed.
 
-
 (***********************************)
 (* Image of a collective predicate *)
 (***********************************)
@@ -1075,7 +1247,7 @@ Definition Image' : Pred B := image_spec.
 End Image.
 
 (* swap to make the notation consider P before E; helps inference *)
-Notation Image f P := (Image' P f).
+Abbreviation Image f P := (Image' P f).
 
 Notation "[ 'Image' E | i <- s ]" := (Image (fun i => E) s)
   (at level 0, E at level 99, i name,
@@ -1200,6 +1372,10 @@ Hypotheses (symR : Symmetric) (trR : Transitive).
 Lemma sym_left_Transitive : left_Transitive.
 Proof. by move=> x y Rxy z; split; apply: trR; rewrite // symR. Qed.
 
+(* DEVCOMMENT *)
+(* Using sym_left_Transitive as a view doesn't work. *)
+(* see https://github.com/coq/coq/issues/8352 *)
+(* /DEVCOMMENT *)
 
 Lemma sym_right_Transitive : right_Transitive.
 Proof. by move=> x y Rxy z; rewrite !(symR z); apply: sym_left_Transitive. Qed.
@@ -1309,6 +1485,9 @@ End SumRel.
 Section Transitivity.
 Variables (A : Type) (R : Rel A).
 
+(* DEVCOMMENT *)
+(* TODO: see if these can be simplified *)
+(* /DEVCOMMENT *)
 
 Lemma trans_imp (F : A -> Prop) : Transitive (fun x y => F x -> F y).
 Proof. by move=>x y z H1 H2 /H1. Qed.
@@ -1755,14 +1934,14 @@ Qed.
 Local Notation "{ 'All1' P }" := (forall x, P x : Prop) (at level 0).
 Local Notation "{ 'All2' P }" := (forall x y, P x y : Prop) (at level 0).
 Local Notation "{ 'All3' P }" := (forall x y z, P x y z: Prop) (at level 0).
-Local Notation ph := (phantom _).
+Local Abbreviation ph := (phantom _).
 
 Section LocalProperties.
 
 Variables T1 T2 T3 : Type.
 
 Variables (d1 : T1 -> Prop) (d2 : T2 -> Prop) (d3 : T3 -> Prop).
-Local Notation ph := (phantom Prop).
+Local Abbreviation ph := (phantom Prop).
 
 Definition Prop_in1 P & ph {All1 P} :=
   forall x, d1 x -> P x.
@@ -1832,11 +2011,14 @@ Variables (P1 : T1 -> Prop) (P2 : T1 -> T2 -> Prop).
 Variable P3 : T1 -> T2 -> T3 -> Prop.
 Variables (d1 d1' : T1 -> Prop).
 
+(* DEVCOMMENT *)
+(* (d2 d2' : mem_pred T2) (d3 d3' : mem_pred T3). *)
+(* /DEVCOMMENT *)
 
 Local Notation "{ 'All1' P }" := (forall x, P x : Prop) (at level 0).
 Local Notation "{ 'All2' P }" := (forall x y, P x y : Prop) (at level 0).
 Local Notation "{ 'All3' P }" := (forall x y z, P x y z: Prop) (at level 0).
-Local Notation ph := (phantom _).
+Local Abbreviation ph := (phantom _).
 
 Lemma In1W : {All1 P1} -> {In D1, {All1 P1}}.
 Proof. by move=> ? ?. Qed.

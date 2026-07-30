@@ -17,14 +17,10 @@ limitations under the License.
 (******************************************************************************)
 
 From HB Require Import structures.
-From Stdlib Require Import Eqdep. 
 From mathcomp Require Import ssreflect ssrfun ssrbool ssrnat seq eqtype choice.
 From mathcomp Require Import path fintype finset finfun tuple perm fingroup.
 From mathcomp Require Import ssralg.
 From pcm Require Import options axioms.
-
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
 
 (***********)
 (* Prelude *)
@@ -33,28 +29,19 @@ Set SsrOldRewriteGoalsOrder.
 (* often used notation definitions and lemmas that are *)
 (* not included in the other libraries *)
 
-(* export inj_pair without exporting the whole Eqdep library *)
-Definition inj_pair2 := @inj_pair2.
-Arguments inj_pair2 {U P p x y}.
-
-(* Because of a bug in inversion and injection tactics *)
-(* we occasionally have to destruct pair by hand, else we *)
-(* lose the second equation. *)
-Lemma inj_pair A B (a1 a2 : A) (b1 b2 : B) :
-         (a1, b1) = (a2, b2) -> 
-         (a1 = a2) * (b1 = b2).
-Proof. by case. Qed.
-
-Arguments inj_pair {A B a1 a2 b1 b2}.
+Prenex Implicits Logic.eq_sym.
 
 (* eta laws for pairs and units *)
-Notation prod_eta := surjective_pairing.
+Abbreviation prod_eta := surjective_pairing.
 
 (* eta law often used with injection *)
-Lemma prod_inj A B (x y : A * B) : 
+Lemma inj_prod A B (x y : A * B) : 
         x = y <-> 
         (x.1, x.2) = (y.1, y.2).
 Proof. by case: x y=>x1 x2 []. Qed.
+
+Definition inj_rcons := @rcons_inj.
+Prenex Implicits inj_rcons.
 
 Lemma idfunE (U : Type) (x : U) : idfun x = x.
 Proof. by []. Qed.
@@ -309,6 +296,9 @@ Notation "[ \/ P1 , P2 , P3 , P4 , P5 , P6 | P7 ]" := (or7 P1 P2 P3 P4 P5 P6 P7)
 
 (** Add the ability to rewrite with [<->] for the custom logical connectives *)
 
+(* DEVCOMMENT *)
+(* TODO: we should move some of the following to [ssrbool] in Coq *)
+(* /DEVCOMMENT *)
 
 From Stdlib Require Import Classes.Morphisms Program.Basics Program.Tactics.
 From Stdlib Require Import Relations.
@@ -673,7 +663,7 @@ Inductive is_some_spec A x : option A -> Prop :=
 
 Hint Resolve is_some_case : core.
 
-Notation is_some x := (is_some_spec x x).
+Abbreviation is_some x := (is_some_spec x x).
 
 Lemma is_someP A (x : option A) : reflect (is_some x) (isSome x).
 Proof. by case: x=>[a|]; constructor=>//; case. Qed.
@@ -703,7 +693,14 @@ Proof. by elim: n. Qed.
 
 Lemma subn_eq0P m n : reflect (m - n = 0) (m <= n).
 Proof. by rewrite -subn_eq0; apply/eqP. Qed.
- 
+
+(************)
+(* Ordinals *)
+(************)
+
+Lemma ord_neq n (i : 'I_n) : n != i.
+Proof. by rewrite neq_ltn widen_ord_proof // orbT. Qed.
+
 (**************************************)
 (* Inhabited (non-empty) finite types *)
 (**************************************)
@@ -742,7 +739,7 @@ Lemma ith_indx {T : finType} (i : T) (pf : indx i < #|T|) :
          ith (indx i) pf = i.
 Proof. by rewrite /ith/indx nth_index // mem_enum. Qed.
 
-Lemma indx_inj {T} : injective (@indx T). 
+Lemma inj_indx {T} : injective (@indx T). 
 Proof.
 rewrite /indx=>x1 x2.
 have [] : x1 \in enum T /\ x2 \in enum T by rewrite !mem_enum.
@@ -751,7 +748,7 @@ case: (x1 =P x)=>[<-|] _ /=; first by case: (x2 =P x1).
 by case: (x2 =P x)=>//= _ X1 X2 []; apply: IH X1 X2.
 Qed.
 
-Lemma ith_inj {T : finType} i1 i2 (pf1 : i1 < #|T|) (pf2 : i2 < #|T|) : 
+Lemma inj_ith {T : finType} i1 i2 (pf1 : i1 < #|T|) (pf2 : i2 < #|T|) : 
         ith i1 pf1 = ith i2 pf2 -> 
         i1 = i2.
 Proof.
@@ -764,7 +761,7 @@ case=>[|i1][|i2] //= pf1 pf2 o1 o2.
 by move=>H /andP [_ U]; rewrite (IH _ _ pf1 pf2 o1 o2).
 Qed.
 
-Lemma indx_injE {T : finType} s i (pf : i < #|T|) : 
+Lemma inj_indxE {T : finType} s i (pf : i < #|T|) : 
         (s == ith i pf) = (indx s == i).
 Proof.
 apply/eqP/eqP=>[->|E]; first by rewrite indx_ith.
@@ -778,16 +775,16 @@ elim: (enum T) (enum_uniq T)=>[|x xs IH] //.
 set f := index^~(x :: xs)=>/= /andP [H1 H2].
 rewrite {1}/f /= eqxx; congr (0 :: _).
 case: (eq_in_map f (fun x=>(index x xs).+1) xs)=>E _. 
-rewrite E; last first.
+rewrite E.
 - by move=>z R; rewrite /f /=; case: (x =P z) R H1=>//= ->->.
 by rewrite -add1n iotaDl -IH // -map_comp. 
 Qed.
 
 Lemma take_enum {T : finType} x i : 
-        x \in take i (enum T) = (indx x < i).
+        (x \in take i (enum T)) = (indx x < i).
 Proof.
 pose f x := indx x.
-rewrite -(mem_map indx_inj) map_take map_indx take_iota.
+rewrite -(mem_map inj_indx) map_take map_indx take_iota.
 case: (leqP i #|T|)=>H; rewrite mem_iota /=; first by rewrite add0n.
 rewrite add0n cardE index_mem mem_enum inE /=; apply: sym_eq.
 apply: (@ltn_trans #|T|) H.
@@ -795,10 +792,10 @@ by rewrite cardE index_mem mem_enum.
 Qed.
 
 Lemma drop_enum {T : finType} x i : 
-        x \in drop i (enum T) = (i <= indx x).
+        (x \in drop i (enum T)) = (i <= indx x).
 Proof.
 pose f x := index x (enum T).
-rewrite -(mem_map indx_inj) map_drop map_indx drop_iota mem_iota add0n.
+rewrite -(mem_map inj_indx) map_drop map_indx drop_iota mem_iota add0n.
 case H : (i <= indx x)=>//=; rewrite subnKC ?indx_card //. 
 by apply/(leq_trans H)/ltnW/indx_card.
 Qed.
@@ -807,7 +804,7 @@ Lemma take_enum_filter {T : finType} k :
         filter (preim indx [pred x | x < k]) (enum T) = 
         take k (enum T).
 Proof.
-apply: (inj_map indx_inj).
+apply: (inj_map inj_indx).
 rewrite map_take map_indx -filter_map map_indx.
 apply: (sorted_eq leq_trans anti_leq).
 - by apply/(sorted_filter leq_trans)/iota_sorted.
@@ -826,7 +823,7 @@ Lemma drop_enum_filter {T : finType} k :
        filter (preim indx [pred x | x >= k]) (enum T) = 
        drop k (enum T).
 Proof.
-apply: (inj_map indx_inj).
+apply: (inj_map inj_indx).
 rewrite map_drop map_indx -filter_map map_indx.
 apply: (sorted_eq leq_trans anti_leq).
 - by apply/(sorted_filter leq_trans)/iota_sorted.
@@ -973,6 +970,24 @@ Lemma pmap_pcomp {S T U} (f : T -> option U) (g : S -> option T) s :
         pmap (pcomp f g) s = pmap f (pmap g s).
 Proof. by elim: s=>//= x s ->; rewrite /pcomp; case: (g x). Qed.
 
+Lemma pmap_comp {S T U} (f : T -> option U) (g : S -> T) s : 
+        pmap (f \o g) s = pmap f (map g s).
+Proof. by elim: s=>//= x s ->. Qed.
+
+Lemma pmap_map {S T} (f : S -> option T) (s : seq S) :
+        pmap f s = pmap id (map f s).
+Proof. by rewrite -pmap_comp. Qed.
+
+Lemma pmap_none {S} (s : seq S) : pmap (fun=>@None S) s = [::].
+Proof. by elim: s. Qed.
+
+Lemma pmap_some {S} (s : seq S) : pmap some s = s.
+Proof. by elim: s=>//= x s ->. Qed.
+
+Lemma filter_pmapE {S} p (xs : seq S) :
+        filter p xs = pmap (fun x => if p x then Some x else None) xs.
+Proof. by elim: xs=>[|x xs IH] //=; case: ifP=>P; rewrite IH. Qed.
+
 (* sequence prefixes *)
 
 (* Two helper concepts for searching in sequences:                       *)
@@ -1051,6 +1066,16 @@ Lemma Prefix_cons' x y s1 s2 :
         Prefix (x :: s1) (y :: s2) -> x = y /\ Prefix s1 s2.
 Proof. by move=>H; case: (H 0 x (erefl _)) (H)=>-> /Prefix_cons. Qed.
 
+Lemma Prefix_consE s1 a s2 : 
+        Prefix s1 (a :: s2) <->
+        s1 = [::] \/ exists s1', s1 = a :: s1' /\ Prefix s1' s2.
+Proof.
+split; last first.
+- by case=>[->|] // [s1'][->{s1}] /Prefix_cons; apply.
+case: s1=>[|_ s1 /Prefix_cons' [->]]; first by left.
+by right; exists s1. 
+Qed.
+
 Lemma Prefix_rcons x s : Prefix s (rcons s x).
 Proof. by elim: s=>//= y ys IH; apply/Prefix_cons; apply: IH. Qed.
 
@@ -1061,10 +1086,28 @@ rewrite -cat_rcons; apply: Prefix_trans (IH _).
 by apply: Prefix_rcons.
 Qed.
 
-Lemma Prefix_size s1 s2 : Prefix s1 s2 -> size s1 <= size s2.
+Lemma PrefixE s1 s2 : 
+        Prefix s1 s2 <-> exists s3, s2 = s1 ++ s3.
 Proof.
-elim: s1 s2=>[//|a s1 IH] [|b s2] H; first by move: (H 0 a (erefl _)).
-by rewrite ltnS; apply: (IH _ (proj2 (Prefix_cons' H))).
+split; last by case=>s3 ->; apply: Prefix_cat.
+elim: s1 s2=>[|x xs IH] s2; first by exists s2.
+case: s2=>[/(_ 0 x erefl)//|y ys /Prefix_cons' [?]].
+by subst y=>/IH [s3 ->]; exists s3.
+Qed.
+
+Lemma Prefix_size s1 s2 : 
+        Prefix s1 s2 -> 
+        size s1 <= size s2.
+Proof. by case/PrefixE=>s3 ->; rewrite size_cat leq_addr. Qed.
+
+Lemma Prefix_size' s1 s2 : 
+        Prefix s1 s2 -> 
+        size s1 = size s2 ->
+        s1 = s2.
+Proof. 
+case/PrefixE=>s3 -> /Logic.eq_sym/eqP.
+rewrite size_cat -{2}(addn0 (size s1)) eqn_add2l.
+by move/eqP/size0nil=>->; rewrite cats0.
 Qed.
 
 Lemma Prefix_onth s t x : 
@@ -1075,12 +1118,80 @@ elim:s t x =>[//|a s IH] [|b t] x H1 H2; first by move: (H2 0 a (erefl _)).
 by case/Prefix_cons': H2=><- H2; case: x H1=>[|n] //= H1; apply: IH.
 Qed.
 
-Lemma PrefixE s1 s2 : Prefix s1 s2 <-> exists s3, s2 = s1 ++ s3.
+Lemma Prefix_catE (xs ys1 ys2 : seq A) :
+       Prefix xs (ys1 ++ ys2) <->
+       if size xs < size ys1 then Prefix xs ys1
+       else ys1 = take (size ys1) xs /\ Prefix (drop (size ys1) xs) ys2.
 Proof.
-split; last by case=>s3 ->; apply: Prefix_cat.
-elim: s1 s2=>[|x xs IH] s2; first by exists s2.
-case: s2=>[/(_ 0 x erefl)//|y ys /Prefix_cons' [?]].
-by subst y=>/IH [s3 ->]; exists s3.
+rewrite PrefixE; split=>[[xs2 H]|]; last first.
+- case: ltnP=>[N|N [->]] /PrefixE [xs2 ->].
+  - by exists (xs2 ++ ys2); rewrite catA.
+  by exists xs2; rewrite catA size_takel ?cat_take_drop.
+case: ltnP=>N; rewrite PrefixE.
+- exists (drop (size xs) ys1). 
+  rewrite {1}(_ : xs = take (size xs) (ys1 ++ ys2)).
+  - by rewrite H takel_cat // take_size.
+  by rewrite take_cat N cat_take_drop.
+split.
+- rewrite {1}(_ : ys1 = take (size ys1) (xs ++ xs2)).
+  - by rewrite -H takel_cat // take_size.
+  by rewrite takel_cat.
+exists xs2.
+rewrite (_ : ys2 = drop (size ys1) (xs ++ xs2)).
+- by rewrite -H drop_size_cat.
+rewrite drop_cat; case: ltngtP N=>// -> _.
+by rewrite subnn drop0 drop_size.
+Qed.
+
+Lemma Prefix_catLE (xs ys1 ys2 : seq A) : 
+        Prefix xs (ys1 ++ ys2) <->
+        if size xs <= size ys1 then Prefix xs ys1 
+        else ys1 = take (size ys1) xs /\
+             Prefix (drop (size ys1) xs) ys2.
+Proof.
+rewrite Prefix_catE; case: ltngtP=>// E.
+rewrite -E take_size drop_size.
+by split=>[[-> _]|/Prefix_size'/(_ E)]. 
+Qed.
+
+Lemma Prefix_catP (xs ys1 ys2 : seq A) : 
+        Prefix xs (ys1 ++ ys2) <->
+        Prefix xs ys1 \/ 
+        exists2 xs2, xs = ys1 ++ xs2 & Prefix xs2 ys2.
+Proof.
+split.
+- move/Prefix_catLE; case: leqP=>N; first by left. 
+  case=>H1 H2; right; exists (drop (size ys1) xs)=>//.
+  by rewrite {1}H1 cat_take_drop.
+case=>[|[xs2] ->] H; first by apply/Prefix_trans/Prefix_cat.
+by elim: ys1=>[|y ys1 IH] //=; rewrite Prefix_cons. 
+Qed.
+
+Lemma Prefix0s s : Prefix [::] s.
+Proof. by []. Qed.
+
+(* enumerations of 0,1,2 prefixes *)
+
+Lemma Prefixs0 s : Prefix s [::] <-> s = [::].
+Proof. by split=>[|->] //; rewrite PrefixE; case=>s'; case: s. Qed.
+
+Lemma Prefixs1 s a : Prefix s [:: a] <-> s = [::] \/ s = [:: a].
+Proof.
+rewrite Prefix_consE; split.
+- by case=>[->|[x][->] /Prefixs0 ->]; [left|right]. 
+by case=>->; [left=>//|right]; exists [::].
+Qed.
+
+Lemma Prefixs2 s a b : 
+        Prefix s [:: a; b] <-> 
+        [\/ s = [::], s = [:: a] | s = [:: a; b]].
+Proof.
+rewrite Prefix_consE; split.
+- case=>[->|[x][->] /Prefixs1 [] ->];
+  by [apply: Or31|apply: Or32|apply: Or33].
+case=>->; [left=>//|right|right].
+- by exists [::].
+by exists [:: b]; split.
 Qed.
 
 End SeqPrefix.
@@ -1191,14 +1302,21 @@ Lemma fin_eta f : f = finfun (sel^~ f).
 Proof. by apply/ffinP=>t; rewrite sel_fin. Qed.
 
 (* function *)
+(* this could be defined as *)
+(*   if tg =P x is Reflect pf then cast Us pf v  *)
+(*   else sel x f *)
+(* but the definition below is better in practice *)
+(* as it automatically reduces when it can determine *)
+(* that tg = x or tg != x, say because tx and x *)
+(* are some concrete values of type T *)
 Definition splice tg f (v : Us tg) : {dffun _} := 
   finfun (fun x => 
-    if decP (x =P tg) is left pf then cast Us pf v 
+    if decP (tg =P x) is left pf then cast Us pf v 
     else sel x f).
 
 Lemma sel_splice t f x (v : Us x) : 
         sel t (splice f v) = 
-        if decP (t =P x) is left pf then cast Us pf v
+        if decP (x =P t) is left pf then cast Us pf v
         else sel t f.
 Proof. by rewrite sel_fin. Qed.
 
@@ -1206,7 +1324,7 @@ Lemma sel_spliceE t f v : sel t (splice f v) = v.
 Proof. by rewrite sel_fin; case: eqP=>//= pf; rewrite eqd. Qed.
 
 Lemma sel_spliceN t x f (w : Us x) :
-        t <> x -> sel t (splice f w) = sel t f.
+        x <> t -> sel t (splice f w) = sel t f.
 Proof. by move=>N; rewrite sel_fin; case: eqP. Qed.
 
 Lemma splice_eta t f : splice f (sel t f) = f.
@@ -1221,6 +1339,9 @@ Arguments sel {T Us} tg f.
 Arguments splice {T Us tg} f v.
 
 (* notation for building finfuns *)
+(* DEVCOMMENT *)
+(*   copied from finfun to fix some bad spacing in formatting *)
+(* /DEVCOMMENT *)
 (*
 Notation "[ 'ffun' x : aT => E ]" := (finfun (fun x : aT => E))
   (at level 0, x name, format "[ 'ffun'  x  :  aT  =>  E ]") : function_scope.
@@ -1240,7 +1361,7 @@ Variant dfun_delta : Type := DFunDelta t of Us t.
 (* for iteration that starts with function ends with function *)
 Definition dapp_fdelta df (f : forall t, Us t) z :=
   let: DFunDelta t v := df in 
-    if decP (z =P t) is left pf then cast Us pf v 
+    if decP (t =P z) is left pf then cast Us pf v 
     else f z.
 
 (* for iteration that starts with finfun ends with function *)
@@ -1395,34 +1516,155 @@ move=>H; apply/set_ordT=>x; rewrite ltnNge.
 by apply/contraR/H.
 Qed.
 
-(* Tagging *)
+(**************************)
+(* Heterogeneous equality *)
+(**************************)
 
-Notation Tag := (@existT _ _).
+(* when tags are equality type, inj_tag doesn't require StreicherK *)
 
-Lemma Tag_inj T Us (t1 t2 : T) i1 i2 : 
-        Tag t1 i1 = Tag t2 i2 -> 
-        t1 = t2 /\ jmeq Us i1 i2.
-Proof. by case=>?; subst t2=>/inj_pair2 ->. Qed.
-Arguments Tag_inj {T Us t1 t2 i1 i2}.
+Lemma inj_tag {T : eqType} (interp : T -> Type) A (x1 x2 : interp A) : 
+        Tag A x1 = Tag A x2 -> x1 = x2.
+Proof. by move/(@eq_from_Tagged T interp). Qed.  
 
-(* tagged union of equality types is equality type *)
+Prenex Implicits inj_tag. 
 
-Section TaggedEq.
-Variables (T : eqType) (Us : T -> eqType).
+(* proposition of heterogeneous (John Major) equality can be defined as *)
+(* jmeq T (interp : T -> Type) (A1 A2 : T) *)
+(*          (x1 : interp A1) (x2 : interp A2) := *)
+(*    exists pf : A1 = A2, x2 = cast interp pf x1 *)
+(* or equivalently, using tagged (dependent) pairs as *)
+(* jmeq T (interp : T -> Type) (A1 A2 : T) *)
+(*          (x1 : interp A1) (x2 : interp A2) := *)
+(*    Tag A1 x1 = Tag A2 x2 *) 
+(* or as an inductive type (eg. in Coq Stdlib, where it's called eq_dep) *)
+(* Inductive eq_dep T (interp : T -> Type) A (x : interp A) : *)
+(*      forall B, interp B -> Prop := *)
+(*   jmeq_refl of eq_dep A x A x *)
 
-Definition tag_eq : sigT Us -> sigT Us -> bool :=
-  fun '(Tag tx opx) '(Tag ty opy) =>
-    if decP (tx =P ty) is left pf then opx == cast Us pf opy
-    else false.
+(* We work with tagged pairs directly, and thus don't define jmeq explicitly. *)
+(* On occasion, however, it's useful to have a jmeq structure that's *)
+(* formulated to *embed* x1 and x2, rather than simply equate them. *)
+(* This is carried out below. *)
 
-Lemma tag_eqP : Equality.axiom tag_eq.
+Section JMeq.
+Context {T : Type} (interp : T -> Type).
+Implicit Types A : T.
+
+Definition jmeq_axiom {A1 A2} (x1 : interp A1) (x2 : interp A2) :=  
+  exists pf : A1 = A2, x2 = cast interp pf x1.
+
+Structure isJMeq A1 A2 x1 x2 := jmeqMix {_ : @jmeq_axiom A1 A2 x1 x2}.
+
+Structure jmeq A1 A2 := 
+  JMeqPack {the : interp A1; emit : interp A2; _ : isJMeq the emit}.
+
+(* The only instance of jmeq that's ever declared *)
+(* is jmeq_refl, ensuring that heterogenous equality *)
+(* reduces to plain (homogenous) equality, *)
+(* hence it's John Major nature *)
+Lemma refl_is_jmeq A x : @jmeq_axiom A A x x.
+Proof. by exists erefl. Qed.
+
+Canonical jmeq_refl A x := 
+  Eval hnf in JMeqPack (jmeqMix (@refl_is_jmeq A x)).
+
+Lemma jmeqP A1 A2 (jm : jmeq A1 A2) : 
+        exists pf : A1 = A2, emit jm = cast interp pf (the jm).
+Proof. by case: jm=>x1 x2 []. Qed.
+
+(* the following lemma isn't very useful as the *)
+(* only instance of jm encountered in practice is jmeq_refl *)
+(* and emit (jmeq_refl x) = the (jmeq_refl x) = x *)
+(* definitionally, i.e., by plain simplification *)
+(* NOTE: the proof requires eqc/StreicherK *)
+Lemma jmK_silly A (jm : jmeq A A) : emit jm = the jm.
+Proof. by case: (jmeqP jm)=>pf; rewrite eqc. Abort.
+End JMeq.
+
+Abbreviation ijmeq A1 A2 := (@jmeq _ id A1 A2).
+
+(* One potential use of jmeq canonical structure is to *)
+(* separate the equality of tags from equality of tagged values *)
+(* when the values happen to have the same type, that is: *)
+(* interp tg1 = interp tg2 :> Type *)
+
+(* NOTE: proof uses eqc and inj_tag, both consequences of StreicherK *)
+Lemma injm_tagK A B (interp : A -> Type) (tg1 tg2 : A) 
+          (s1 : ijmeq (interp tg1) B) (s2 : ijmeq (interp tg2) B) :
+        (Tag tg1 (the s1) = Tag tg2 (the s2)) ->
+        (tg1 = tg2) /\ (emit s1 = emit s2).
 Proof.
-case=>tx opx [ty opy] /=; case: (tx =P ty)=>pf; last first. 
-- by constructor; case=>/pf.
-subst ty; rewrite /= eqc; case: eqP=>pf; constructor; 
-by [rewrite pf|case=>/inj_pair2/pf].
+case=>?; subst tg2=>/inj_tagK.
+case: s1=>s1 es1 [/=]/[swap] ->{s1}.
+case=>?; subst B=>/= ->{es1}.
+by case: s2=>s2 _ [/=][pf ->]; rewrite eqc. 
+Qed. 
+
+Prenex Implicits injm_tagK.
+
+(* The eqType variant also rewrites by eqc *)
+(* in order to equate the tagged values. *)
+(* Thus it also depends on StreicherK. *)
+Lemma jmEK (A B : eqType) (interp : A -> eqType) (tg1 tg2 : A) 
+          (s1 : ijmeq (interp tg1) B) (s2 : ijmeq (interp tg2) B) :
+        (Tag tg1 (the s1) == Tag tg2 (the s2)) = 
+        (tg1 == tg2) && (emit s1 == emit s2).
+Proof.
+rewrite -tag_eqE /tag_eq /=.
+case: (tg1 =P tg2)=>// ?; subst tg2=>/=.
+rewrite tagged_asE {2}/eq_op.
+case: B s1 s2=>B [[/= eq_op eqPs]].
+case=>s1 e1 [/=][?]; subst B=>->{e1}.
+case=>s2 _ [/=][pf ->]; rewrite {pf}eqc.
+by case: eqPs=>[->|]; [rewrite eqxx|case: eqP].
 Qed.
 
-HB.instance Definition _ := hasDecEq.Build (sigT Us) tag_eqP.
-End TaggedEq.
+(* slight generalization *)
+Lemma jmEK' (A B : eqType) (interp : A -> eqType) (tg2 : A) 
+          (u : {tg & interp tg}) (s2 : ijmeq (interp tg2) (interp (tag u))) :
+        (u == Tag tg2 (the s2)) = 
+        (tag u == tg2) && (tagged u == emit s2).
+Proof. by case: u s2=>tg1 s1 s2; rewrite jmEK. Qed.
+
+(* if there's no need to equate tagged values *)
+(* (e.g., because B = unit), then StreicherK isn't required *)
+Lemma jmE1 (A : eqType) (interp : A -> eqType) (tg1 tg2 : A) 
+           (s1 : ijmeq (interp tg1) unit) (s2 : ijmeq (interp tg2) unit) :
+        (Tag tg1 (the s1) == Tag tg2 (the s2)) = (tg1 == tg2).
+Proof.
+rewrite -tag_eqE /tag_eq /=.
+case: (tg1 =P tg2)=>// ?; subst tg2=>/=.
+rewrite tagged_asE; apply/eqP.
+case: s1=>s1 [][/=][pf1 _]. 
+case: s2=>s2 [][/= _].
+rewrite pf1 in s1 s2 *.
+by case: s1; case: s2.
+Qed.
+
+(* We can restate jmEK for non-trivial interp without using StreicherK *)
+(* but this isn't useful, as the lemma is just overcomplicated way *)
+(* of stating eq_Tagged *)
+Lemma jmE_silly (T : eqType) (interp : T -> eqType) (tg1 tg2 : T) tg
+            (s1 : jmeq interp tg1 tg) (s2 : jmeq interp tg2 tg) :
+        (Tag tg1 (the s1) == Tag tg2 (the s2)) = 
+        (tg1 == tg2) && (emit s1 == emit s2).
+Proof.
+rewrite -tag_eqE /tag_eq /=.
+case: (tg1 =P tg2)=>// ?; subst tg2=>/=.
+rewrite tagged_asE.
+case: s1=>s1 e1 [[pf1 H1]] /=; subst tg e1=>/=.
+by case: s2=>s2 e2 [[pf2 H2]] /=; rewrite {e2}H2 eq_axiomK.
+Abort.
+
+(* above lemma is better phrased as follows *)
+Lemma inj_tagE (T : eqType) (interp : T -> eqType) 
+          (u : {tg & interp tg}) (x : interp (tag u)) : 
+        (u == Tag (tag u) x) = (tagged u == x).
+Proof. exact: eq_Tagged. Qed.
+
+(* collecting non-StreicherK jm rewrites *)
+Definition jmE := (jmE1, inj_tagE).
+
+(* collecting all jm rewrites *)
+Definition jmK := (jmE, jmEK).
 

@@ -23,9 +23,6 @@ From mathcomp Require Import ssrnat eqtype fintype tuple finfun seq path bigop.
 From pcm Require Import options axioms prelude pred finmap.
 From pcm Require Import pcm unionmap natmap.
 
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
-
 (************)
 (* Pointers *)
 (************)
@@ -46,7 +43,7 @@ Proof. by rewrite /ptr_offset addn0. Qed.
 Lemma ptr1 x : x .+ 1 = x.+1.
 Proof. by rewrite /ptr_offset addn1. Qed.
 
-Lemma ptrA x i j : x.+i.+j = x.+(i+j).
+Lemma ptrA x i j : (x.+i).+j = x.+(i+j).
 Proof. by rewrite /ptr_offset addnA. Qed.
 
 Lemma ptrK x i j : (x.+i == x.+j) = (i == j).
@@ -114,7 +111,7 @@ End NullLemmas.
 
 (* methods *)
 
-Notation base := (@UM.base ptr (fun k => k != null) (dynamic id)).
+Abbreviation base := (@UM.base ptr (fun k => k != null) (dynamic id)).
 
 Definition def h := if h is Def _ _ then true else false.
 Definition empty := @Def finmap.nil is_true_true.
@@ -188,7 +185,7 @@ Implicit Types (x : ptr) (h : heap).
 
 Lemma hcancelPtT A1 A2 x (v1 : A1) (v2 : A2) :
         valid (x :-> v1) -> x :-> v1 = x :-> v2 -> A1 = A2.  
-Proof. by move=>V /(cancelPt V)/dyn_injT. Qed.
+Proof. by move=>V /(cancelPt V)/inj_dynT. Qed.
 
 Lemma hcancelPtT2 A1 A2 x1 x2 (v1 : A1) (v2 : A2) :
         valid (x1 :-> v1) -> x1 :-> v1 = x2 :-> v2 -> (x1, A1) = (x2, A2).
@@ -196,11 +193,11 @@ Proof. by move=>V; case/(cancelPt2 V)=>-> E _; rewrite E. Qed.
 
 Lemma hcancelPtV A x (v1 v2 : A) :
         valid (x :-> v1) -> x :-> v1 = x :-> v2 -> v1 = v2.
-Proof. by move=>V; move/(cancelPt V)/dyn_inj. Qed.
+Proof. by move=>V; move/(cancelPt V)/inj_dyn. Qed.
 
 Lemma hcancelPtV2 A x1 x2 (v1 v2 : A) :
         valid (x1 :-> v1) -> x1 :-> v1 = x2 :-> v2 -> (x1, v1) = (x2, v2).
-Proof. by move=>V /(cancelPt2 V) [->] /dyn_inj ->. Qed.
+Proof. by move=>V /(cancelPt2 V) [->] /inj_dyn ->. Qed.
 
 Lemma heap_eta x h :
         x \in dom h -> 
@@ -218,12 +215,12 @@ Proof. exact: um_eta2. Qed.
 Lemma hcancelT A1 A2 x (v1 : A1) (v2 : A2) h1 h2 :
         valid (x :-> v1 \+ h1) ->
         x :-> v1 \+ h1 = x :-> v2 \+ h2 -> A1 = A2. 
-Proof. by move=>V; case/(cancel V); move/dyn_injT. Qed.
+Proof. by move=>V; case/(cancel V); move/inj_dynT. Qed.
 
 Lemma hcancelV A x (v1 v2 : A) h1 h2 :
         valid (x :-> v1 \+ h1) ->
         x :-> v1 \+ h1 = x :-> v2 \+ h2 -> [/\ v1 = v2, valid h1 & h1 = h2].
-Proof. by move=>V; case/(cancel V); move/dyn_inj. Qed.
+Proof. by move=>V; case/(cancel V); move/inj_dyn. Qed.
 
 Lemma hcancel2V A x1 x2 (v1 v2 : A) h1 h2 :
         valid (x1 :-> v1 \+ h1) ->
@@ -232,7 +229,7 @@ Lemma hcancel2V A x1 x2 (v1 v2 : A) h1 h2 :
         else [/\ free h2 x1 = free h1 x2,
                  h1 = x2 :-> v2 \+ free h2 x1 &
                  h2 = x1 :-> v1 \+ free h1 x2].
-Proof. by move=>V /(cancel2 V); case: ifP=>// _ [/dyn_inj]. Qed.
+Proof. by move=>V /(cancel2 V); case: ifP=>// _ [/inj_dyn]. Qed.
 
 End HeapPointsToLemmas.
 
@@ -286,7 +283,7 @@ by rewrite /= validPtUn -addn1 updiVm' // orbF IH addn1 /= andbT.
 Qed.
 
 Lemma updiVm x m xs :
-        x \in dom (updi x.+m xs) = [&& x != null, m == 0 & size xs > 0].
+        (x \in dom (updi x.+m xs)) = [&& x != null, m == 0 & size xs > 0].
 Proof.
 case: m=>[|m] /=; last first.
 - by rewrite andbF; apply/negbTE/updiVm'.
@@ -295,7 +292,7 @@ by rewrite domPtUn inE /= eq_refl -updiS updiD orbF andbT /=.
 Qed.
 
 Lemma updimV x m xs :
-        x.+m \in dom (updi x xs) = (x != null) && (m < size xs).
+        (x.+m \in dom (updi x xs)) = (x != null) && (m < size xs).
 Proof.
 case H: (x == null)=>/=.
 - case: xs=>[|a s]; first by rewrite dom0.
@@ -378,7 +375,7 @@ Lemma updi_split {I : finType} T p k (f : {ffun I -> T}) :
                             updi (p.+(indx k).+1) (drop (indx k).+1 (fgraph f)).
 Proof.
 rewrite fgraph_codom /= codomE {1}(enum_split k) map_cat updi_cat /=.
-rewrite map_take map_drop size_takel ?joinA; first by rewrite -ptr1 ptrA addn1. 
+rewrite map_take map_drop size_takel ?joinA; last by rewrite -ptr1 ptrA addn1. 
 by rewrite size_map index_size.
 Qed.
 

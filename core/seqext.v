@@ -15,14 +15,31 @@ From Stdlib Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq eqtype path choice fintype bigop perm.
 From pcm Require Import options prelude pred seqperm.
 
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
-
 (*********************)
 (* Extensions to seq *)
 (*********************)
 
 (* TODO upstream to mathcomp *)
+
+Lemma inj_cons {A} {a1 a2} {s1 s2 : seq A} : 
+         cons a1 s1 = cons a2 s2 -> 
+         a1 = a2 /\ s1 = s2.
+Proof. by case. Qed.
+
+Lemma inj_consE {A : eqType} {x1 x2} {xs1 xs2 : seq A} :
+        (x1 :: xs1 == x2 :: xs2) = (x1 == x2) && (xs1 == xs2).
+Proof. by []. Qed.
+
+Lemma revE {A} {s1 s2 : seq A} : 
+        rev s1 = s2 <-> s1 = rev s2.
+Proof. by split=>[<-|->]; rewrite revK. Qed.
+
+Lemma rev_eqseq {A : eqType} {s1 s2 : seq A} : 
+        (rev s1 == s2) = (s1 == rev s2).
+Proof. by apply/idP/idP=>/eqP/revE/eqP. Qed.
+
+Lemma inj_rev {A} : injective (@rev A).
+Proof. by move=>s1 s2 /revE; rewrite revK. Qed.
 
 Lemma head_rcons {A} (s : seq A) (x y : A) : 
         head x (rcons s y) = head y s.
@@ -48,7 +65,6 @@ Lemma filter_swap {A} (s : seq A) p1 p2 :
         filter p1 (filter p2 s) = filter p2 (filter p1 s).
 Proof. by rewrite -!filter_predI filter_predIC. Qed.
 
-(* TODO contribute to mathcomp? *)
 Lemma map_nilp {A B} (f : A -> B) (s : seq A) : 
         nilp (map f s) = nilp s.
 Proof. by rewrite /nilp; case: s. Qed.
@@ -86,9 +102,8 @@ Lemma drop_take_mask {A} (s : seq A) x y :
         drop x (take y s) = mask (nseq x false ++ nseq (y-x) true) s.
 Proof.
 case: (ltnP x (size s))=>Hx; last first.
-- rewrite drop_oversize; last by rewrite size_take_min geq_min Hx orbT.
-  rewrite -{1}(subnKC Hx) nseqD -catA -{3}(cats0 s) mask_cat;
-    last by rewrite size_nseq.
+- rewrite drop_oversize; first by rewrite size_take_min geq_min Hx orbT.
+  rewrite -{1}(subnKC Hx) nseqD -catA -{3}(cats0 s) mask_cat; first by rewrite size_nseq.
   by rewrite mask0 mask_false.
 have Hx': size (nseq x false) = size (take x s).
 - by rewrite size_nseq size_take_min; symmetry; apply/minn_idPl/ltnW.
@@ -98,12 +113,141 @@ move: (Hxy); rewrite -subn_eq0=>/eqP->; rewrite add0n drop_take_id.
 by rewrite drop_oversize // size_take_min geq_min Hxy.
 Qed.
 
+Lemma catl_cancel {A} {x1 y1 x2 y2 : seq A} : 
+        size x1 = size y1 ->
+        x1 ++ x2 = y1 ++ y2 -> 
+        x1 = y1 /\ x2 = y2.
+Proof. 
+move=>S /[dup] /(f_equal (take (size x1))).
+rewrite {2}S !take_size_cat // => ->.
+by move/(f_equal (drop (size y1))); rewrite !drop_size_cat.
+Qed.
+
+Lemma catr_cancel {A} {x1 y1 x2 y2 : seq A} : 
+        size x2 = size y2 ->
+        x1 ++ x2 = y1 ++ y2 -> 
+        x1 = y1 /\ x2 = y2.
+Proof. 
+move=>S /(f_equal rev); rewrite !rev_cat. 
+case/catl_cancel=>[|/inj_rev -> /inj_rev//].
+by rewrite !size_rev.
+Qed.
+
+Lemma hasN_count {A} {f : {pred A}} {xs} : 
+        reflect (count f xs = 0) (~~ has f xs).
+Proof. by rewrite has_count -leqNgt leqn0; apply: eqP. Qed.
+
+Lemma hasN_filter {A} {f : {pred A}} {xs} : 
+        reflect (filter f xs = [::]) (~~ has f xs).
+Proof. by rewrite -filter_nilp; apply: (iffP nilP). Qed.
+
+Lemma count_filter0 {A} {f : {pred A}} {xs} : 
+        count f xs = 0 <-> filter f xs = [::].
+Proof. by rewrite -size_filter; split=>[/size0nil|->]. Qed.
+
+Lemma count_pmap0 {A B} {f : A -> option B} {xs} :
+        count f xs = 0 <-> pmap f xs = [::].
+Proof. by elim: xs=>[|x xs IH] //=; rewrite /oapp; case: (f x). Qed.
+
+Lemma hasN_pmap {A B} {f : A -> option B} {xs} : 
+        reflect (pmap f xs = [::]) (~~ has f xs).
+Proof. by apply: (iffP hasN_count)=>/count_pmap0. Qed.
+
+Lemma count_rcons A (f : {pred A}) x (xs : seq A) : 
+        count f (rcons xs x) = (count f xs + f x)%N.
+Proof. by rewrite -count_rev rev_rcons /= addnC count_rev. Qed.
+
+Lemma has_first_split A (f : {pred A}) (xs : seq A) : 
+        has f xs -> 
+        exists x p1 p2, 
+        [/\ xs = rcons p1 x ++ p2, f x & ~~ has f p1].
+Proof.
+elim: xs=>[|x xs IH] //=.
+case F : (f x); first by exists x, [::], xs. 
+case/IH=>x0 [p1][p2][-> H H1].
+by exists x0, (x :: p1), p2; rewrite /= F H1.
+Qed.
+
+Lemma has_last_split A (f : {pred A}) (xs : seq A) : 
+        has f xs ->
+        exists x p1 p2, 
+        [/\ xs = rcons p1 x ++ p2, f x & ~~ has f p2].
+Proof.
+rewrite -has_rev=>/has_first_split [x][p1][p2][/revE E H1 H2].
+exists x, (rev p2), (rev p1). 
+by rewrite E rev_cat rev_rcons cat_rcons has_rev.
+Qed.
+
+Lemma count1_split A (f : {pred A}) (xs : seq A) : 
+        count f xs = 1 -> 
+        exists x p1 p2, 
+        [/\ xs = rcons p1 x ++ p2, f x, ~~ has f p1 & ~~ has f p2].
+Proof.
+move=>C; have H : has f xs by rewrite has_count C.
+case/has_first_split: H C=>x [p1][p2][->{xs} H1 H2].
+rewrite count_cat count_rcons H1 (hasN_count H2) add0n add1n.
+by case=>/hasN_count; exists x, p1, p2.
+Qed.
+
+Lemma count_splitE A (f : {pred A}) (x1 x2 : A) p1 p2 q1 q2 : 
+        ~~ has f p1 ->
+        ~~ has f q1 ->
+        f x1 -> 
+        f x2 ->
+        p1 ++ x1 :: q1 = 
+        p2 ++ x2 :: q2 ->
+        [/\ p1 = p2, x1 = x2 & q1 = q2].
+Proof.
+elim: p1 x1 q1 p2 x2 q2=>[|a1 p1 IH] x1 q1 p2 x2 q2 Hp Hq F1 F2 /= E.
+- case: p2 E Hq=>[|a2 p2] /=; first by case.
+  by case=>->->; rewrite has_cat /= F2 orbT.
+case: p2 E Hp=>[|a2 p2] /=; first by case=>->; rewrite F2.
+case=><-{a2} E; rewrite negb_or=>/andP [_ Hp].
+by case/(IH _ _ _ _ _ Hp Hq F1 F2): E=>->.
+Qed.
+
+Lemma pmap_rcons {A B} {f : A -> option B} {xs x} :
+        pmap f (rcons xs x) = 
+        if f x is Some y then rcons (pmap f xs) y else pmap f xs.
+Proof.
+by elim: xs x=>[|y ys IH] x //=; rewrite /oapp IH; case: (f x); case: (f y).
+Qed.
+
+Lemma pmap_rev {A B} {f : A -> option B} {xs} :
+        pmap f (rev xs) = rev (pmap f xs).
+Proof.
+elim: xs=>[|x xs IH] //=; rewrite /oapp rev_cons pmap_rcons IH. 
+by case: (f x)=>[a|//]; rewrite rev_cons.
+Qed.
+
+Lemma sorted_cat {A} (ord : rel A) (xs1 xs2 : seq A) : 
+        transitive ord ->
+        sorted ord (xs1 ++ xs2) ->
+        forall k, k \In xs1 -> all (ord k) xs2.
+Proof.
+move=>Tr S k K; case/In_split: K S=>s1 [s2 ->].
+rewrite -catA sorted_cat_cons /=; case/andP=>_ /(order_path_min Tr).
+by rewrite all_cat; case/andP.
+Qed.
+
+Lemma iotaDr m1 m2 n : iota (m1 + m2) n = map (addn^~ m1) (iota m2 n).
+Proof. by rewrite iotaDl; apply: eq_map=>x; rewrite addnC. Qed.
+
 Section LemmasEq.
-Variables A : eqType.
+Context {A : eqType}.
 Implicit Type xs : seq A.
 
 Lemma eqnil xs : xs =i [::] -> xs = [::].
 Proof. by case: xs=>// x xs /(_ x); rewrite inE eqxx. Qed.
+
+Lemma revA xs1 xs2 : rev xs1 == xs2 -> all [mem xs1] xs2.
+Proof.
+elim: xs2 xs1=>[|x2 xs2 IH] //=.
+case/lastP=>[|xs1 x1] //=.
+rewrite rev_rcons=>/eqP [->{x1}] /eqP /IH /allP X. 
+rewrite mem_rcons inE eqxx /=. 
+by apply/allP=>z /X /= Z; rewrite mem_rcons inE Z orbT.
+Qed.
 
 (* With A : Type, we have the In_split lemma. *)
 (* With A : eqType, the lemma can be strenghtened to *)
@@ -151,6 +295,59 @@ Lemma undup_eq1 (x : A) xs :
 Proof.
 split=>[/perm_undup/perm1P ->//|].
 by move/perm1P/perm_mem=>H z; rewrite -mem_undup H.
+Qed.
+
+Lemma permeq_filterC p (s : seq A) : 
+        perm_eq s (filter p s ++ filter (predC p) s).
+Proof. by rewrite perm_sym; apply/permEl/perm_filterC. Qed.
+
+Lemma filter_subseq_in (s1 s2 : seq A) : 
+        uniq s2 ->
+        subseq s1 s2 ->
+        filter [in s1] s2 = s1.
+Proof.
+elim: s2 s1=>[|x s2 IH] s1 /= U; first by move/eqP=>->.
+case: s1=>[_|y s1] /=; first by rewrite filter_pred0. 
+case/andP: U=>N U; case: ifPn=>[/eqP ->{y}|Nyx S].
+- rewrite inE eqxx /= => /(IH _ U) {2}<-. 
+  congr cons; apply: eq_in_filter=>z Z; rewrite inE.
+  by case: eqP Z N=>//= ->->.
+have Nx : x \notin s1.
+- by apply: contra N=>N; rewrite (mem_subseq S) // inE N orbT.
+by rewrite inE eq_sym (negbTE Nyx) (negbTE Nx) (IH _ U S).
+Qed.
+
+Lemma perm_subseq (r1 r2 r s : seq A) : 
+        uniq r ->
+        perm_eq r (r1 ++ r2) ->
+        subseq s r ->
+        exists s1 s2, 
+          [/\ perm_eq s (s1 ++ s2), 
+              subseq s1 r1 & 
+              subseq s2 r2].
+Proof.
+move=>U P S; set s1 := filter (mem s) r1; set s2 := filter (mem s) r2.
+exists s1, s2; split; try by apply: filter_subseq.
+by rewrite -filter_cat -{1}(filter_subseq_in _ S) // perm_filter.
+Qed.
+
+Lemma rcons_subseq (s : seq A) (x : A) : 
+        subseq [:: x] (rcons s x).
+Proof.
+elim: s=>[|a s IH] // /=; case: (x =P a)=>[->|//].
+by apply: sub0seq.
+Qed.
+
+Lemma split_subseq x (s1 s2 : seq A) : 
+        subseq (x :: s1) s2 <-> 
+        exists a1 a2, [/\ s2 = a1 ++ x :: a2 & subseq s1 a2].
+Proof.
+split; last first.
+- case=>a1 [a2][->{s2} S].
+  by rewrite -[x :: s1]cat0s cat_subseq ?sub0seq //= eqxx.
+elim: s2 s1 x=>[|y s2 IH] s1 x //=.
+case: ifPn=>[/eqP <-{y}|_]; first by exists [::], s2.
+by case/IH=>a1 [a2][E1 E2]; exists (y :: a1), a2; rewrite /= -E1. 
 Qed.
 
 Lemma undup_uniq_eq1 (x : A) xs :
@@ -217,11 +414,11 @@ move=>X z; rewrite !inE; case/orP=>[|/X] -> //.
 by rewrite orbT.
 Qed.
 
-Lemma subset_catL (s1 s2 s : seq A) :
+Lemma subset_catL (s1 s2 : seq A) :
         {subset s1 <= s1 ++ s2}.
 Proof. by move=>x S; rewrite mem_cat S. Qed.
 
-Lemma subset_catR (s1 s2 s : seq A) :
+Lemma subset_catR (s1 s2 : seq A) :
         {subset s2 <= s1 ++ s2}.
 Proof. by move=>x S; rewrite mem_cat S orbT. Qed.
 
@@ -332,7 +529,20 @@ Lemma filter_mem_sym (s1 s2 : seq A) :
         filter (mem s1) s2 =i filter (mem s2) s1.
 Proof. by move=>x; rewrite !mem_filter andbC. Qed.
 
-Lemma index_inj xs x y :
+Lemma has_filterI (p q : pred A) (s : seq A) : 
+        has p (filter q s) = has (predI p q) s.
+Proof. by rewrite has_filter -filter_predI -has_filter. Qed.
+
+Lemma filter_sub p (s : seq A) : 
+        {subset s <= p} ->
+        filter p s = s.
+Proof. by move=>S; rewrite -[RHS]filter_predT; apply: eq_in_filter. Qed.
+
+Lemma filter_in (s : seq A) : 
+        filter [in s] s = s.
+Proof. by apply: filter_sub. Qed.
+
+Lemma inj_index xs x y :
         x \in xs -> 
         index x xs = index y xs -> 
         x = y.
@@ -365,14 +575,14 @@ Lemma head_dflt (x1 x2 x : A) xs :
         head x1 xs = head x2 xs.
 Proof. by case: xs. Qed.
 
-Lemma mem_head (x : A) xs : head x xs \in x :: xs.
+Lemma head_mem (x : A) xs : head x xs \in x :: xs.
 Proof. by case: xs=>[|y ys]; rewrite !inE //= eqxx orbT. Qed.
 
-(* a common pattern of using mem_head that avoids forward reasoning *)
+(* a common pattern of using mem_head that avoids forewriteard reasoning *)
 Lemma mem_headI (x : A) xs a :
         a = head x xs -> 
         a \in x :: xs.
-Proof. by move=>->; apply: mem_head. Qed.
+Proof. by move=>->; apply: head_mem. Qed.
 
 Lemma head_nilp (x : A) xs :
         x \notin xs -> 
@@ -396,14 +606,14 @@ Qed.
 (* TODO upstream to mathcomp *)
 Lemma in_mask_count x m xs :
         count_mem x xs <= 1 ->
-        x \in mask m xs = (x \in xs) && nth false m (index x xs).
+        (x \in mask m xs) = (x \in xs) && nth false m (index x xs).
 Proof.
 elim: xs m => [|y xs IHs] m /=; first by rewrite mask0 in_nil.
 case: m=>/=[|b m]; first by rewrite in_nil nth_nil andbF.
 case: b; rewrite !inE eq_sym; case: eqP=>//= _.
 - by rewrite add0n; apply: IHs.
 - rewrite -{2}(addn0 1%N) leq_add2l leqn0 => /eqP Hc.
-  rewrite IHs; last by rewrite Hc.
+  rewrite IHs; first by rewrite Hc.
   by move/count_memPn/negbTE: Hc=>->.
 by rewrite add0n; apply: IHs.
 Qed.
@@ -416,7 +626,7 @@ by rewrite inE negb_or eq_sym H.
 Qed.
 
 Lemma prefix_drop_sub (s1 s2 : seq A) :
-        seq.prefix s1 s2 ->
+        prefix s1 s2 ->
         forall n, {subset (drop n s1) <= drop n s2}.
 Proof.
 case/seq.prefixP=>s0 {s2}-> n x H.
@@ -435,7 +645,95 @@ case: s2=>[|y' s2] /= /andP [/eqP ->].
 by rewrite eqxx=>/IH [|/= ->]; [left|right].
 Qed.
 
+Lemma prefix_sub (s1 s2 : seq A) :
+        prefix s1 s2 -> 
+        {subset s1 <= s2}.
+Proof. by case/prefixP=>s2' ->; apply: subset_catL. Qed.
+
+Lemma prefix_subT (s1 s2 s3 : seq A) : 
+        prefix s1 s2 ->
+        {subset s2 <= s3} ->
+        {subset s1 <= s3}.
+Proof. by move/prefix_sub=>H1 H2 x /H1/H2. Qed.
+
+Lemma prefix_cat (xs ys1 ys2 : seq A) : 
+        prefix xs (ys1 ++ ys2) = 
+        if size xs < size ys1 then prefix xs ys1 
+        else (ys1 == take (size ys1) xs) && 
+             prefix (drop (size ys1) xs) ys2.
+Proof.
+rewrite !prefixE take_cat size_drop; case: ltnP=>// N.
+by rewrite -{2}(cat_take_drop (size ys1) xs) eqseq_cat // size_takel.
+Qed.
+
+Lemma prefix_catl (xs ys1 ys2 : seq A) : 
+        prefix xs (ys1 ++ ys2) = 
+        if size xs <= size ys1 then prefix xs ys1 
+        else (ys1 == take (size ys1) xs) && 
+             prefix (drop (size ys1) xs) ys2.
+Proof.
+rewrite prefix_cat prefixE; case: ltngtP=>// E. 
+by rewrite -E {3}E !take_size drop_size prefix0s andbT.
+Qed.
+
+Lemma prefix_catP (xs ys1 ys2 : seq A) : 
+        reflect (prefix xs ys1 \/ 
+                 exists2 xs2, xs = ys1 ++ xs2 & prefix xs2 ys2)
+                (prefix xs (ys1 ++ ys2)).
+Proof.
+rewrite prefix_catl; case: leqP=>N.
+- case D: (prefix xs ys1); constructor; first by left.
+  case=>//; case=>xs2 E; move: E N D=>->.
+  rewrite size_cat -leq_subRL // subnn leqn0. 
+  by move/eqP/size0nil=>->; rewrite cats0 prefix_refl.
+case: andP=>[[/eqP H1 H2]|H]; constructor.
+- right; exists (drop (size ys1) xs)=>//.
+  by rewrite {1}H1 cat_take_drop. 
+case=>[/size_prefix|[xs2 E P]]; first by case: ltngtP N.
+by apply: H; rewrite E take_size_cat // drop_size_cat.
+Qed.
+
+Lemma suffix_cat (xs ys1 ys2 : seq A) : 
+        suffix xs (ys1 ++ ys2) = 
+        if (size xs < size ys2)%N then suffix xs ys2 
+        else (ys2 == drop (size xs - size ys2) xs) && 
+             suffix (take (size xs - size ys2) xs) ys1.
+Proof.
+rewrite /suffix rev_cat prefix_cat !size_rev; case: ltnP=>// N.
+by rewrite rev_eqseq !rev_take size_rev revK subKn.
+Qed.
+
+Lemma suffix_catl (xs ys1 ys2 : seq A) : 
+        suffix xs (ys1 ++ ys2) = 
+        if (size xs <= size ys2)%N then suffix xs ys2 
+        else (ys2 == drop (size xs - size ys2) xs) && 
+             suffix (take (size xs - size ys2) xs) ys1.
+Proof.
+rewrite suffix_cat; case: ltngtP=>// E; rewrite [RHS]suffixE {}E.
+by rewrite subnn !drop0 take0 suffix0s andbT.
+Qed.
+
+Lemma suffix_catP (xs ys1 ys2 : seq A) : 
+        reflect (suffix xs ys2 \/ 
+                 exists2 xs1, xs = xs1 ++ ys2 & suffix xs1 ys1)
+                (suffix xs (ys1 ++ ys2)).
+Proof.
+rewrite /suffix rev_cat; apply: (iffP (prefix_catP _ _ _)).
+- case=>[|[xs2] /revE ->]; first by left.
+  by right; exists (rev xs2); rewrite ?rev_cat 1?revK.
+case=>[|[xs1 ->]]; first by left.
+by right; exists (rev xs1)=>//; rewrite rev_cat.
+Qed.
+
+Lemma suffix_sub (s1 s2 : seq A) : 
+        suffix s1 s2 -> 
+        {subset s1 <= s2}.
+Proof. by move/prefix_sub=>S x; rewrite -mem_rev=>/S; rewrite mem_rev. Qed.
+
 End LemmasEq.
+
+
+
 
 (* lemmas about prev and next should generally by proved using *)
 (* prev_nth and next_nth, but sometimes we can also prove them *)
@@ -515,6 +813,16 @@ Proof.
 apply/idP/idP=>/allP S; apply/allP=>x X; 
 by apply/negP=>/S; rewrite X.
 Qed.
+
+Lemma disjointPR {A : eqType} (s1 s2 : seq A) :
+        reflect {in s2, forall x, x \notin s1}
+                (disjoint s1 s2).
+Proof. by apply/(iffP allP). Qed.
+
+Lemma disjointPL {A : eqType} (s1 s2 : seq A) :
+        reflect {in s1, forall x, x \notin s2}
+                (disjoint s1 s2).
+Proof. by rewrite disjointC; apply/disjointPR. Qed.
 
 Lemma disjoint_catR {A : eqType} (s s1 s2 : seq A) : 
         disjoint s (s1 ++ s2) = 
@@ -644,6 +952,12 @@ apply: (iffP disj_filt_subL)=>/subsetC S x X; apply: S;
 by rewrite !inE /= negbK.
 Qed.
 
+Lemma prefix_disjT {A : eqType} (s1 s2 s3 : seq A) : 
+        prefix s1 s2 ->
+        disjoint s2 s3 ->
+        disjoint s1 s3.
+Proof. by move/prefix_sub/disjoint_subR; apply. Qed.
+
 Lemma cycle_head_uniq {A : eqType} (r : rel A) x (xs : seq A) :
         x \in xs ->
         cycle r xs ->
@@ -651,6 +965,68 @@ Lemma cycle_head_uniq {A : eqType} (r : rel A) x (xs : seq A) :
 Proof.
 case/splitPr=>p1 p2; rewrite cycle_catC /= rcons_path; case/andP.
 by case/shortenP=>p' P U _ R; exists p'; rewrite rcons_path P R.
+Qed.
+
+Lemma subseq_permD {A : eqType} (r1 r2 r : seq A) :
+        subseq r1 r ->
+        subseq r2 r ->
+        disjoint r1 r2 ->
+        exists2 r', perm_eq r' (r1 ++ r2) & subseq r' r. 
+Proof.
+elim: r r1 r2=>[|x r IH] r1 r2.
+- by move/eqP=>-> /eqP ->; exists [::].
+case: r1=>[|a1 r1]; case: r2=>[|a2 r2] //=; first by exists [::].
+- case: ifPn=>[/eqP ->{a2}|N] _ S. 
+  - by exists (x :: r2)=>//; rewrite eqxx.
+  by exists (a2 :: r2)=>//; rewrite (negbTE N).
+- rewrite cats0; case: ifPn=>[/eqP ->{a1}|N] S _.
+  - by exists (x :: r1)=>//; rewrite eqxx.
+  by exists (a1 :: r1)=>//; rewrite (negbTE N).
+case: ifPn=>[/eqP ->{a1}|N1] S1.
+- rewrite disjoint_consL inE (eq_sym x). 
+  case: (a2 =P x)=>//= _ S2 /andP [_] /(IH _ _ S1 S2) [r' P R].
+  by exists (x :: r'); [rewrite perm_cons|rewrite eqxx].
+case: ifPn=>[/eqP ->{a2}|N2] S2.
+- rewrite disjoint_consR inE (eq_sym x) (negbTE N1) /=. 
+  case/andP=>_ /(IH _ _ S1 S2) [r'] P R.
+  exists (x :: r'); last by rewrite eqxx. 
+  rewrite -cat_cons -(cat1s x r') -(cat1s x r2).
+  apply/perm_trans/permPl/perm_catCA. 
+  by rewrite perm_cat2l.
+case/(IH _ _ S1 S2)=>r' P R.
+exists r'; first by rewrite -cat1s catA cat1s.
+by case: r' P R=>[//|a r'] P; case: (a =P x)=>// -> /cons_subseq.
+Qed.
+
+Lemma map_subseq_inj {A B : eqType} (f : A -> B) (s1 s2 : seq A) :
+        injective f ->
+        subseq (map f s1) (map f s2) = subseq s1 s2.
+Proof.
+elim: s2 s1=>[|x s2 IH][|y s1] //= I.
+case: (y =P x)=>[->|N]; first by rewrite eqxx IH.
+by case: eqP; [move/I/N|rewrite -IH].
+Qed.
+
+Lemma map_image_subseq {A B : eqType} (f : A -> B) s1 s2 : 
+        subseq s1 (map f s2) -> 
+        exists2 s, s1 = map f s & subseq s s2. 
+Proof.
+elim: s2 s1=>[|x s2 IH][|y s1] //=; try by exists [::].
+case: ifPn=>[/eqP ->{y}|N] /IH [s -> S].
+- by exists (x :: s)=>//; rewrite eqxx.
+exists s=>//; case: s S=>[//|z s] S.
+by case: eqP S=>// -> /cons_subseq.
+Qed.
+
+Lemma pmap_subseq {A B : eqType} (f : A -> option B) (s1 s2 : seq A) :
+        subseq s1 s2 ->
+        subseq (pmap f s1) (pmap f s2).
+Proof.
+move=>S; suff : subseq (map Some (pmap f s1)) (map Some (pmap f s2)).
+- by rewrite map_subseq_inj //; move=>x y [].
+rewrite !pmapS_filter; apply: map_subseq; rewrite subseq_filter.
+apply/andP; split; first by apply/allP=>z; rewrite mem_filter=>/andP [].
+by apply: subseq_trans S; apply/filter_subseq.
 Qed.
 
 (* finding last occurrence of element in a sequence *)
@@ -675,8 +1051,8 @@ rewrite /findlast_aux; elim: s oi0=>/= [|x s IH] [o0 i0] /=.
 rewrite IH /= rev_cons -cats1 find_cat /= has_find.
 move: (find_size p (rev s)); rewrite size_rev; case: ltngtP=>// H _.
 - case: eqP=>[E|_]; first by rewrite E ltnNge leqnSn in H.
-  apply: injective_projections=>/=; [congr Some | rewrite addSnnS]=>//.
-  by rewrite !predn_sub /= -predn_sub addSnnS prednK // subn_gt0.
+  apply: injective_projections=>/=; [congr Some|rewrite addSnnS=>//]. 
+  by rewrite !predn_sub /= -predn_sub addSnnS prednK // subn_gt0.  
 case: ifP=>_; rewrite addSnnS; last by rewrite addn1 eqxx.
 by rewrite addn0 eqn_leq leqnSn /= ltnn subSnn addn0.
 Qed.
@@ -731,8 +1107,8 @@ case/boolP: (has p s2)=>H2; last first.
   by rewrite addnC subnDl.
 have H2' : find p (rev s2) < size s2.
 - by rewrite -size_rev -has_find has_rev.
-rewrite /= orbT andbF -addnBA; last by apply: ltnW.
-rewrite -!subn1 -subnDA -addnBA; last by rewrite subn_gt0.
+rewrite /= orbT andbF -addnBA; first by apply: ltnW.
+rewrite -!subn1 -subnDA -addnBA; first by rewrite subn_gt0.
 by rewrite subnDA.
 Qed.
 
@@ -760,7 +1136,7 @@ Lemma nth_findlast x0 p s :
         p (nth x0 s (findlast p s)).
 Proof.
 rewrite findlastE=>/[dup] E ->; rewrite -has_rev in E.
-rewrite -subnS -nth_rev; last by rewrite -size_rev -has_find.
+rewrite -subnS -nth_rev; first by rewrite -size_rev -has_find.
 by apply: nth_find.
 Qed.
 
@@ -774,7 +1150,7 @@ have Hh: 0 < size s - find p (rev s).
 rewrite -size_rev; move/(has_take (size s - i)): (E).
 rewrite take_rev -subnS size_rev.
 case/boolP: (i < size s)=>[Hi|].
-- rewrite subnA //; last by apply: ltnW.
+- rewrite subnA //; first by apply: ltnW.
   rewrite subnn add0n has_rev=>->.
   rewrite ltn_subRL addnC -ltn_subRL subnS.
   by case: (size s - find p (rev s)) Hh.
@@ -802,7 +1178,7 @@ elim: s=>//= h s IH.
 rewrite rev_cons -cats1 find_cat has_rev size_rev /=.
 case/orP; first by move=>->.
 move=>/[dup] H ->; case: ifP=>_ //.
-rewrite subSn /=; last first.
+rewrite subSn /=.
 - by rewrite -size_rev; apply: find_size.
 apply: (leq_ltn_trans (IH H)); rewrite ltn_predL subn_gt0.
 by rewrite -size_rev -has_find has_rev.
@@ -817,7 +1193,7 @@ Lemma split_findlast_nth x0 p s (i := findlast p s) :
         split_findlast_nth_spec p s (take i s) (drop i.+1 s) (nth x0 s i).
 Proof.
 move=> p_s; rewrite -[X in split_findlast_nth_spec _ X](cat_take_drop i s).
-rewrite (drop_nth x0 _); last by rewrite -has_findlast.
+rewrite (drop_nth x0 _); first by rewrite -has_findlast.
 rewrite -cat_rcons; constructor; first by apply: nth_findlast.
 by rewrite has_drop // ltnn.
 Qed.
@@ -834,6 +1210,7 @@ by case: s => // x ? in i * =>?; case: split_findlast_nth=>//; constructor.
 Qed.
 
 End FindLast.
+
 
 Section FindLastEq.
 Variables T : eqType.
@@ -1007,11 +1384,11 @@ Lemma findall_cat p s1 s2 :
         findall p (s1 ++ s2) =
         findall p s1 ++ map (fun n => size s1 + n) (findall p s2).
 Proof.
-rewrite !findallE size_cat iotaD add0n zip_cat; last by rewrite size_iota.
+rewrite !findallE size_cat iotaD add0n zip_cat; first by rewrite size_iota.
 rewrite filter_cat {1}/unzip1 map_cat; congr (_ ++ _).
 set n := size s1.
 rewrite -{1}(addn0 n) iotaDl zip_mapl filter_map -!map_comp.
-rewrite (eq_filter (a2:=(p \o snd))); last by case.
+rewrite (eq_filter (a2:=(p \o snd))); first by case.
 by apply: eq_map; case.
 Qed.
 
@@ -1257,12 +1634,12 @@ move=>Px; elim: ks=>[|k ks IH] //=; case P : (p k)=>/=;
 by case: ifP Px; case: ifP=>// _ /eqP <-; rewrite P.
 Qed.
 
-Lemma filter_sub (p1 p2 : pred A) (s : seq A) :
+Lemma filter_subset (p1 p2 : pred A) (s : seq A) :
         subpred p1 p2 -> 
         {subset filter p1 s <= filter p2 s}.
 Proof.
-move=>S; rewrite (_ : filter p1 s = filter p1 (filter p2 s)).
-- by apply: mem_subseq; apply: filter_subseq.
+move=>S; rewrite (_ : filter p1 s = filter p1 (filter p2 s));
+  last by apply: mem_subseq; apply: filter_subseq.
 rewrite -filter_predI; apply: eq_in_filter=>x X /=.
 by case E : (p1 x)=>//=; rewrite (S _ E).
 Qed.
@@ -1498,72 +1875,50 @@ End FilterLastIndex.
 Section IndexPmap.
 Variables A B : eqType.
 
-Lemma index_pmap_inj (s : seq A) (f : A -> option B) a1 a2 b1 b2 :
-        injective f -> 
-        f a1 = Some b1 -> 
-        f a2 = Some b2 ->
-        index b1 (pmap f s) < index b2 (pmap f s) <-> index a1 s < index a2 s.
+Lemma index_pmap (f : A -> option B) s x' y' y :
+        f y = Some y' ->
+        index x' (pmap f s) < index y' (pmap f s) ->
+        exists2 x, f x = Some x' & index x s < index y s.
 Proof.
-move=>Inj E1 E2; elim: s=>[|k s IH] //=; rewrite /oapp.
-case: eqP=>[->{k}|].
-- rewrite E1 /= eqxx.
-  case: (a1 =P a2) E1 E2=>[-> -> [/eqP ->] //|].
-  by case: (b1 =P b2)=>[-> Na <- /Inj /esym/Na|].
-case: eqP=>[->{k} Na|N2 N1]; first by rewrite E2 /= eqxx !ltn0.
-case E : (f k)=>[b|] //=.
-case: eqP E1 E=>[-><- /Inj/N1 //|_ _].
-by case: eqP E2=>[-><- /Inj/N2 //|_ _ _]; rewrite IH.
+move=>Y N; case Dy : (y \in s); last first.
+- have : x' \in pmap f s by rewrite -index_mem (leq_trans N) // index_size.
+  case/pmapPP=>x H1 /mem_seqP D1; exists x=>//.
+  by move/negbT/index_memN: Dy=>->; rewrite index_mem.
+elim: s Dy Y N=>[|k ks IH] //=; rewrite inE /oapp eq_sym =>Dy Y.
+case: (k =P y) Dy=>[->{k} _|Nk /= H].
+- by rewrite Y /= eqxx; case: ifP.
+case D: (f k)=>[k'|] /=; last first.
+- by case/(IH H Y)=>x X N; exists x=>//; case: ifP.
+case: ifPn D=>[/eqP ->|Nk1]; first by exists k=>//; rewrite eqxx.
+case: ifPn=>// Nk2 D /(IH H Y) [x] X N; exists x=>//.
+by case: ifP.
 Qed.
 
-Lemma index_pmap_inj_mem (s : seq A) (f : A -> option B) a1 a2 b1 b2 :
-        {in s &, injective f} ->
-        a1 \in s -> 
-        a2 \in s ->
-        f a1 = Some b1 -> 
-        f a2 = Some b2 ->
-        index b1 (pmap f s) < index b2 (pmap f s) <-> index a1 s < index a2 s.
-Proof.
-move=>Inj A1 A2 E1 E2.
-elim: s Inj A1 A2=>[|k s IH] //= Inj; rewrite /oapp !inE !(eq_sym k).
-case: eqP Inj=>[<-{k} /= Inj _|].
-- rewrite E1 /= !eqxx eq_sym.
-  case: eqP E1 E2=>[->-> [->]|]; first by rewrite eqxx.
-  case: eqP=>[-> Na <- E /= A2|//].
-  by move/Inj: E Na=>-> //; rewrite inE ?(eqxx,A2,orbT).
-case eqP=>[<-{k} Na Inj /= A1 _|]; first by rewrite E2 /= eqxx !ltn0.
-move=>N2 N1 Inj /= A1 A2.
-have Inj1 : {in s &, injective f}.
-- by move=>x y X Y; apply: Inj; rewrite inE ?X ?Y ?orbT.
-case E : (f k)=>[b|] /=; last by rewrite IH.
-case: eqP E1 E=>[-> <- E|_ _].
-- by move/Inj: E N1=>-> //; rewrite inE ?(eqxx,A1,orbT).
-case: eqP E2=>[-><- E|_ _ _]; last by rewrite IH.
-by move/Inj: E N2=>-> //; rewrite inE ?(eqxx,A2,orbT).
-Qed.
-
-(* we can relax the previous lemma a bit *)
-(* the relaxation will be more commonly used than the previous lemma *)
-(* because the option type gives us the implication that the second *)
-(* element is in the map *)
-Lemma index_pmap_inj_in (s : seq A) (f : A -> option B) a1 a2 b1 b2 :
-        {in s & predT, injective f} ->
-        f a1 = Some b1 -> 
-        f a2 = Some b2 ->
-        index b1 (pmap f s) < index b2 (pmap f s) <-> index a1 s < index a2 s.
-Proof.
-move=>Inj E1 E2.
-case A1 : (a1 \in s); last first.
-- move/negbT/index_sizeE: (A1)=>->.
-  suff /index_sizeE -> : b1 \notin pmap f s by rewrite !ltnNge !index_size.
-  rewrite mem_pmap; apply/mapP; case=>x X /esym; rewrite -E1=>E.
-  by move/(Inj _ _ X): E A1=><- //; rewrite X.
-case A2 : (a2 \in s).
-- by apply: index_pmap_inj_mem=>// x y X _; apply: Inj.
-move/negbT/index_sizeE: (A2)=>->.
-suff /index_sizeE -> : b2 \notin pmap f s.
-- by rewrite !index_mem /= A1 mem_pmap; split=>// _; apply/mapP; exists a1.
-rewrite mem_pmap; apply/mapP; case=>x X /esym; rewrite -E2=>E.
-by move/(Inj _ _ X): E A2=><- //; rewrite X.
+Lemma index_pmap_inj (f : A -> option B) s x y x' y' : 
+        {in s, forall x, f x = Some y' -> x = y} ->
+        index x s < index y s ->
+        f x = Some x' ->
+        f y = Some y' ->
+        index x' (pmap f s) < index y' (pmap f s).
+Proof. 
+move=>H N X Y; case Dy : (y \in s); last first.
+- have Ny : y' \notin pmap f s.
+  - apply/pmapPP; case=>z E /mem_seqP Z.
+    by move/(H _ Z): E (Z) Dy=>->->.
+  rewrite (memNindex Ny) index_mem.
+  apply/pmapPP; exists x=>//; apply/mem_seqP.
+  by rewrite -index_mem (leq_trans N) // index_size.
+elim: s Dy H N=>[|k s IH] //=; rewrite inE /oapp eq_sym.
+case: (k =P y)=>[->{k}|] //=.
+case: (k =P x)=>[->{k} Nxy Dy H _|/eqP Nkx Nky Dy H].
+- by rewrite X /= eqxx; case: ifP X Nxy=>// /eqP -> /H -> //; rewrite inE eqxx.
+have H' : {in s, forall x, f x = Some y' -> x = y}.
+- by move=>z Dz /H -> //; rewrite inE Dz orbT.
+move/(IH Dy H'); case Dk: (f k)=>[k'|] //=.
+case: ifPn Dk=>[/eqP ->{k'} Dk|].
+- by case: ifPn=>// /eqP ->; rewrite ltnn.
+case: ifPn=>// /eqP ->{k'} N K.
+by move/H: K Nky=>-> //; rewrite inE eqxx.
 Qed.
 
 End IndexPmap.
@@ -1645,18 +2000,14 @@ case; case=>[|i][] /=; first by rewrite Ne.
 by rewrite ltnS=>H1 H2 H3; exists i; split=>// j; rewrite -ltnS; apply: H3.
 Qed.
 
-Section SeqRel.
-Variable A : eqType.
-Implicit Type ltT leT : rel A.
-
 (* ordering with path, seq and last *)
 
-Lemma eq_last (s : seq A) x y :
+Lemma eq_last (A : eqType) (s : seq A) x y :
         x \in s -> 
         last y s = last x s.
 Proof. by elim: s x y=>[|w s IH]. Qed.
 
-Lemma seq_last_in (s : seq A) x :
+Lemma seq_last_in (A : eqType) (s : seq A) x :
         last x s \notin s -> 
         s = [::].
 Proof.
@@ -1664,7 +2015,7 @@ case: (lastP s)=>{s} // s y; case: negP=>//; elim; rewrite last_rcons.
 by elim: s=>[|y' s IH]; rewrite /= inE // IH orbT.
 Qed.
 
-Lemma path_last (s : seq A) leT x :
+Lemma path_last (A : eqType) (s : seq A) leT x :
         transitive leT -> 
         path leT x s ->
         (x == last x s) || leT x (last x s).
@@ -1674,14 +2025,14 @@ move=>T /(order_path_min T) /allP; case: s=>[|a s] H /=.
 by rewrite (H (last a s)) ?orbT // mem_last.
 Qed.
 
-Lemma path_lastR (s : seq A) leT x :
+Lemma path_lastR (A : eqType) (s : seq A) leT x :
         reflexive leT -> 
         transitive leT ->
         path leT x s -> 
         leT x (last x s).
 Proof. by move=>R T P; case: eqP (path_last T P)=>// <- _; apply: R. Qed.
 
-Lemma path_prev leT s a x :
+Lemma path_prev (A : eqType) (leT : rel A) s a x :
         x \in s -> 
         path leT a s -> 
         exists y, y \in belast a s /\ leT y x.
@@ -1690,7 +2041,7 @@ case/splitPr=>p1 p2; rewrite cat_path /= =>/and3P [].
 by exists (last a p1); rewrite belast_cat /= mem_cat inE eqxx orbT. 
 Qed.
 
-Lemma path_next leT s a x b :
+Lemma path_next (A : eqType) (leT : rel A) s a x b :
         x \in a :: s -> 
         path leT a (rcons s b) -> 
         exists y, y \in rcons s b /\ leT x y.
@@ -1702,7 +2053,7 @@ case/andP: H2=>H2 _; exists y; split=>//.
 by rewrite mem_cat inE eqxx orbT.
 Qed.
 
-Lemma path_uniq leT a s :
+Lemma path_uniq (A : eqType) (leT : rel A) a s :
         (forall x y, leT x y -> y != a) ->
         (forall a b x, leT a x -> leT b x -> a = b) ->
         path leT a s -> 
@@ -1720,7 +2071,7 @@ Qed.
 (* in a sorted list, the last element is maximal *)
 (* and the maximal element is last *)
 
-Lemma sorted_last_key_max (s : seq A) leT x y :
+Lemma sorted_last_key_max (A : eqType) (s : seq A) leT x y :
         transitive leT -> 
         sorted leT s -> 
         x \in s ->
@@ -1731,7 +2082,7 @@ case: eqP=>[->|] /= _; first by apply: path_last.
 by apply: IH (path_sorted H).
 Qed.
 
-Lemma sorted_last_key_maxR (s : seq A) leT x y :
+Lemma sorted_last_key_maxR (A : eqType) (s : seq A) leT x y :
         reflexive leT -> 
         transitive leT ->
         sorted leT s -> 
@@ -1742,7 +2093,7 @@ move=>R T S X; case/orP: (sorted_last_key_max y T S X)=>// /eqP <-.
 by apply: R.
 Qed.
 
-Lemma sorted_max_key_last (s : seq A) leT x y :
+Lemma sorted_max_key_last (A : eqType) (s : seq A) leT x y :
         transitive leT -> 
         antisymmetric leT ->
         sorted leT s -> 
@@ -1758,7 +2109,7 @@ case/orP: (path_last T H1)=>[/eqP //|] X.
 by apply: S; rewrite X H2 ?mem_last.
 Qed.
 
-Lemma max_key_last_notin (s : seq A) (leT : rel A) x y :
+Lemma max_key_last_notin (A : eqType) (s : seq A) (leT : rel A) x y :
         leT y x -> 
         (forall z, z \in s -> leT z x) -> 
         leT (last y s) x.
@@ -1768,7 +2119,7 @@ elim: s x y=>[|w s IH] //= x y H1 H2; apply: IH.
 by move=>z D; apply: H2; rewrite inE D orbT.
 Qed.
 
-Lemma seq_last_mono (s1 s2 : seq A) leT x :
+Lemma seq_last_mono (A : eqType) (s1 s2 : seq A) leT x :
         transitive leT -> 
         path leT x s1 -> 
         path leT x s2 ->
@@ -1778,10 +2129,10 @@ Proof.
 move=>T; case: s1=>/= [_ H1 _|a s]; first by apply: path_last H1.
 case/andP=>H1 H2 H3 H; apply: sorted_last_key_max (path_sorted H3) _=>//.
 apply: {x s2 H1 H3} H; rewrite inE orbC -implyNb.
-by case E: (_ \notin _) (@seq_last_in s a)=>//= ->.
+by case E: (_ \notin _) (@seq_last_in A s a)=>//= ->.
 Qed.
 
-Lemma seq_last_monoR (s1 s2 : seq A) leT x :
+Lemma seq_last_monoR (A : eqType) (s1 s2 : seq A) leT x :
         reflexive leT -> 
         transitive leT ->
         path leT x s1 -> 
@@ -1790,7 +2141,7 @@ Lemma seq_last_monoR (s1 s2 : seq A) leT x :
         leT (last x s1) (last x s2).
 Proof. by move=>R T P1 P2 S; case: eqP (seq_last_mono T P1 P2 S)=>[->|]. Qed.
 
-Lemma ord_path (s : seq A) leT (x y : A) :
+Lemma ord_path A (s : seq A) leT (x y : A) :
         transitive leT ->
         leT x y -> 
         path leT y s -> 
@@ -1800,7 +2151,7 @@ move=>T; elim: s x y=>[|k s IH] x y //= H1 /andP [H2 ->].
 by rewrite (T _ _ _ H1 H2).
 Qed.
 
-Lemma path_mem (s : seq A) leT x y :
+Lemma path_mem (A : eqType) (s : seq A) leT x y :
         transitive leT ->
         path leT x s -> 
         y \in s -> 
@@ -1811,7 +2162,7 @@ rewrite inE; case/orP=>[/eqP -> //|].
 by apply: IH; apply: ord_path O P.
 Qed.
 
-Lemma path_mem_irr (s : seq A) ltT x :
+Lemma path_mem_irr (A : eqType) (s : seq A) ltT x :
         irreflexive ltT -> 
         transitive ltT ->
         path ltT x s -> 
@@ -1821,7 +2172,7 @@ move=>I T P; apply: contraFT (I x).
 by rewrite negbK; apply: path_mem T P.
 Qed.
 
-Lemma sorted_rcons (s : seq A) leT (y : A) :
+Lemma sorted_rcons (A : eqType) (s : seq A) leT (y : A) :
         sorted leT s -> 
         (forall x, x \in s -> leT x y) ->
         sorted leT (rcons s y).
@@ -1830,7 +2181,7 @@ elim: s=>[|a s IH] //= P H; rewrite rcons_path P /=.
 by apply: H (mem_last _ _).
 Qed.
 
-Lemma sorted_rconsE (leT : rel A) xs x :
+Lemma sorted_rconsE A (leT : rel A) xs x :
         transitive leT ->
         sorted leT (rcons xs x) = 
           all (leT^~ x) xs && sorted leT xs.
@@ -1839,12 +2190,12 @@ move/rev_trans=>Ht; rewrite -(revK (rcons _ _)) rev_rcons rev_sorted /=.
 by rewrite path_sortedE // all_rev rev_sorted.
 Qed.
 
-Lemma sorted1 (r : rel A) xs : 
+Lemma sorted1 A (r : rel A) xs : 
         size xs == 1 -> 
         sorted r xs.
 Proof. by case: xs=>// x; case. Qed.
 
-Lemma sorted_subset_subseq (s1 s2 : seq A) ltT :
+Lemma sorted_subset_subseq_irr (A : eqType) (s1 s2 : seq A) ltT :
         irreflexive ltT -> 
         transitive ltT ->
         sorted ltT s1 -> 
@@ -1858,7 +2209,27 @@ apply: irr_sorted_eq S1 _ _=>//; first by rewrite sorted_filter.
 by move=>k; rewrite mem_filter; case S : (_ \in _)=>//; rewrite (H _ S).
 Qed.
 
-Lemma sorted_ord_index (s : seq A) ltT x y :
+Lemma sorted_subset_subseq_asym (A : eqType) (s1 s2 : seq A) leT :
+        uniq s1 ->
+        uniq s2 ->
+        transitive leT ->
+        antisymmetric leT -> 
+        sorted leT s1 -> 
+        sorted leT s2 ->
+        {subset s1 <= s2} -> 
+        subseq s1 s2.
+Proof.
+move=>U1 U2 T An S1 S2 H. 
+suff -> : s1 = filter (fun x => x \in s1) s2 by apply: filter_subseq.
+apply: (sorted_eq (leT:=leT))=>//; first by rewrite sorted_filter.
+rewrite {1}(_ : s1 = undup s1); first by rewrite undup_id.
+rewrite (_ : [seq x <- s2 | x \in s1] = 
+  undup [seq x <- s2 | x \in s1]); first by rewrite undup_id ?filter_uniq.
+apply: perm_undup=>z; rewrite mem_filter.
+by case D : (z \in s1)=>//=; rewrite H.
+Qed.
+
+Lemma sorted_ord_index (A : eqType) (s : seq A) ltT x y :
         irreflexive ltT -> 
         transitive ltT ->
         sorted ltT s -> 
@@ -1873,7 +2244,7 @@ case: eqP H P=>[<-{z} H|_ H]; last first.
 by move/(path_mem T)/(_ X)=>/(T _ _ _ H); rewrite I.
 Qed.
 
-Lemma path_ord_index_leq (s : seq A) leT x y :
+Lemma path_ord_index_leq (A : eqType) (s : seq A) leT x y :
         transitive leT -> 
         antisymmetric leT ->
         leT x y -> 
@@ -1888,7 +2259,7 @@ case: eqP Lya Pal As=>[<-{a} Lyx _ As _|Nxa Lya Pal /= As' X].
 by move/Nxa: (IH x a As' (T _ _ _ Lxy Lya) Pal X).
 Qed.
 
-Lemma sorted_ord_index_leq (s : seq A) leT x y :
+Lemma sorted_ord_index_leq (A : eqType) (s : seq A) leT x y :
         transitive leT -> 
         antisymmetric leT ->
         sorted leT s ->
@@ -1904,7 +2275,7 @@ case: eqP Nxz P=>[<-{z} Nxy P|Nyz Nxz P].
 by apply: IH X=>//; apply: path_sorted P.
 Qed.
 
-Lemma sorted_index_ord (s : seq A) leT x y :
+Lemma sorted_index_ord (A : eqType) (s : seq A) leT x y :
         transitive leT -> 
         sorted leT s -> 
         y \in s ->
@@ -1918,7 +2289,7 @@ Qed.
 
 (* sorted, uniq, filter *)
 
-Lemma lt_sorted_uniq_le (s : seq A) ltT :
+Lemma lt_sorted_uniq_le (A : eqType) (s : seq A) ltT :
         irreflexive ltT ->
         antisymmetric ltT ->
         transitive ltT ->
@@ -1939,7 +2310,7 @@ rewrite eq_sym (negbTE Nm) /= =>lTmn.
 by rewrite (As m n) ?eqxx // lTnm lTmn in Nm.
 Qed.
 
-Lemma sort_sorted_in_lt (s : seq A) ltT :
+Lemma sort_sorted_in_lt (A : eqType) (s : seq A) ltT :
         irreflexive ltT ->
         antisymmetric ltT ->
         transitive ltT ->
@@ -1952,7 +2323,7 @@ by rewrite sort_uniq U (sort_sorted_in Tot _).
 Qed.
 
 (* filtering and consecutive elements in an order *)
-Lemma filterCN (ltT : rel A) f t1 t2 :
+Lemma filterCN (A : eqType) (ltT : rel A) f t1 t2 :
        t1 \notin f ->
        {in f, forall z, ltT z t2 = (z == t1) || ltT z t1} ->
        filter (ltT^~ t2) f = filter (ltT^~ t1) f.
@@ -1961,7 +2332,7 @@ move=>N C; apply: eq_in_filter=>x T; rewrite C ?inE ?orbT //.
 by case: eqP N T=>// -> /negbTE ->.
 Qed.
 
-Lemma filterCE (ltT : rel A) f t1 t2 :
+Lemma filterCE (A : eqType) (ltT : rel A) f t1 t2 :
         irreflexive ltT ->
         transitive ltT ->
         sorted ltT f ->
@@ -1984,7 +2355,7 @@ Qed.
 (* frequently we have nested filtering and sorting *)
 (* for which the following forms of the lemmas is more effective *)
 
-Lemma filter2CN (ltT : rel A) p f t1 t2 :
+Lemma filter2CN (A : eqType) (ltT : rel A) p f t1 t2 :
        t1 \notin p ->
        {in p, forall z, ltT z t2 = (z == t1) || ltT z t1} ->
        filter (ltT^~ t2) (filter p f) = filter (ltT^~ t1) (filter p f).
@@ -1993,7 +2364,7 @@ move=>N C; apply: filterCN; first by rewrite mem_filter negb_and N.
 by move=>z; rewrite mem_filter=>/andP [D _]; apply: C.
 Qed.
 
-Lemma filter2CE (ltT : rel A) (p : pred A) f t1 t2 :
+Lemma filter2CE (A : eqType) (ltT : rel A) (p : pred A) f t1 t2 :
        irreflexive ltT ->
        antisymmetric ltT ->
        transitive ltT ->
@@ -2014,11 +2385,11 @@ Qed.
 
 (* nth *)
 
-Lemma nth_cons (a x : A) (s : seq A) (n : nat) :
+Lemma nth_cons A (a x : A) (s : seq A) (n : nat) :
         nth a (x :: s) n = if n == 0 then x else nth a s n.-1.
 Proof. by case: n. Qed.
 
-Lemma nth_base (s : seq A) k1 k2 i :
+Lemma nth_base A (s : seq A) k1 k2 i :
         i < size s -> 
         nth k1 s i = nth k2 s i.
 Proof.
@@ -2026,7 +2397,7 @@ elim: s i=>[|x xs IH] //= i K; rewrite !nth_cons.
 by case: eqP=>//; case: i K=>// i; rewrite ltnS=>/IH ->.
 Qed.
 
-Lemma nth_path_head (s : seq A) leT x0 k i :
+Lemma nth_path_head (A : eqType) (s : seq A) leT x0 k i :
         transitive leT ->
         i <= size s -> 
         path leT k s ->
@@ -2039,7 +2410,7 @@ rewrite !ltnS in IH; move: (IH (ltnW N)); rewrite H1 H2=>/(_ (erefl _)).
 by move/T; apply; apply/pathP.
 Qed.
 
-Lemma nth_path_last (s : seq A) leT x0 k i :
+Lemma nth_path_last (A : eqType) (s : seq A) leT x0 k i :
         transitive leT ->
         i < size s -> path leT k s ->
         (nth x0 s i == last k s) || leT (nth x0 s i) (last k s).
@@ -2051,10 +2422,10 @@ move=>z; apply: sorted_last_key_max=>//.
 by apply: path_sorted P.
 Qed.
 
-Lemma nth_consS (s : seq A) x0 k i : nth x0 s i = nth x0 (k::s) i.+1.
+Lemma nth_consS A (s : seq A) x0 k i : nth x0 s i = nth x0 (k::s) i.+1.
 Proof. by []. Qed.
 
-Lemma nth_leT (s : seq A) leT x0 k i :
+Lemma nth_leT A (s : seq A) leT x0 k i :
         i < size s -> 
         path leT k s ->
         leT (nth x0 (k::s) i) (nth x0 s i).
@@ -2063,7 +2434,7 @@ elim: i k s=>[|i IH] k s; first by case: s=>[|x xs] //= _ /andP [].
 by case: s IH=>[|x xs] //= IH N /andP [P1 P2]; apply: IH.
 Qed.
 
-Lemma nth_ltn_mono (s : seq A) leT x0 k i j :
+Lemma nth_ltn_mono A (s : seq A) leT x0 k i j :
         transitive leT ->
         i <= size s -> 
         j <= size s ->
@@ -2077,7 +2448,7 @@ rewrite ltnS leq_eqVlt=>/orP; case=>[/eqP -> //|].
 by move/(IH (ltnW S2))/T; apply.
 Qed.
 
-Lemma nth_mono_ltn (s : seq A) ltT x0 k i j :
+Lemma nth_mono_ltn A (s : seq A) ltT x0 k i j :
          irreflexive ltT ->
          transitive ltT ->
          i <= size s -> 
@@ -2090,7 +2461,7 @@ move=>I T S1 S2 P; case: ltngtP=>//; last by move=>->; rewrite I.
 by move/(nth_ltn_mono x0 T S2 S1 P)/T=>X /X; rewrite I.
 Qed.
 
-Lemma nth_between (s : seq A) ltT x0 k z i :
+Lemma nth_between (A : eqType) (s : seq A) ltT x0 k z i :
         irreflexive ltT ->
         transitive ltT ->
         path ltT k s ->
@@ -2111,7 +2482,7 @@ Qed.
 
 (* how to prove that something's sorted via index? *)
 
-Lemma index_sorted (s : seq A) (leT : rel A) :
+Lemma index_sorted (A : eqType) (s : seq A) (leT : rel A) :
         uniq s ->
         (forall a b, a \in s -> b \in s -> 
            index a s < index b s -> leT a b) ->
@@ -2125,8 +2496,6 @@ apply: H; rewrite ?(inE,Xa,Xb,orbT) //.
 by case: eqP U=>[->|]; case: eqP=>[->|]; rewrite ?(Xa,Xb).
 Qed.
 
-End SeqRel.
-
 (* there always exists a nat not in a given list *)
 Lemma not_memX (ks : seq nat) : exists k, k \notin ks.
 Proof.
@@ -2139,6 +2508,83 @@ rewrite {}/k; elim: ks=>[|k ks IH] //=; rewrite inE.
 case/orP=>[/eqP ->|/IH]; first by rewrite L add1n addSn ltnS leq_addr.
 rewrite L=>N; rewrite L; apply: leq_trans N _.
 by rewrite addnAC leq_addr.
+Qed.
+
+(* merge, merge_sort_push, sort *)
+
+Lemma merge_eq T (lT1 lT2 : rel T) xs ys : 
+        (forall x y, x \In xs ++ ys -> 
+                     y \In xs ++ ys -> 
+                     lT1 x y = lT2 x y) ->
+        merge lT1 xs ys = merge lT2 xs ys.
+Proof.
+elim: xs ys=>[|x xs IH1] ys H //=.
+elim: ys IH1 H=>[|y ys IH2] IH1 H //=; rewrite H //.
+- by apply/In_cat; left; left.
+- by apply/In_cat; right; left.
+case: ifP=>_.
+- by rewrite IH1 //; move=>x0 y0 X0 Y0; apply: H=>//=; right.
+congr (_ :: _); apply: IH2; first by move=>z H2; apply: IH1 H2.
+move=>x0 y0 X0 Y0.
+have P : perm (y :: (x :: xs) ++ ys) ((x :: xs) ++ y :: ys).
+- by apply/pperm_cons_cat_consL/pperm_refl.
+by apply: H; apply: (pperm_in P); right.
+Qed.
+
+Lemma merge_sort_push_eq T (lT1 lT2 : rel T) xs yss : 
+        (forall x y, x \In xs ++ flatten yss ->
+                     y \In xs ++ flatten yss ->
+                     lT1 x y = lT2 x y) ->
+        merge_sort_push lT1 xs yss = merge_sort_push lT2 xs yss.
+Proof.
+elim: yss xs=>[|ys yss IH] //= xs H.
+case: ys H=>[|y ys] H //; congr (_ :: _).
+rewrite (_ : merge lT1 (y :: ys) xs = merge lT2 (y :: ys) xs).
+- apply: merge_eq=>x0 y0 X0 Y0.
+  have P : perm (flatten yss ++ (y :: ys) ++ xs)
+                (xs ++ (y :: ys) ++ flatten yss).
+  - by rewrite catA; apply/pperm_trans/pperm_catC/pperm_cat2r/pperm_catC.
+  by apply: H; apply: (pperm_in P); apply/In_cat; right.
+apply: IH=>x0 y0 X0 Y0.
+have P : perm (merge lT2 (y :: ys) xs ++ flatten yss) 
+              (xs ++ (y :: ys) ++ flatten yss).
+- rewrite catA; apply/pperm_cat2r. 
+  by apply/pperm_trans/pperm_catC/pperm_merge.
+by apply: H; apply: (pperm_in P).
+Qed.
+
+Lemma sort_eq T (lT1 lT2 : rel T) (xs : seq T) :
+        (forall x y, x \In xs -> y \In xs -> 
+                     lT1 x y = lT2 x y) ->
+        sort lT1 xs = sort lT2 xs.
+Proof.
+move=>H; rewrite !sortE. 
+have {H} : forall x y, x \In xs ++ flatten [::] -> 
+  y \In xs ++ flatten [::] -> lT1 x y = lT2 x y.
+- by move=>x y; rewrite cats0; apply: H.
+elim: xs [::]=>[|x xs IH] yss H //=. 
+- elim: yss [::] H =>[|ys yss IH] //= xs H; rewrite IH.
+  - move=>x0 y0 X0 Y0.
+    suff P : perm (merge lT1 ys xs ++ flatten yss) (xs ++ ys ++ flatten yss).
+    - by apply: H; apply: (pperm_in P).
+    by rewrite catA; apply/pperm_cat2r/pperm_trans/pperm_catC/pperm_merge.
+  congr merge_sort_pop; apply: merge_eq=>x0 y0 X0 Y0.  
+  have P : perm (ys ++ xs ++ flatten yss) (xs ++ ys ++ flatten yss).
+  - by rewrite !catA; apply/pperm_cat2r/pperm_catC.
+  by apply: H; apply: (pperm_in P); rewrite catA; apply/In_cat; left.
+have H' : forall x0 y0, x0 \In [:: x] ++ flatten yss ->
+  y0 \In [:: x] ++ flatten yss -> lT1 x0 y0 = lT2 x0 y0.
+- move=>x0 y0 X0 Y0. 
+  have P : perm (xs ++ [:: x] ++ flatten yss) ((x :: xs) ++ flatten yss).
+  - by apply/pperm_cons_catAC.
+  by apply: H; apply: (pperm_in P); apply/In_cat; right.
+rewrite (merge_sort_push_eq H'); apply: IH=>x0 y0 X0 Y0.
+have P : perm (xs ++ flatten (merge_sort_push lT2 [:: x] yss))
+              ((x :: xs) ++ flatten yss).
+- rewrite -(cat1s x xs) -catA. 
+  apply/pperm_trans/pperm_catCA/pperm_cat2l.
+  by apply/pperm_merge_sort_push.
+by apply: H; apply: (pperm_in P).
 Qed.
 
 Section BigCat.
@@ -2171,7 +2617,7 @@ Qed.
 End BigCat.
 
 Lemma big_cat_mem_has A (B : eqType) xs (f : A -> seq B) b :
-        b \in \big[cat/[::]]_(x <- xs) f x =
+        (b \in \big[cat/[::]]_(x <- xs) f x) =
         has (fun x => b \in f x) xs.
 Proof.
 rewrite -has_pred1 has_big_cat; apply: eq_has=>x.
@@ -2220,7 +2666,7 @@ apply: IH=>//.
 by move=>z1 z2 Hz1 Hz2 N; apply: H2=>//; right.
 Qed.
 
-Lemma big_cat_uniq_pairwise A (B : eqType) xs (f : A -> seq B) x1 x2 :
+Lemma big_cat_uniq_pairewriteise A (B : eqType) xs (f : A -> seq B) x1 x2 :
         uniq (\big[cat/[::]]_(x <- xs) f x) ->
         x1 \In xs -> 
         x2 \In xs -> 
@@ -2333,3 +2779,421 @@ Lemma uniq_big_cat_disj (A : finType) (B : eqType) (f : A -> seq B) t1 t2 x :
         x \in f t2 -> 
         t1 = t2.
 Proof. by case/uniq_big_cat=>_; apply. Qed.
+
+(****************************)
+(* enumerating all prefixes *)
+(****************************)
+
+(* useful when quantifying over partial sums *)
+
+Fixpoint prefixes {A} (s : seq A) := 
+  if s is x :: xs then [::] :: map (cons x) (prefixes xs) else [:: [::]].
+
+Lemma prefixes0 {A : eqType} (s : seq A) : [::] \in prefixes s.
+Proof. by elim: s. Qed.
+
+Lemma prefixesT {A : eqType} (s : seq A) : s \in prefixes s.
+Proof. 
+elim: s=>[|x s IH] //=; rewrite inE mem_map //=.
+by move=>?? [].
+Qed.
+
+Lemma prefixesE {A : eqType} (s : seq A) xs : 
+        (xs \in prefixes s) = prefix xs s.
+Proof.
+elim: s xs=>[|x s /= IH][|y xs] //=; rewrite inE /=.
+case: (y =P x)=>[->|N]; last by apply/mapP; case=>z Z [] /N.
+by rewrite mem_map ?IH //; move=>?? [].
+Qed.
+
+Lemma uniq_prefixes {A : eqType} (s : seq A) : uniq (prefixes s).
+Proof.
+elim: s=>[|x s IH] //=.
+have I : injective (cons x) by move=>?? [].
+rewrite map_inj_uniq // IH andbT.
+by apply/mapP; case=>?.
+Qed.
+
+Lemma map_f_prefix {A B : eqType} (f : A -> B) (s1 s2 : seq A) : 
+        prefix s1 s2 ->
+        prefix (map f s1) (map f s2).
+Proof.
+elim: s2 s1=>[|x s2 /= IH][|y s1] //=.
+by case: (y =P x)=>[->|] //= /IH ->; rewrite eqxx.
+Qed.
+
+Lemma mem_map_prefix {A B : eqType} (f : A -> B) (s1 s2 : seq A) :
+        injective f -> 
+        prefix (map f s1) (map f s2) = prefix s1 s2.
+Proof.
+elim: s2 s1=>[|x s2 /= IH][|y s1] //= I.
+by case: (y =P x)=>[->|N]; [rewrite eqxx IH|case: eqP=>// /I /N].
+Qed.
+
+Lemma map_image_prefix {A B : eqType} (f : A -> B) s1 s2 : 
+        prefix s1 (map f s2) ->
+        exists2 s, s1 = map f s & prefix s s2.
+Proof.
+elim: s2 s1=>[|x s2 /= IH][|y s1] //=; try by exists [::].
+case/andP=>/eqP ->{y} /IH [s ->{s1} H].
+by exists (x :: s)=>//=; rewrite eqxx.
+Qed.
+
+(* lifting map_f_prefix, mem_map_prefix and map_image_prefix to prefixes *)
+
+Lemma map_f_prefixes {A B : eqType} (f : A -> B) (s : seq A) xs : 
+        xs \in prefixes s ->
+        map f xs \in prefixes (map f s).
+Proof. by rewrite !prefixesE; apply: map_f_prefix. Qed.
+
+Lemma mem_map_prefixes {A B : eqType} (f : A -> B) (s : seq A) xs : 
+        injective f ->
+        (map f xs \in prefixes (map f s)) = (xs \in prefixes s).
+Proof. by rewrite !prefixesE; apply: mem_map_prefix. Qed.
+
+(* prefixes (map f s) <= image (map f) (prefixes s) *)
+Lemma map_image_prefixes {A B : eqType} (f : A -> B) (s : seq A) xs : 
+        xs \in prefixes (map f s) ->
+        exists2 ys, xs = map f ys & ys \in prefixes s.
+Proof.
+rewrite prefixesE=>/map_image_prefix [z -> H]. 
+by exists z=>//; rewrite prefixesE.
+Qed.
+
+(********************************)
+(* enumerating all subsequences *) 
+(********************************)
+
+(* subsequence of s is included in s *)
+(* in the given order, but not necessarily *)
+(* contiguously *)
+
+(* enumerating all subsequences of s *)
+
+Fixpoint subseqs {A} (s : seq A) : seq (seq A) :=
+  if s is y :: s' then 
+    let: ss := subseqs s' in ss ++ map (cons y) ss
+  else [:: [::]].
+
+Lemma subseqs0 {A : eqType} (s : seq A) : [::] \in subseqs s.
+Proof. by elim: s=>[|a s IH] //=; rewrite mem_cat IH. Qed.
+
+Lemma subseqsE {A : eqType} (s : seq A) xs : 
+        (xs \in subseqs s) = subseq xs s.
+Proof.
+elim: s xs=>[|a s IH] xs /=; first by rewrite inE.
+rewrite mem_cat; case: xs=>[|y xs] /=; first by rewrite subseqs0.
+case: (y =P a)=>[->{y}|N]; last first.
+- rewrite IH; case: (subseq _)=>//=.
+  by apply/negP=>/mapP [z _ [/N]].
+rewrite mem_map ?IH 1?orbC; first by move=>?? [].
+by apply/orP/idP; [case=>// /cons_subseq|left].
+Qed.
+
+(* useful renaming *)
+Lemma subseq_f_prefix {A B : eqType} (f : A -> B) (s1 s2 : seq A) : 
+        subseq s1 s2 ->
+        subseq (map f s1) (map f s2).
+Proof. exact: map_subseq. Qed.
+
+(* lifting subseq_f_prefix, mem_map_subseq, map_image_subseq to subseqs *)
+
+Lemma map_subseqs {A B : eqType} (f : A -> B) (s : seq A) xs : 
+        xs \in subseqs s ->
+        map f xs \in subseqs (map f s).
+Proof. by rewrite !subseqsE; apply: map_subseq. Qed.
+
+Lemma mem_map_subseqs {A B : eqType} (f : A -> B) (s : seq A) xs : 
+        injective f ->
+        (map f xs \in subseqs (map f s)) = (xs \in subseqs s).
+Proof. by rewrite !subseqsE; apply: map_subseq_inj. Qed.
+
+Lemma map_image_subseqs {A B : eqType} (f : A -> B) (s : seq A) xs : 
+        xs \in subseqs (map f s) ->
+        exists2 ys, xs = map f ys & ys \in subseqs s.
+Proof.
+rewrite subseqsE=>/map_image_subseq [ys ->]. 
+by rewrite -subseqsE; exists ys.
+Qed.
+
+(*****************************************)
+(* self-simplifying definition of suffix *)
+(*****************************************)
+
+(* TODO: upstream to mathcomp *)
+
+Fixpoint suffx {T : eqType} (s1 s2 : seq T) {struct s2} : bool := 
+  if s2 is x :: s2' then (s1 == x :: s2') || suffx s1 s2'
+  else s1 == [::].
+
+Lemma suffxE {T : eqType} (s1 s2 : seq T) : suffx s1 s2 = suffix s1 s2.
+Proof.
+rewrite/suffix; elim: s2 s1=>[|x2 s2 IH] s1 /=.
+- by case: (lastP s1)=>[|{}s1 x1] //=; rewrite rev_rcons; case: s1.
+rewrite rev_cons; apply/idP/idP; last first.
+- case/rcons_prefix; first by rewrite orbC IH=>->.
+  by move/revE=>->; rewrite rev_rcons revK eqxx. 
+case/orP=>[/eqP ->|]; first by rewrite rev_cons; apply: prefix_refl.
+by rewrite IH=>H; apply: prefix_trans (prefix_rcons _ _).
+Qed.
+
+(********************)
+(* inversion lemmas *)
+(********************)
+
+(* various list morphisms in interaction with *)
+(* list constructors and basic primitives *)
+
+Lemma filter_cons_inv {A} {f : {pred A}} {xs y ys}  : 
+        filter f xs = y :: ys ->
+        exists xs1 xs2, 
+           [/\ xs = xs1 ++ y :: xs2, 
+               f y, 
+               filter f xs2 = ys & 
+               ~~ has f xs1].
+Proof. 
+elim: xs y ys=>[|x' xs IH] //= y ys; case: ifP=>N.
+- by case=><-{y} <-; exists [::], xs. 
+case/IH=>xs1 [xs2][-> H1 H2 H3]. 
+by exists (x' :: xs1), xs2; rewrite /= N H3. 
+Qed.
+
+Lemma filter_cat_inv {A} {f : {pred A}} {xs ys1 ys2}  : 
+        filter f xs = ys1 ++ ys2 ->
+        exists xs1 xs2, 
+          [/\ xs = xs1 ++ xs2, 
+              filter f xs1 = ys1 & 
+              filter f xs2 = ys2].
+Proof.
+elim: ys1 xs ys2=>[|y ys1 IH] xs ys2 /=.
+- by move=><-; exists [::], xs. 
+case/filter_cons_inv=>xs1 [xs2][->{xs} H1 /[swap] H2].
+case/IH=>xs3 [xs4][->{xs2} H3 H4].
+exists (xs1 ++ [:: y] ++ xs3), xs4. 
+by rewrite -catA filter_cat /= H1 (hasN_filter H2) H3 H4.
+Qed.
+
+Lemma filter_rcons_inv {A} {f : {pred A}} {xs ys y}  : 
+        filter f xs = rcons ys y ->
+        exists xs1 xs2, 
+          [/\ xs = xs1 ++ y :: xs2, 
+              filter f xs1 = ys, 
+              f y &
+              ~~ has f xs2].
+Proof.
+move/(f_equal rev); rewrite -filter_rev rev_rcons.
+case/filter_cons_inv=>xs1 [xs2][H1 H2 H3 H4].
+rewrite -(revK xs) H1 rev_cat rev_cons -cats1 -catA /=.
+exists (rev xs2), (rev xs1).
+by rewrite has_rev filter_rev H3 revK.
+Qed.
+
+Lemma map_cons_inv {A B} {f : A -> B} {xs y ys}  : 
+        map f xs = y :: ys ->
+        exists x xs', 
+          [/\ xs = x :: xs', 
+              f x = y & 
+              map f xs' = ys].
+Proof. by elim: xs y ys=>[|x' xs' IH] // _ ys [<-]; exists x', xs'. Qed.
+
+Lemma map_cat_inv {A B} {f : A -> B} {xs ys1 ys2} : 
+        map f xs = ys1 ++ ys2 ->
+        exists xs1 xs2, 
+          [/\ xs = xs1 ++ xs2, 
+              map f xs1 = ys1 & 
+              map f xs2 = ys2].
+Proof.
+elim: ys1 xs ys2=>[|y1 ys1 IH] xs ys2 /=; first by exists [::], xs.
+case/map_cons_inv=>x [xs'][-> H1] /IH [xs1][xs2][-> H2 H3].
+by exists (x :: xs1), xs2; rewrite /= H1 H2 H3. 
+Qed.
+
+Lemma map_rcons_inv {A B} {f : A -> B} {xs ys y} : 
+        map f xs = rcons ys y ->
+        exists xs1 x, 
+          [/\ xs = rcons xs1 x, 
+              map f xs1 = ys & 
+              f x = y].
+Proof.
+move/(f_equal rev); rewrite -map_rev rev_rcons=>/map_cons_inv [x][xs1]. 
+by case=>/revE -> <- /revE <-; exists (rev xs1), x; rewrite rev_cons map_rev.  
+Qed.
+
+Lemma pmap_cons_inv {A B} {f : A -> option B} {xs y ys} :
+        pmap f xs = y :: ys ->
+        exists xs1 x xs2, 
+          [/\ xs = xs1 ++ x :: xs2, 
+              f x = Some y,
+              pmap f xs2 = ys & 
+              ~~ has f xs1].
+Proof.
+elim: xs y ys=>[|x xs IH] y ys //=; rewrite /oapp.
+case D : (f x)=>[a|]; first by case=><-{y}; exists [::], x, xs. 
+case/IH=>xs1 [x1][xs2][-> C H1 H2].
+by exists (x :: xs1), x1, xs2; rewrite /= D C. 
+Qed.
+
+Lemma pmap_cat_inv {A B} {f : A -> option B} {xs ys1 ys2} : 
+        pmap f xs = ys1 ++ ys2 ->
+        exists xs1 xs2, 
+          [/\ xs = xs1 ++ xs2, 
+              pmap f xs1 = ys1 & 
+              pmap f xs2 = ys2].
+Proof.
+elim: ys1 xs=>[|y1 ys1 IH] /= xs; first by exists [::], xs. 
+case/pmap_cons_inv=>xs1 [x][xx][->{xs} H1 /[swap] H2]
+/IH [xs3][xs4][-> H3 H4]; exists (xs1 ++ x :: xs3), xs4. 
+by rewrite -catA pmap_cat /= /oapp H1 (hasN_pmap H2) H3.
+Qed.
+
+Lemma pmap_rcons_inv {A B} {f : A -> option B} {xs y ys} : 
+        pmap f xs = rcons ys y ->
+        exists xs1 x xs2, 
+          [/\ xs = rcons xs1 x ++ xs2, 
+              pmap f xs1 = ys, 
+              f x = Some y & 
+              ~~ has f xs2].
+Proof.
+move/(f_equal rev); rewrite -pmap_rev rev_rcons=>/pmap_cons_inv [xs1][x][xs2]. 
+case=>/revE -> H1 /esym/revE ->; exists (rev xs2), x, (rev xs1).
+by rewrite rev_cat -rev_cons pmap_rev has_rev.
+Qed.
+
+(*********************************)
+(* interleaving of two sequences *)
+(*********************************)
+
+Fixpoint interleave A (s s1 s2 : seq A) := 
+  match s with 
+    nil => s1 = nil /\ s2 = nil
+  | x :: s' =>
+      (exists s1', s1 = x :: s1' /\ interleave s' s1' s2) \/
+      (exists s2', s2 = x :: s2' /\ interleave s' s1 s2')
+  end.
+
+Lemma Prefix_interleave A (s s1 s2 : seq A) s' : 
+        interleave s s1 s2 ->
+        Prefix s' s ->
+        exists s1' s2', 
+          [/\ interleave s' s1' s2', 
+              Prefix s1' s1 & Prefix s2' s2].
+Proof.
+elim: s s' s1 s2=>[|x s IH] /= s' s1 s2.
+- by case=>->-> /Prefixs0 ->; exists [::], [::]. 
+case=>[[+][->{s1}]|[+][->{s2}]]; 
+[move=>s1|move=>s2]; move=>M /Prefix_consE.
+case=>[->|[+][->{s'}]]; first by exists [::], [::]. 
+- move=>s' /(IH _ _ _ M) [s1'][s2'][{}M H1 H2].
+  exists (x :: s1'), s2'; split=>//=.
+  - by left; exists s1'.
+  by apply/Prefix_cons.
+case=>[->|[+][->{s'}]]; first by exists [::], [::]. 
+move=>s' /(IH _ _ _ M) [s1'][s2'][{}M H1 H2].
+exists s1', (x :: s2'); split=>//=.
+- by right; exists s2'.
+by apply/Prefix_cons.
+Qed.
+
+Lemma interleave0 A (s1 s2 : seq A) : 
+        interleave s1 s2 [::] <-> s1 = s2.
+Proof.
+elim: s1 s2=>[|x s1 IH] s2 /=; first by split=>//; case.
+split=>[|<-]; first by case=>[[s1'][->] /IH ->|[s2'][]].
+by left; exists s1; split=>//; apply/IH.
+Qed.
+
+Lemma interleave0E A (s1 s2 : seq A) : 
+        interleave [::] s1 s2 -> 
+        s1 = [::] /\ s2 = [::].
+Proof. by []. Qed.
+
+Lemma interleaveC A (s s1 s2 : seq A) : 
+        interleave s s1 s2 -> 
+        interleave s s2 s1.
+Proof.
+elim: s s1 s2=>[|x s IH] //= s1 s2; first by case.
+by case; case=>a [->] /IH; [right|left]; exists a.
+Qed.
+
+Lemma interleaveA A (x y s1 s2 s3 : seq A) : 
+        interleave x s1 s2 -> 
+        interleave y x s3 -> 
+        exists2 z, interleave y s1 z & 
+                   interleave z s2 s3.
+Proof.
+elim: y x s1 s2 s3=>[|a y IH] x s1 s2 s3 /=.
+- by move/[swap]; case=>->-> /= [->->]; exists [::].
+move/[swap]; case=>[[s1'][->]|[s2'][->]] /= My.
+- case; case=>b [->] /IH-/(_ _ My) [z] {}My Mz.
+  - by exists z=>//; left; exists b. 
+  by eexists (a :: z); [right; exists z|left; exists b].
+move/IH=>/(_ _ My) [z] {}My Mz.
+by exists (a :: z); right; [exists z|exists s2']. 
+Qed.
+
+Lemma interleave_mask A (s s1 s2 : seq A) : 
+        interleave s s1 s2 <->
+        exists m, 
+          [/\ s1 = mask m s, 
+              s2 = mask (map negb m) s &
+              size s = size m].
+Proof.
+elim: s s1 s2=>[|x s IH] s1 s2 /=.
+- by split=>[[->->]|[m][->->]]; [exists [::]|rewrite !mask0].
+split.
+- case; case=>_ [->] /IH [m][->->->]; 
+  by [exists (true :: m)|exists (false :: m)].
+case; case=>[|a m][->-> // [S]]; case: a; 
+[left; exists (mask m s)|right; exists (mask (map negb m) s)];
+by split=>//; apply/IH; exists m. 
+Qed.
+
+(* arbitrary finite interleaving *)
+
+Fixpoint interleave_seq A s (xs : seq (seq A)) := 
+  if xs is x :: xs then 
+    exists2 s', interleave s x s' & interleave_seq s' xs
+  else s = [::].
+
+Lemma interleaves0 A (s : seq A) :
+        interleave_seq s [::] -> s = [::].
+Proof. by elim: s. Qed.
+
+Lemma interleave0s A (s : seq (seq A)) :
+        interleave_seq [::] s <-> 
+        (forall x, x \In s -> x = [::]).
+Proof. 
+elim: s=>[|a s IH] //=; split.
+- by case=>s' [->->] /IH H x; rewrite InE; case=>// /H. 
+move=>H; exists [::].
+- by split=>//; apply: H; left.
+by apply/IH=>x X; apply: H; right.
+Qed.
+
+Lemma interleave_seq_cons_cat A s x (s1 s2 : seq (seq A)) : 
+        interleave_seq s (x :: s1 ++ s2) ->
+        interleave_seq s (s1 ++ x :: s2).
+Proof.
+elim: s1 s x s2=>[|a s1 IH] s x s2 //= [z1] S [z2] Z1 I.
+case/interleaveC/(interleaveA Z1): S=>z3 I1 I2.
+by exists z3=>//; apply: IH; exists z2=>//; apply/interleaveC.
+Qed.
+
+Lemma interleave_seq_permI A (s : seq A) (xs1 xs2 : seq (seq A)) :
+        perm xs1 xs2 ->
+        interleave_seq s xs1 ->
+        interleave_seq s xs2.
+Proof.
+elim: xs1 s xs2=>[|x xs1 IH] s xs2 S /=.
+- by move/interleaves0=>->; move/pperm_nil: S=>->.
+case=>s' H; case: (pperm_consE S)=>s1 [s2][E] X; subst xs2.
+by move/(IH s' _ X)=>Y; apply/interleave_seq_cons_cat; exists s'.
+Qed.
+
+Lemma interleave_seq_perm A (s : seq A) (xs1 xs2 : seq (seq A)) :
+        perm xs1 xs2 ->
+        interleave_seq s xs1 <->
+        interleave_seq s xs2.
+Proof. 
+by move=>S; split; apply/interleave_seq_permI=>//; apply/pperm_sym. 
+Qed.

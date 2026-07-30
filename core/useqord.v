@@ -13,12 +13,9 @@ limitations under the License.
 
 From Stdlib Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path interval order.
-From pcm Require Import options prelude ordtype seqext.
+From pcm Require Import options prelude pred ordtype seqext.
 Local Open Scope order_scope.
 Import Order.Theory.
-
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
 
 (* We assume the sequences are unique and use the first index, however most *)
 (* lemmas don't require this condition explicitly. The ones that do are     *)
@@ -64,7 +61,7 @@ End SeqOrd.
 End SeqOrd.
 Export SeqOrd.
 
-(* alternative rewrites *)
+(* alternative rewrites that drop %N *)
 Lemma seqle_unlockE (A : eqType) ks (t1 t2 : A) : 
         t1 <=[ks] t2 = (index t1 ks <= index t2 ks).
 Proof. exact: seqle_unlock. Qed.
@@ -76,6 +73,25 @@ Proof. exact: seqlt_unlock. Qed.
 Section SeqLeBase.
 Variable (A : eqType).
 Implicit Type (ks : seq A).
+
+(* relating to mathcomp's mem2 *)
+Lemma sle_mem2 ks t1 t2 : 
+        uniq ks ->
+        mem2 ks t1 t2 = (t1 <=[ks] t2) && (t2 \in ks).
+Proof.
+move=>U; apply/idP/idP. 
+- move=>H; rewrite (mem2r H) andbT; case/splitP2r: H U=>p1 p2. 
+  rewrite inE cat_uniq /= negb_or -!andbA => H /and5P [U1 U2 /hasPn U3 U4 U5].
+  rewrite seqle_unlock !index_cat (negbTE U2) /= eqxx eq_sym.
+  case: (t2 =P t1) H=>[-> _|_ H]; first by rewrite (negbTE U2).
+  by rewrite (negbTE (U3 _ H)) addn0 leq_addr. 
+case/andP=>H1 H2; case/splitPr: H2 U H1=>p1 p2.
+rewrite cat_uniq /= negb_or -!andbA; case/and5P=>U1 U2 /hasPn U3 U4 U5.
+rewrite seqle_unlock /mem2 /= !index_cat (negbTE U2) /= eqxx.
+case: ifPn=>T1; first by rewrite drop_cat index_mem T1 mem_cat inE eqxx orbT.
+case: ifPn=>N; first by rewrite drop_cat addn0 ltnn subnn /= inE eqxx.
+by rewrite addn0 leqNgt -addSnnS ltn_addr.
+Qed.
 
 (****************** transitivity ****************)
 
@@ -113,7 +129,7 @@ Proof. by rewrite slt_irr. Qed.
 Lemma sle_antisym ks : {in ks, antisymmetric (seq_le ks)}.
 Proof.
 move=>x Hx y; rewrite !seqle_unlock.
-by rewrite -eqn_leq =>/eqP /index_inj; apply.
+by rewrite -eqn_leq =>/eqP /inj_index; apply.
 Qed.
 
 (****************** asymmetry ***************)
@@ -131,7 +147,7 @@ Lemma slt_total ks x y :
         [|| x == y, x <[ks] y | y <[ks] x].
 Proof.
 rewrite !seqlt_unlock=>H; case: ltngtP; rewrite ?orbT ?orbF //.
-by move/index_inj=>->.
+by move/inj_index=>->.
 Qed.
 
 (* transfer properties of sequence ordering *)
@@ -144,8 +160,8 @@ Lemma sle_eqVlt ks t1 t2 :
 Proof.
 move=>H; rewrite seqlt_unlock seqle_unlock leq_eqVlt /=.
 case: (t1 =P t2)=>[->|N] /=; first by rewrite eq_refl.
-case: eqP=>//=; case/orP: H=>H; first by move/(index_inj H)/N.
-by move/esym/(index_inj H)/esym/N.
+case: eqP=>//=; case/orP: H=>H; first by move/(inj_index H)/N.
+by move/esym/(inj_index H)/esym/N.
 Qed.
 
 (****************** slt_neqAle ***************)
@@ -157,8 +173,8 @@ Proof.
 move=>H.
 rewrite seqlt_unlock seqle_unlock ltn_neqAle.
 case: (t1 =P t2)=>[->|N] /=; first by rewrite eq_refl.
-case: eqP=>//=; case/orP: H=>H; first by move/(index_inj H)/N.
-by move/esym/(index_inj H)/esym/N.
+case: eqP=>//=; case/orP: H=>H; first by move/(inj_index H)/N.
+by move/esym/(inj_index H)/esym/N.
 Qed.
 
 (****************** sltNge ***************)
@@ -188,7 +204,6 @@ Implicit Type (ks : seq A).
 
 Lemma sltW ks t1 t2 : t1 <[ks] t2 -> t1 <=[ks] t2.
 Proof. by rewrite seqlt_unlock seqle_unlock; apply: ltnW. Qed.
-
 
 (* membership properties of the sequence orderings *)
 
@@ -347,7 +362,7 @@ Qed.
 
 Lemma sle_splitR x y ks1 ks2 : y \notin ks1 -> x <=[ks1++x::ks2] y.
 Proof.
-move=>Y; rewrite sle_eqVlt; last first.
+move=>Y; rewrite sle_eqVlt.
 - by apply/orP; left; rewrite mem_cat inE eq_refl orbT.
 by case: eqP=>[|/eqP N] //=; rewrite (slt_splitR _ _ Y) // eq_sym.
 Qed.
@@ -440,7 +455,7 @@ Lemma sle_sorted_lt ltT ks x y :
         sorted ltT ks ->
         y \in ks -> x <=[ks] y -> (x == y) || ltT x y.
 Proof.
-move=>T S Y; rewrite sle_eqVlt; last by rewrite Y orbT.
+move=>T S Y; rewrite sle_eqVlt; first by rewrite Y orbT.
 by case/orP=>[->//|/(slt_sorted_lt T S Y) ->]; rewrite orbT.
 Qed.
 
@@ -455,7 +470,8 @@ Lemma slt_sorted_leE leT ks x y :
         x <[ks] y = (x != y) && leT x y.
 Proof.
 move=>As T S X Y; apply/idP/idP.
-- by case: eqP=>[->|/eqP N] /=; [apply: contraLR; rewrite slt_irr | apply: slt_sorted_lt].
+- case: eqP=>[->|/eqP N] /=; 
+  by [apply: contraLR; rewrite slt_irr|apply: slt_sorted_lt].
 by rewrite seqlt_unlock; case/andP=>H K; apply: sorted_ord_index_leq K H.
 Qed.
 
@@ -467,7 +483,7 @@ Lemma sle_sorted_leE leT ks x y :
         x \in ks -> y \in ks ->
         x <=[ks] y = (x == y) || leT x y.
 Proof.
-move=>As T S X Y; rewrite sle_eqVlt; last by rewrite X.
+move=>As T S X Y; rewrite sle_eqVlt; first by rewrite X.
 by rewrite (slt_sorted_leE As T S X Y); case: eqP.
 Qed.
 
@@ -510,7 +526,7 @@ Qed.
 Lemma slt_last x k ks :
         uniq ks -> x \in ks -> last k ks != x -> x <[ks] (last k ks).
 Proof.
-move=>U X N; move: (sle_last k U X); rewrite sle_eqVlt; last by rewrite X.
+move=>U X N; move: (sle_last k U X); rewrite sle_eqVlt; first by rewrite X.
 by rewrite eq_sym (negbTE N).
 Qed.
 
@@ -518,28 +534,88 @@ Lemma slt_last_cons x k ks :
         uniq (k :: ks) -> x \in k::ks ->
         last k ks != x -> x <[k::ks] (last k ks).
 Proof.
-move=>U X N; rewrite slt_neqAle; last by rewrite X.
+move=>U X N; rewrite slt_neqAle; first by rewrite X.
 by rewrite eq_sym N sle_last_cons.
 Qed.
 
-(* every list is sorted by its slt relation, assuming uniqueness *)
-Lemma sorted_slt ks : uniq ks -> sorted (seq_lt ks) ks.
+(* switching sorted between seq_lt and seq_le *)
+Lemma sorted_slt_sle xs ks : 
+        uniq ks ->
+        {subset xs <= ks} ->
+        sorted (seq_lt ks) xs = uniq xs && sorted (seq_le ks) xs.
 Proof.
-case: ks=>//= k ks; elim: ks k=>[|k1 ks IH] k2 //=.
-rewrite inE negb_or -andbA=>/and4P [N1 N2 N3 N4].
-rewrite sltL eq_sym N1 /=.
-have : path (seq_lt [:: k1 & ks]) k1 ks by apply: IH; rewrite N3 N4.
-apply: (@sub_in_path _ (mem (k1::ks))); last by apply/allP.
-move=>x y /=; rewrite !inE !slt_cons.
-case/orP=>[/eqP ->{x}|X].
-- rewrite (eq_sym k1 k2) (negbTE N1) /= eq_refl andbT.
-  case/orP=>[/eqP ->|Y ->]; first by rewrite eq_refl.
-  by case: eqP Y N2=>// ->->.
-case/orP=>[/eqP ->|Y]; first by rewrite eq_refl.
-case: eqP Y N3=>[->|/eqP N Y N3] //=.
-case: eqP X N3=>[->->|/eqP M X K1] //= H.
-by rewrite H orbT andbT; case: eqP Y N2=>// ->->.
+elim: xs=>[|x xs IH] //= Uq S.
+rewrite (path_sortedE (@slt_trans A _)) (path_sortedE (@sle_trans A _)).
+rewrite IH //; first by move=>z Z; rewrite S // inE Z orbT. 
+rewrite -andbA; apply/and3P/and4P.
+- case=>/allP H ->->; split=>//.
+  - by apply/negP=>/H; rewrite slt_irr. 
+  by apply/allP=>z /H/sltW. 
+case=>H1 -> /allP H2 ->; split=>//.
+apply/allP=>z /[dup] Z /H2 X.
+have Oz : z \in ks by rewrite S // inE Z orbT. 
+rewrite slt_neqAle ?Oz ?orbT //=.
+by case: eqP Z H1=>// ->->.
 Qed.
+
+(* every list is sorted by its slt relation, assuming uniqueness *)
+
+Lemma sorted_slt_subseq xs ks : 
+        uniq ks ->
+        {subset xs <= ks} ->
+        sorted (seq_lt ks) xs = subseq xs ks.
+Proof.
+move: {-2}ks xs (subseq_refl ks); elim: ks=>[|k ks IH] ys xs //=.
+- by move/eqP=>->; case: xs=>[|x xs] //= _ /(_ x (mem_head _ _)).
+case: ys=>[|y ys] Sq /=; first by case: xs=>[|x xs] //= _ /(_ x (mem_head _ _)).
+have {}Sq : subseq ys ks by case: eqP Sq=>// _ /cons_subseq.
+case: xs=>[|x xs] //= /andP [Ny Uq] S; rewrite (path_sortedE (@slt_trans A _)).
+apply/andP/idP.
+- case=>/allP H Sq2.
+  have Nyxs : y \notin xs by apply/negP=>/H; rewrite slt_cons eqxx.
+  have S1 : (x == y) || (x \in ys) by apply/S/mem_head.
+  have {}S : {subset xs <= ys}.
+  - move=>z /[dup] Z; move: (S z (subset_consR x Z)) Nyxs. 
+    by case/orP=>// /eqP -> /negbTE ->.
+  have Nz : {in xs, forall z, z != y}.
+  - by move=>z /S; case: eqP=>// ->; rewrite (negbTE Ny).
+  rewrite -IH //; first by case: eqP S1=>//= _ S1 z; rewrite inE=>/orP [/eqP ->|/S].
+  suff : sorted (seq_lt ys) xs.
+  - case: eqP=>[|/eqP Nxy] //=; rewrite path_min_sorted //.
+    by apply/allP=>z /H; rewrite slt_cons (negbTE Nxy); case: (z =P y). 
+  rewrite (eq_in_sorted (e':=seq_lt (y::ys)) (P:=[mem xs])) //.  
+  by move=>z z'; rewrite !inE=>Z Z'; rewrite slt_cons (negbTE (Nz _ Z)) /= (Nz _ Z').
+move=>Sq2.
+have S1 : (x == y) || (x \in ys) by apply/S/mem_head.
+have {}S : {subset xs <= ys}.
+- case: eqP S1 Sq2 S=>[->|/eqP N] /= S1 Sq2 S.
+  - by apply/mem_subseq.
+  by move=>z Z; apply/(mem_subseq Sq2); rewrite inE Z orbT.
+have Nz : {in xs, forall z, z != y}.
+- by move=>z /S; case: eqP=>// ->; rewrite (negbTE Ny).
+split.
+- apply/allP=>z Z; rewrite slt_cons (Nz _ Z) /=.
+  case: eqP S1 Sq2=>[|/eqP N] //= S1 Sq2.
+  case/split_subseq: {S Sq S1 Ny} Sq2 Uq=>a1 [a2][->{ys}] /mem_subseq S Uq.
+  rewrite slt_cat slt_cons eqxx andbT; move: Uq; rewrite cat_uniq /= negb_or -andbA.
+  case/and4P=>_ /negbTE -> /hasPn/(_ z (S _ Z)) /negbTE ->.
+  by case: eqP=>// <-; rewrite (S _ Z).
+rewrite -IH // in Sq2.
+- by case: eqP S1=>//= _ S1 z; rewrite inE=>/orP [/eqP ->|/S].
+have {}Sq2 : sorted (seq_lt ys) xs.
+- by case: eqP Sq2=>//= _ /path_sorted.
+rewrite (eq_in_sorted (e':=seq_lt ys) (P:=[mem xs])) //.  
+by move=>z z'; rewrite !inE=>Z Z'; rewrite slt_cons (negbTE (Nz _ Z)) (Nz _ Z').
+Qed.
+
+Lemma sorted_slt ks : uniq ks -> sorted (seq_lt ks) ks.
+Proof. by move=>U; rewrite sorted_slt_subseq. Qed.
+
+Lemma sorted_sle_subseq xs ks : 
+        uniq ks -> 
+        {subset xs <= ks} ->
+        subseq xs ks = uniq xs && sorted (seq_le ks) xs.
+Proof. by move=>U S; rewrite -sorted_slt_sle ?sorted_slt_subseq. Qed.
 
 Lemma sorted_sle ks : uniq ks -> sorted (seq_le ks) ks.
 Proof.
@@ -547,35 +623,251 @@ move=>U; apply: sub_sorted (sorted_slt U).
 by move=>x y /sltW.
 Qed.
 
+Lemma slt_sorted (ord : rel A) ks x y :
+        transitive ord ->
+        sorted ord ks -> y \in ks -> x <[ks] y -> ord x y.
+Proof. by move=>T; apply/slt_sorted_lt/T. Qed.
+
+Lemma slt_sortedI (ord : rel A) ks : 
+        uniq ks ->
+        (forall x y, y \in ks -> x <[ks] y -> ord x y) ->
+        sorted ord ks.
+Proof. 
+elim: ks=>[|k ks IH] //= /andP [Nk U] H.
+rewrite path_min_sorted.
+- apply/allP=>x X; apply: H; first by rewrite inE X orbT.
+  by rewrite slt_cons eqxx andbT; case: eqP X Nk=>// ->->.
+apply: IH=>// x y Y N; apply: H; first by rewrite inE Y orbT.
+by rewrite slt_cons N orbT andbT; case: eqP Y Nk=>// ->->.
+Qed.
+
+Lemma slt_sortedE (ord : rel A) ks x y :
+        irreflexive ord ->
+        transitive ord ->
+        sorted ord ks ->
+        x \in ks -> y \in ks ->
+        x <[ks] y = ord x y.
+Proof.
+move=>I T S X Y; apply/idP/idP; first by apply: slt_sorted S Y.
+by rewrite seqlt_unlock; apply: (sorted_ord_index I T S X).
+Qed.
+
+Lemma subseq_eq (s1 s2 xs : seq A) : 
+        uniq xs ->
+        subseq s1 xs ->
+        subseq s2 xs ->
+        s1 =i s2 ->
+        s1 = s2.
+Proof.
+move=>Uq S1 S2 E; apply: (sorted_eq (leT:=seq_lt xs)).
+- by apply: slt_trans.
+- by move=>x y /andP [] H /(slt_trans H); rewrite slt_irr. 
+- by rewrite sorted_slt_subseq //; apply/mem_subseq.
+- by rewrite sorted_slt_subseq //; apply/mem_subseq.
+by apply/uniq_perm/E; apply/subseq_uniq/Uq.
+Qed.
+
 End SeqLeUniq.
+
+(* ole and sortedness under ordering on A *)
 
 Section SeqLeOrd.
 Variable (A : ordType).
 Implicit Type (ks : seq A).
 
-(* olt/ole and sortedness under ordering on A *)
-
-Lemma slt_sorted ks x y :
-        sorted ord ks -> y \in ks -> x <[ks] y -> ord x y.
-Proof. by apply/slt_sorted_lt/trans. Qed.
-
 Lemma sle_sorted ks x y :
         sorted ord ks -> y \in ks -> x <=[ks] y -> oleq x y.
 Proof. by rewrite oleq_eqVord; apply/sle_sorted_lt/trans. Qed.
 
-Lemma slt_sortedE ks x y :
-        sorted ord ks ->
-        x \in ks -> y \in ks ->
-        x <[ks] y = ord x y.
+Lemma sle_sortedI ks : 
+        uniq ks ->
+        (forall x y, y \in ks -> x <=[ks] y -> oleq x y) ->
+        sorted ord ks.
 Proof.
-move=>S X Y; apply/idP/idP; first by apply: slt_sorted S Y.
-by rewrite seqlt_unlock; apply: (sorted_ord_index (@irr _) (@trans _)) S X.
+move=>Uq H; apply: slt_sortedI=>// x y Dy N.
+move: (H x y Dy (sltW N)); rewrite oleq_eqVord.
+by case: eqP N=>// ->; rewrite slt_irr.
 Qed.
 
 Lemma sle_sortedE ks x y :
         sorted ord ks ->
         x \in ks -> y \in ks ->
         x <=[ks] y = oleq x y.
-Proof. by move=>S X Y; rewrite oleqNord sleNgt (slt_sortedE S Y X). Qed.
+Proof. 
+move=>S X Y; rewrite oleqNord sleNgt.
+by rewrite (slt_sortedE (@irr _) (@trans _) S Y X). 
+Qed.
 
 End SeqLeOrd.
+
+(* split_findlast in terms of <[s] *)
+
+Lemma slt_findlast {A : eqType} (p : pred A) (s : seq A) :
+        uniq s ->
+        has p s -> 
+        exists x, [/\ x \in s, p x &
+          forall z, z \in s -> x <[s] z -> ~~ p z].
+Proof.
+move=>Us H.
+case: {-1}s {-3}_ {-6}_ / {H} (split_findlast H) (erefl s).
+move=>x s1 s2 Px /hasPn /= S2 E; exists x.
+rewrite mem_cat mem_rcons inE eqxx /=; split=>//.
+move=>z; rewrite mem_cat mem_rcons inE -orbA.
+case/or3P=>[/eqP ->|Z|/S2//]; first by rewrite slt_irr.
+rewrite slt_cat mem_rcons inE Z orbT slt_rcons Z=>/slt_memE.
+rewrite E cat_uniq rcons_uniq -andbA in Us.
+by case/and4P: Us=>/negbTE ->.
+Qed.
+
+Lemma slt_filterlast {A : eqType} (p q : pred A) (s : seq A) :
+        uniq s ->
+        has p (filter q s) -> 
+        exists x, [/\ x \in s, p x, q x &
+          forall z, z \in s -> x <[s] z -> q z -> ~~ p z].
+Proof.
+move=>Us; rewrite has_filterI.
+case/(slt_findlast Us)=>x [X] /andP [H1 H2] Y.
+exists x; split=>//= z Z /(Y z Z). 
+by rewrite negb_and; case/orP=>// /negbTE ->.
+Qed.
+
+Lemma has_first {A : eqType} (xs : seq A) f : 
+        has f xs ->
+        exists x, [/\ x \in xs, f x & 
+          forall x', x' <[xs] x -> ~~ f x'].
+Proof.
+case/has_first_split=>x [p1][p2][-> H1 H2]; exists x.
+split=>[|//|y]; first by rewrite mem_cat mem_rcons inE eqxx.
+by rewrite slt_cat mem_rcons inE eqxx /= =>/slt_rconsR/(hasPn H2).
+Qed.
+
+(* prefixes is ordered monotonically *)
+Lemma prefixes_mono {A : eqType} (s : seq A) xs ys :  
+        xs \in prefixes s ->
+        ys <=[prefixes s] xs = prefix ys xs.
+Proof.
+elim: s xs ys=>[|x s IH] /= xs ys; rewrite inE.
+- by move/eqP=>->; rewrite sle_cons eqxx orbF; case: ys.
+case/orP=>[/eqP ->|/mapP [x0 X0 ->]].
+- by rewrite sle_cons eqxx orbF; case: ys {IH}.
+rewrite sle_cons /=; case: ys=>[|y ys] //=.
+have I : injective (cons x) by move=>x1 x2 [].
+apply/idP/idP; last first.
+- case/andP=>/eqP ->{y} P. 
+  by rewrite seqle_unlock !index_map // -seqle_unlock IH.
+rewrite seqle_unlock index_map //; move=>H.
+have : y :: ys \in [seq x :: i | i <- prefixes s].
+- rewrite -!index_mem in X0 *; rewrite size_map. 
+  by apply: leq_ltn_trans H X0.
+case/mapP=>x1 X2 [??]; subst y x1; rewrite eqxx /= -IH //.
+by rewrite seqle_unlock (leq_trans _ H) // index_map.
+Qed.
+
+(* sequence orderings and map/pmap *)
+
+Section SeqLeLtMap.
+Context {A B : ordType}.
+Implicit Type ks : seq A.
+
+(* map *)
+
+Lemma slt_map (f : A -> B) ks x' y : 
+        x' <[map f ks] (f y) ->
+        exists2 x, f x = x' & x <[ks] y.
+Proof. 
+case Dy : (y \in ks); last first.
+- move=>N; case/mapPP: (slt_memE N)=>x -> /mem_seqP Dx.
+  by exists x=>//; rewrite slt_memI // Dy. 
+elim: ks Dy=>[|k ks IH] //=; rewrite inE !slt_cons.
+case: (y =P k)=>[<-{k}|/eqP Ny]; first by rewrite eqxx.
+move=>Dy /andP [Nf] /orP [/eqP ->|].
+- by exists k=>//; rewrite slt_cons Ny eqxx.
+by case/(IH Dy)=>x <- N; exists x=>//; rewrite slt_cons Ny N orbT.
+Qed.
+
+Lemma slt_map_inj (f : A -> B) ks x y : 
+        {in ks, forall x, f x = f y -> x = y} ->
+        x <[ks] y ->
+        (f x) <[map f ks] (f y).
+Proof.
+case Dy : (y \in ks); last first.
+- move=>H1 H2; apply: slt_memI; apply/mapP.
+  - by exists x=>//; apply: (slt_memE H2).
+  by case=>z Z /esym N; move/(H1 _ Z): N (Z) Dy=>->->.
+elim: ks Dy=>[|k ks IH] //=; rewrite inE !slt_cons. 
+case: (y =P k)=>[<-{k}|/eqP N] //= Dy H X; rewrite (_ : f y != f k) /=.
+- by apply: contra N=>/eqP/esym/H -> //; rewrite inE eqxx.
+case/orP: X N H=>[/eqP ->|Nxy] N H; first by rewrite eqxx.
+by rewrite IH ?orbT // => z Z /H -> //; rewrite inE Z orbT.
+Qed.
+
+Lemma sle_map (f : A -> B) ks x' y : 
+        x' \in map f ks ->
+        x' <=[map f ks] (f y) ->
+        exists2 x, f x = x' & x <=[ks] y.
+Proof.
+move=>Dx; rewrite sle_eqVlt ?Dx //; case/orP=>[/eqP ->|].
+- by exists y=>//; rewrite sle_refl.
+by case/slt_map=>x <- /sltW; exists x.
+Qed.
+
+Lemma sle_map_inj (f : A -> B) ks x y : 
+        {in ks, forall x, f x = f y -> x = y} ->
+        x <=[ks] y ->
+        (f x) <=[map f ks] (f y).
+Proof.
+move=>H; case Dy : (y \in ks); last first.
+- move=>N; apply/sle_memI/mapP; case=>z Z E.
+  by move/esym/(H _ Z): E (Z) Dy=>->->.
+rewrite sle_eqVlt ?Dy ?orbT //.
+case/orP=>[/eqP ->|]; first by rewrite sle_refl. 
+by move/(slt_map_inj H)/sltW. 
+Qed.
+
+(* pmap *)
+
+Lemma slt_pmap (f : A -> option B) ks x' y' y : 
+        f y = Some y' ->
+        x' <[pmap f ks] y' ->
+        exists2 x, f x = Some x' & x <[ks] y.
+Proof.
+rewrite seqlt_unlock=>H /(index_pmap H) [x]. 
+by exists x=>//; rewrite seqlt_unlock.
+Qed.
+
+Lemma slt_pmap_inj (f : A -> option B) ks x y x' y' : 
+        {in ks, forall x, f x = Some y' -> x = y} ->
+        x <[ks] y ->
+        f x = Some x' ->
+        f y = Some y' ->
+        x' <[pmap f ks] y'.
+Proof. by rewrite !seqlt_unlock; apply: index_pmap_inj. Qed.
+
+Lemma sle_pmap (f : A -> option B) ks x' y' y : 
+        x' \in pmap f ks ->
+        f y = Some y' ->
+        x' <=[pmap f ks] y' ->
+        exists2 x, f x = Some x' & x <=[ks] y.
+Proof.
+move=>Dx' Y; rewrite sle_eqVlt ?Dx' //.
+case/orP=>[/eqP ->|]; first by exists y=>//; rewrite sle_refl.
+by case/(slt_pmap Y)=>x <- /sltW; exists x.
+Qed.
+
+Lemma sle_pmap_inj (f : A -> option B) ks x y x' y' : 
+        {in ks, forall x, f x = Some y' -> x = y} ->
+        x <=[ks] y ->
+        f x = Some x' ->
+        f y = Some y' ->
+        x' <=[pmap f ks] y'.
+Proof.
+move=>H; case Dy: (y \in ks); last first.
+- move=>N X Y; apply/sle_memI/pmapPP; case=>z E /mem_seqP Z. 
+  by move/(H _ Z): E (Z) Dy=>->->.
+rewrite sle_eqVlt ?Dy ?orbT //.
+case/orP=>[/eqP ->-> [->]|]; first by rewrite sle_refl. 
+by move=>N X /(slt_pmap_inj H N X)/sltW.
+Qed.
+
+End SeqLeLtMap.
+

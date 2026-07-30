@@ -30,7 +30,7 @@ From pcm Require Import options prelude.
 (*                                                                        *)
 (* Second, in some symmetric cancellation problems, e.g., dom_eq e1 e2,   *)
 (* we *want* to remove only one occurrence from e2 for each component in  *)
-(* e1. Otherwise, we will not produce a sound reduction. E.g.,            *)
+(* e1. Otherewriteise, we will not produce a sound reduction. E.g.,            *)
 (* dom (x \+ x) (x \+ x) is valid, since both expressions are undef.      *)
 (* However, after removing x from the left side, and both x's from the    *)
 (* right side, we get dom x Unit, which is not valid.                     *)
@@ -63,6 +63,10 @@ Variable A : Type.
 
 Structure tagged_elem := XTag {xuntag :> A}.
 
+(* DEVCOMMENT *)
+(* remove? *)
+(* Local Coercion untag : tagged_elem >-> A. *)
+(* /DEVCOMMENT *)
 
 Definition extend_tag := XTag.
 Definition recurse_tag := extend_tag.

@@ -10,7 +10,7 @@ dev-repo: "git+https://github.com/imdea-software/fcsl-pcm.git"
 bug-reports: "https://github.com/imdea-software/fcsl-pcm/issues"
 license: "Apache-2.0"
 
-synopsis: "Coq library of Partial Commutative Monoids"
+synopsis: "Rocq library of Partial Commutative Monoids"
 description: """
 The PCM library provides a formalisation of Partial Commutative Monoids (PCMs),
 a common algebraic structure used in separation logic for verification of
@@ -25,10 +25,10 @@ This library relies on propositional and functional extentionality axioms."""
 build: [make "-j%{jobs}%"]
 install: [make "install"]
 depends: [
-  "coq" { (>= "9.0" & < "9.2~") | (= "dev") }
-  "coq-mathcomp-ssreflect" { (>= "2.4.0" & < "2.6~") | (= "dev") }
-  "coq-hierarchy-builder" { (>= "1.7.0" & < "1.11~") | (= "dev") }
-  "coq-mathcomp-algebra" 
+  "coq" { (>= "9.2" & < "9.3~") | (= "dev") }
+  "rocq-mathcomp-ssreflect" { (>= "2.6.0" & < "2.7~") | (= "dev") }
+  "rocq-hierarchy-builder" { (>= "1.7.0" & < "1.11~") | (= "dev") }
+  "rocq-mathcomp-algebra" 
 ]
 
 tags: [
