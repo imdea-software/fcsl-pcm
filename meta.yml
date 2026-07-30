@@ -40,6 +40,10 @@ license:
   file: LICENSE
 
 supported_coq_versions:
+  text: "none"
+  opam: ""     
+
+supported_rocq_versions:
   text: 9.2 or later
   opam: '{ (>= "9.2" & < "9.3~") | (= "dev") }'
 
@@ -50,6 +54,14 @@ tested_coq_opam_versions:
   repo: 'mathcomp/mathcomp-dev'
 
 dependencies:
+- opam:
+    name: rocq-core
+    version: '{ (>= "9.2" & < "9.3~") | (= "dev") }'
+  description: "Rocq Core compiler engine"
+- opam:
+    name: rocq-stdlib
+    version: '{ (>= "9.2" & < "9.3~") | (= "dev") }'
+  description: "Rocq Standard Library components"
 - opam:
     name: rocq-mathcomp-ssreflect
     version: '{ (>= "2.6.0" & < "2.7~") | (= "dev") }'
