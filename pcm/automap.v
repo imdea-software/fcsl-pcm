@@ -34,13 +34,6 @@ From pcm Require Import pcm unionmap natmap.
 (**************************************************************************)
 (**************************************************************************)
 
-(* DEVCOMMENT *)
-(* For each task, we have two implementations: a naive and a                  *)
-(* sophisticated one. The lemmas validO, domeqO, invalidO are the naive       *)
-(* ones, and validX, domeqX, invalidX are the sophisticated ones. I keep      *)
-(* both O/X versions for now, for experimentation purposes, but               *)
-(* eventually should retain only validX and domeqX.                           *)
-(* /DEVCOMMENT *)
 
 (* Context structure for reflection of unionmap expressions. We          *)
 (* reflect the keys and the variables of the map expression. (The        *)

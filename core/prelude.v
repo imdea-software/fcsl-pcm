@@ -296,9 +296,6 @@ Notation "[ \/ P1 , P2 , P3 , P4 , P5 , P6 | P7 ]" := (or7 P1 P2 P3 P4 P5 P6 P7)
 
 (** Add the ability to rewrite with [<->] for the custom logical connectives *)
 
-(* DEVCOMMENT *)
-(* TODO: we should move some of the following to [ssrbool] in Coq *)
-(* /DEVCOMMENT *)
 
 From Stdlib Require Import Classes.Morphisms Program.Basics Program.Tactics.
 From Stdlib Require Import Relations.
@@ -1339,9 +1336,6 @@ Arguments sel {T Us} tg f.
 Arguments splice {T Us tg} f v.
 
 (* notation for building finfuns *)
-(* DEVCOMMENT *)
-(*   copied from finfun to fix some bad spacing in formatting *)
-(* /DEVCOMMENT *)
 (*
 Notation "[ 'ffun' x : aT => E ]" := (finfun (fun x : aT => E))
   (at level 0, x name, format "[ 'ffun'  x  :  aT  =>  E ]") : function_scope.

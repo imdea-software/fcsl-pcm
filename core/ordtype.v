@@ -79,13 +79,6 @@ Global Arguments Pack [_] _.
 Global Arguments sort : clear implicits.
 Global Arguments class : clear implicits.
 
-(* DEVCOMMENT *)
-(* The polymorphism annotations here and below are needed for storing *)
-(* ordType instances in finMaps which have an ordType constraint of *)
-(* their own. An example of this is KVMap from HTT. *)
-(* Ultimately there should be a better solution if we want to switch *)
-(* to Mathcomp's orders. *)
-(* /DEVCOMMENT *)
 
 (* Polymorphic Universe annotations added *)
 Section PolymorphicClonePack.

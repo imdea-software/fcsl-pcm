@@ -89,25 +89,6 @@ Coercion Pred_of_history A (x : history A) : {Pred _} :=
 
 Notation "x \-> v" := (ptsT (history _) x v) (at level 30).
 
-(* DEVCOMMENT *)
-(* tests *)
-Lemma xx : 1 \-> true = null \-> false.   
-Abort.
-
-Lemma xx : ((1 \-> true) \+ (2 \-> false)) == (1 \-> false). 
-Proof.
-rewrite joinC. 
-Abort.
-
-Lemma xx (x : history nat) : x \+ x == x \+ x.
-Abort.
-
-Lemma xx : 1 \-> (1 \-> 3) = 2 \-> (7 \-> 3). 
-Abort.
-
-Lemma xx : (1, 3) \In (1 \-> 3).
-Abort.
-(* /DEVCOMMENT *)
 
 (* Sometimes it's useful to not think of natmaps as recording *)
 (* times (i.e., being histories), but just as ordinary maps *)
@@ -457,7 +438,7 @@ apply/idP/allP=>[H x D|]; last by apply; apply: lastkey_mem0.
 by apply: leq_ltn_trans (dom0_lastkey D) H. 
 Qed.
 
-(* unfolding equivalences into implications (forewriteard) *)
+(* unfolding equivalences into implications (forward) *)
 Lemma lastkey_leq_dom h x k : last_key h <= k -> x \in dom h -> x <= k.
 Proof. by rewrite lastkey_leq=>/allP; apply. Qed.
 Lemma lastkey_leq_dom0 h x k : last_key h <= k -> x \in 0 :: dom h -> x <= k.
@@ -689,7 +670,7 @@ move/unitbP: {K H} E V (H3 k v Unit H1)=>->.
 by rewrite unitR validPt lastkey0 lt0n=>V; apply.
 Qed.
 
-(* forewriteard induction on valid natmaps *)
+(* forward induction on valid natmaps *)
 Lemma valid_indf (P : U -> Prop) :
         P Unit ->
         (forall k v h, P h ->
@@ -771,7 +752,7 @@ move=>D H; apply: lub_lastkey=>// x K; apply/In_dom_omfX; case=>y [X E].
 by apply: H K X _; rewrite E.
 Qed.
 
-(* equivalence lemmas (forewriteard) *)
+(* equivalence lemmas (forward) *)
 Lemma lastkey_leq_odom f h x k : last_key h <= k -> x \in dom (f h) -> x <= k.
 Proof. by move/lastkey_leq_dom=>H /omf_subdom /H. Qed.
 Lemma lastkey_leq_odom0 f h x k : last_key h <= k -> x \in 0 :: dom (f h) -> x <= k.
@@ -1019,7 +1000,7 @@ apply/idP/allP=>[H x D|]; last by apply; apply: lastkey_mem0.
 by apply: leq_ltn_trans (dom0_fresh D) H.
 Qed.
 
-(* unfolding equivalences into implications (forewriteard) *)
+(* unfolding equivalences into implications (forward) *)
 Lemma fresh_leq_dom0 h x k : fresh h <= k -> x \in 0 :: dom h -> x < k.
 Proof. exact: lastkey_ltn_dom0. Qed.
 Lemma fresh_leq_dom h x k : fresh h <= k -> x \in dom h -> x < k.
@@ -1190,7 +1171,7 @@ Proof. exact: lastkey_odom. Qed.
 Lemma fresh_odom0 f h k : fresh h <= k -> k \notin 0 :: dom (f h).
 Proof. exact: lastkey_odom0. Qed.
 
-(* equivalence lemmas (forewriteard) *)
+(* equivalence lemmas (forward) *)
 Lemma fresh_leq_odom0 f h x k : fresh h <= k -> x \in 0 :: dom (f h) -> x < k.
 Proof. exact: lastkey_ltn_odom0. Qed.
 Lemma fresh_leq_odom f h x k : fresh h <= k -> x \in dom (f h) -> x < k.
@@ -1381,21 +1362,6 @@ Arguments oexleNE [V U R a t h ks z0].
 (* Interaction of oexec_lt and oexec_le with constructors *)
 (**********************************************************)
 
-(* DEVCOMMENT *)
-(*
-Lemma oexlt0 V (U : natmap V) R a ks (h : U) (z0 : R) : oexec_lt a ks 0 h z0 = z0.
-Proof. by rewrite /oexec_lt squo0. Qed.
-
-Lemma oexle0 V R a ks (h : natmap V) (z0 : R) : oexec_le a ks 0 h z0 = z0.
-Proof.
-rewrite /oexec_le squx0; case: ifP=>//= _.
-set xs := filter _ _; rewrite oevFK; set ys := filter _ _.
-rewrite (_ : ys = [::]) //.
-rewrite -[RHS](filter_pred0 xs); apply: eq_in_filter.
-by move=>x; rewrite mem_filter=>/andP [/eqP ->]; rewrite cond_dom.
-Qed.
-*)
-(* /DEVCOMMENT *)
 
 Lemma oexlt_notin V (U : natmap V) R a ks t (h : U) (z0 : R) :
         t \notin ks ->
@@ -1532,9 +1498,6 @@ Proof. by move=>N; rewrite /oexec_lt eqsl_uL_rconsE eqxx /= (negbTE N). Qed.
 Arguments oexlt_rcons_same [V U R a ks k h z0].
 
 (* in case of oexle, case t == k can be optimized *)
-(* DEVCOMMENT *)
-(* TODO doesn't simplify anything now, remove? *)
-(* /DEVCOMMENT *)
 Lemma oexle_rcons_same V (U : natmap V) R a ks k (h : U) (z0 : R) :
         k \notin ks ->
         oexec_le a (rcons ks k) k h z0 = oevalv a (rcons ks k) h z0.
@@ -1596,9 +1559,6 @@ Qed.
 Arguments oexle_umfiltN [V U R a ks p t h z0].
 
 (* restating the last two lemmas for the other direction *)
-(* DEVCOMMENT *)
-(* TODO why not just state them like this initially? *)
-(* /DEVCOMMENT *)
 Lemma oexlt_filter V (U : natmap V) R a ks p t (h : U) (z0 : R) :
         (t \notin ks) || (p t) ->
         oexec_lt a (filter p ks) t h z0 =

@@ -21,9 +21,6 @@ From pcm Require Import options.
 
 (* First some basic propositional equalities *)
 
-(* DEVCOMMENT *)
-(* Basically, we need to repeat most of ssrbool.v here but we'll do it as we go. *)
-(* /DEVCOMMENT *)
 
 Lemma andTp p : True /\ p <-> p.      Proof. by intuition. Qed.
 Lemma andpT p : p /\ True <-> p.      Proof. by intuition. Qed.
@@ -568,9 +565,6 @@ Add Parametric Relation (T : Type) : (Rel T) (@subRel T)
 
 (* Declaring morphisms. *)
 
-(* DEVCOMMENT *)
-(* Annoyingly, even the coercions must be declared *)
-(* /DEVCOMMENT *)
 
 (*
 Add Parametric Morphism T : (@Pred_of_Simpl T) with signature
@@ -578,21 +572,6 @@ Add Parametric Morphism T : (@Pred_of_Simpl T) with signature
 Proof. by []. Qed.
 *)
 
-(* DEVCOMMENT *)
-(* Do we need other coercions? We'll discover as we go *)
-
-(* Now the other morphisms. Again, not clear which ones are needed.   *)
-(* However, for all this to work, it seems that morphisms must be     *)
-(* declared with most specific signatures, or else the system         *)
-(* complains. For example, we use EqPred _ instead of EqPredType _ _, *)
-(* even though the former is an instance of the later.                *)
-
-(*
-Add Parametric Morphism T : (@EqPred T) with signature
-    @EqPred _ ==> @EqPred _ ==> iff as EqPred_morph.
-Proof. by move=>r1 s1 H1 r2 s2 H2; rewrite H1 H2. Qed.
-*)
-(* /DEVCOMMENT *)
 
 Add Parametric Morphism T (pT : PredType T) : (@Eq_Pred T pT) 
   with signature
@@ -736,12 +715,6 @@ Lemma orrA r1 r2 r3 :
 Proof. by rewrite (orrC r2) orrCA (orrC r3). Qed.
 
 (* absorption *)
-(* DEVCOMMENT: when lemmas use sub_rel, it's usually better *)
-(* to use the collective form sub_mem *)
-(* Typically, with sub_rel, there will be lemma application *)
-(* that will turn expression of the from x \In A into A x *)
-(* and the latter immediately prevents setoid rewriting *)
-(* /DEVCOMMENT *)
 Lemma orrAb r1 r2 : 
         r1 <~> r1 \+p r2 <-> 
         r2 <=p r1.
@@ -983,17 +956,6 @@ suff /IH -> : forall y, y \In s -> f y = g y by [].
 by move=>y X; apply: H; right.
 Qed.
 
-(* DEVCOMMENT *)
-(* this interferes with the usage of inE, see
-   https://gitlab.software.imdea.org/mathador/fcsl/-/issues/97 *)
-(*
-(* Setoids for extensional equality of functions *)
-Add Parametric Relation A B : (A -> B) (@eqfun _ _)
-  reflexivity proved by (@frefl B A)
-  symmetry proved by (@fsym B A)
-  transitivity proved by (@ftrans B A) as eqfun_morph.
-*)
-(* /DEVCOMMENT *)
 
 (* Big \In equivalences for all and has *)
 
@@ -1372,10 +1334,6 @@ Hypotheses (symR : Symmetric) (trR : Transitive).
 Lemma sym_left_Transitive : left_Transitive.
 Proof. by move=> x y Rxy z; split; apply: trR; rewrite // symR. Qed.
 
-(* DEVCOMMENT *)
-(* Using sym_left_Transitive as a view doesn't work. *)
-(* see https://github.com/coq/coq/issues/8352 *)
-(* /DEVCOMMENT *)
 
 Lemma sym_right_Transitive : right_Transitive.
 Proof. by move=> x y Rxy z; rewrite !(symR z); apply: sym_left_Transitive. Qed.
@@ -1485,9 +1443,6 @@ End SumRel.
 Section Transitivity.
 Variables (A : Type) (R : Rel A).
 
-(* DEVCOMMENT *)
-(* TODO: see if these can be simplified *)
-(* /DEVCOMMENT *)
 
 Lemma trans_imp (F : A -> Prop) : Transitive (fun x y => F x -> F y).
 Proof. by move=>x y z H1 H2 /H1. Qed.
@@ -2011,9 +1966,6 @@ Variables (P1 : T1 -> Prop) (P2 : T1 -> T2 -> Prop).
 Variable P3 : T1 -> T2 -> T3 -> Prop.
 Variables (d1 d1' : T1 -> Prop).
 
-(* DEVCOMMENT *)
-(* (d2 d2' : mem_pred T2) (d3 d3' : mem_pred T3). *)
-(* /DEVCOMMENT *)
 
 Local Notation "{ 'All1' P }" := (forall x, P x : Prop) (at level 0).
 Local Notation "{ 'All2' P }" := (forall x y, P x y : Prop) (at level 0).

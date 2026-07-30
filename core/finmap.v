@@ -513,7 +513,7 @@ case: s=>s p; rewrite /supp /= => H1; rewrite last_ins' //=.
 by case/andP=>H2 H3; rewrite H2; apply: ord_path H3.
 Qed.
 
-(* forewriteard induction principle *)
+(* forward induction principle *)
 Lemma fmap_ind' (P : fmap -> Prop) :
         P nil -> 
         (forall k v s, path ord k (supp s) -> P s -> P (ins k v s)) ->
@@ -914,11 +914,6 @@ rewrite (fcatC H1) (fcatC H2); apply: fcatsK.
 by rewrite -!(disjC s) H1 H2.
 Qed.
 
-(* DEVCOMMENT *)
-(* heh, a theory of submaps would be good here *)
-(* but i don't have time for a decent development *)
-(* so let's do a quick lemma that's needed for feaps *)
-(* /DEVCOMMENT *)
 
 Lemma disj_kfilt p1 p2 s1 s2 :
         disj s1 s2 -> disj (kfilter p1 s1) (kfilter p2 s2).
@@ -1296,8 +1291,6 @@ elim: s1 s2 s E1=>[|[k1 v1] s1 IH]; case=>[|[k2 v2] s2] //= s.
 case: eqP=>// <-{k2}; case E1: (zip_f v1 v2)=>[w|//].
 case E2: (zip' s1 s2)=>[t|//][<-{s}] /=.
 case: eqP=>[_ [<-]|_].
-(* DEVCOMMENT: exists v1, v2 errors! *)
-(* /DEVCOMMENT *)
 - by exists v1; exists v2.
 by case: (filter (predk V x) t) (IH _ _ E2).
 Qed.

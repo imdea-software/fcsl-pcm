@@ -263,11 +263,6 @@ End Repack.
 (* we and undef elemeent and function undefb *)
 (* to test decidably if an element is undef *)
 
-(* DEVCOMMENT *)
-(* obsoleted condition *)
-(* _ : forall x y z : U, valid (x \+ y \+ z) =
-        [&& valid (x \+ y), valid (y \+ z) & valid (x \+ z)]; *)
-(* /DEVCOMMENT *)
 
 Definition tpcm_axiom (U : pcm) (undef : U) 
                       (undefb : U -> bool) := 
@@ -516,11 +511,6 @@ HB.instance Definition _ := isPCMC.Build nat nat_is_conical.
 
 (* nats are pcm with multiplication too *)
 (* but the instance isn't declared canonical as natPCM already is *)
-(* DEVCOMMENT *)
-(*   To have both, we must redo PCM def so that it keys on join op *)
-(*   (as in bigops), and not on type. But that is drastic and of unclear *)
-(*   utility in this setting (e.g., we can't have uniform notation \+). *)
-(* /DEVCOMMENT *)
 Lemma nat_is_mulpcm : pcm_axiom xpredT mult 1 (eq_op^~ 1).
 Proof. by split=>//; [apply:mulnC|apply:mulnA|apply:mul1n|apply:(@eqP _^~_)]. Qed.
 HB.instance Definition nat_mulPCM : isPCM nat := isPCM.Build nat nat_is_mulpcm.

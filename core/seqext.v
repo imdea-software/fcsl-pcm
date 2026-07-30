@@ -578,7 +578,7 @@ Proof. by case: xs. Qed.
 Lemma head_mem (x : A) xs : head x xs \in x :: xs.
 Proof. by case: xs=>[|y ys]; rewrite !inE //= eqxx orbT. Qed.
 
-(* a common pattern of using mem_head that avoids forewriteard reasoning *)
+(* a common pattern of using mem_head that avoids forward reasoning *)
 Lemma mem_headI (x : A) xs a :
         a = head x xs -> 
         a \in x :: xs.

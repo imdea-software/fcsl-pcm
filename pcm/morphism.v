@@ -1574,17 +1574,6 @@ End FullCompIsFull.
 
 (* instances for combinations must declare PCM_morphism.on *)
 (* before declaring fullness structure. *)
-(* DEVCOMMENT: *)
-(* Alternative is to write the definition explicitly as below, *)
-(* but that's too low level. *)
-(*
-HB.instance Definition _ (f : full_norm_pcm_morph U V) 
-                         (g : full_norm_pcm_morph V W) :=
-  Full_Norm_PCM_morphism.copy (g \o f) 
-    (Full_Norm_PCM_morphism.pack_ 
-       (Norm_PCM_morphism.class (g \o f))
-       (Full_PCM_morphism.class (g \o f))). *)
-(* /DEVCOMMENT *)
 
 HB.instance Definition _  
     (f : full_norm_pcm_morph U V) 

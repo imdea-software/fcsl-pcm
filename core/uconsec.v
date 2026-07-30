@@ -848,7 +848,7 @@ case: (t1 =P k) C=>[->{t1} C _|/eqP Nt1k C].
 have Nx1 : t1 != x.
 - case: eqP U1=>// <-; move: (consec_mem C).
   by rewrite inE (negbTE Nt1k) /= =>->.
-(* then the proof is straightforewriteard *)
+(* then the proof is straightforward *)
 apply: Hstep; first by rewrite inE T2 orbT.
 apply: consec_cons=>//=.
 - by rewrite U1.

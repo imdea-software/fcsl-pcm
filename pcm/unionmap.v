@@ -23,7 +23,7 @@ limitations under the License.
 (*        empty == a valid empty instance of a union map.                     *)
 (*    upd k v f == union map f with key-value pair (k,v) inserted. If key k   *)
 (*                 already exists in t, its corresponding value is            *)
-(*                 overewriteritten with v.                                        *)
+(*                 overwritten with v.                                        *)
 (*        dom f == a sequence of keys for union map f.                        *)
 (* dom_eq f1 f2 == the sets of keys are equal for union maps f1 and f2.       *)
 (*     assocs t == a sequence of key-value pairs in union map t.              *)
@@ -210,7 +210,7 @@ Definition undefb f := if f is Undef then true else false.
 
 Definition pts k v := upd k v empty.
 
-(* forewriteard induction *)
+(* forward induction *)
 Lemma base_indf (P : base -> Prop) :
          P Undef -> P empty ->
          (forall k v f, P f -> valid (union (pts k v) f) ->
@@ -556,28 +556,6 @@ HB.instance Definition _ (K : ordType) (V : eqType) :=
 
 Notation "x \\-> v" := (ptsT (umap _ _) x v) (at level 30).
 
-(* DEVCOMMENT *)
-(* remove these "tests" for release *)
-(* Does the notation work? *)
-Lemma xx : 1 \\-> true = 1 \\-> false.    
-Abort.
-
-(* does the pcm and the equality type work? *)
-Lemma xx : ((1 \\-> true) \+ (2 \\-> false)) == (1 \\-> false).  
-Proof.
-rewrite joinC. 
-Abort.
-
-(* can we use the base type? *)
-Lemma xx (x : umap nat nat) : x \+ x == x \+ x. 
-Abort.
-
-(* can maps be stored into maps without universe inconsistencies? *)
-(* yes, the idea of the class works *)
-Lemma xx : 1 \\-> (1 \\-> 3) = 2 \\-> (7 \\-> 3). 
-Abort.
-
-(* /DEVCOMMENT *)
 
 (***************)
 (* Finite sets *)
@@ -622,9 +600,6 @@ End FsetUMC.
 
 Notation "# x" := (ptsT (fset _) x tt) (at level 30, format "# x").
 
-(* DEVCOMMENT *)
-(* test *)
-(* /DEVCOMMENT *)
 Lemma xx : #1 \+ #2 = Unit. 
 Abort.
 
@@ -2202,7 +2177,7 @@ Qed.
 
 (* induction over union maps, expressed with pts and \+ *)
 
-(* forewriteard progressing over keys *)
+(* forward progressing over keys *)
 Lemma um_indf (P : U -> Prop) :
          P undef -> P Unit ->
          (forall k v f, P f -> valid (pts k v \+ f) ->
@@ -4642,9 +4617,6 @@ by rewrite eq_in_omf !omf_omap /= => kv; case: (p1 _).
 Qed.
 
 (* we put localization back In for xor *)
-(* DEVCOMMENT *)
-(* TODO: this should be done for all umfilt_?pred? lemmas *)
-(* /DEVCOMMENT *)
 Lemma umfilt_predX f p q :
         (forall kv, kv \In f -> p kv (+) q kv) ->
         f = um_filter p f \+ um_filter q f.
@@ -4878,9 +4850,6 @@ Qed.
 Lemma dom_umfiltk p f : dom (um_filterk p f) =i predI p (mem (dom f)).
 Proof. by move=>k; rewrite dom_umfiltkE mem_filter. Qed.
 
-(* DEVCOMMENT *)
-(* this also holds for invalid f1, as the corollary shows *)
-(* /DEVCOMMENT *)
 Lemma umfiltk_dom f1 f2 :
         valid (f1 \+ f2) -> 
         um_filterk [dom f1] (f1 \+ f2) = f1.
@@ -5505,10 +5474,6 @@ Hint Resolve pleq_free : core.
 (* Precision lemmas *)
 (********************)
 
-(* DEVCOMMENT *)
-(* naturally belongs to dom section, but proofs use lemmas *)
-(* that haven't been proved before the dom section *)
-(* /DEVCOMMENT *)
 Section Precision.
 Variables (K : ordType) (C : pred K) (V : Type) (U : union_map K C V).
 Implicit Types (x y : U).
@@ -7844,13 +7809,6 @@ Qed.
 End OMapBig.
 
 
-(* DEVCOMMENT: *)
-(*   remove "tests" for release *)
-Lemma xx (f : umap nat nat) : 3 \in dom (free f 2).
-Proof.
-rewrite domF -domF.
-Abort.
-(* /DEVCOMMENT *)
 
 
 (******************************************)

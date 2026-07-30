@@ -424,9 +424,6 @@ Qed.
 (* can be irreflexive because sorting wouldn't *)
 (* compare equal elements *)
 
-(* DEVCOMMENT *)
-(*   interesting proof pattern using sortE *)
-(* /DEVCOMMENT *)
 
 Lemma merge_lt_le (T : eqType) (ltT : rel T) s1 s2 :
         uniq (s1 ++ s2) ->

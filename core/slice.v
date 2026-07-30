@@ -18,10 +18,6 @@ From pcm Require Import options prelude seqext.
 Open Scope order_scope.
 Import Order.Theory.
 
-(* DEVCOMMENT *)
-(* intervals used to do these simplifications automatically *)
-(* but that changed with mathcomp 2.0 *)
-(* /DEVCOMMENT *)
 Section BSimp_Extension.
 Context disp (T : porderType disp).
 Implicit Types (x y : T) (b c : bool).

@@ -479,15 +479,6 @@ End XSepPCMS.
 (* Option pair PCM with bounds *)
 (*******************************)
 
-(* DEVCOMMENT: this was developed for use *)
-(* in readers-writers, but didn't pan out *)
-(* first component: number of writers *)
-(* second component: number of readers *)
-(* option type used to account for undefined state *)
-(* obtained by overproducing or overconusming *)
-(* i.e., adding or removing incompatible number of *)
-(* readers or writers *)
-(* /DEVCOMMENT *)
 
 Definition oint2 := option (int * int).
 HB.instance Definition _ := TPCMS.on oint2.
@@ -544,15 +535,6 @@ Qed.
 #[export] HB.instance Definition _ := 
   isSseprel.Build oint2 rewritesep rewritesep_is_sseprel.
 
-(* DEVCOMMENT: *)
-(* PCM for readers-writers is oint2 modded out by rewritesep *)
-(* effectively, pairs of ints, where we can add/subtract *)
-(* ie. produce/consume, but if we over-produce/consume *)
-(* we the undefined element. Nevertheless, if we need to *)
-(* be more precise as to what the over-producing/consuming *)
-(* would have given us if we didn't go into undefined *)
-(* we can work with oint2 *)
-(* /DEVCOMMENT *)
 Definition rewrite := xsep rewritesep.
 Definition rewritesub : sub_struct rewrite oint2 := xsub rewritesep.
 HB.instance Definition _ := TPCMS.on rewrite.
