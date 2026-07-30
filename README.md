@@ -29,7 +29,7 @@ This library relies on propositional and functional extentionality axioms.
   - Anton Trunov
   - Alexander Gryzlov
 - License: [Apache-2.0](LICENSE)
-- Compatible Rocq/Coq versions: none
+- Compatible Rocq/Coq versions: 9.2 
 - Additional dependencies:
   - Rocq Core compiler engine
   - Rocq Standard Library components
