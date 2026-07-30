@@ -75,7 +75,7 @@ Definition interp' (i : ctx U) (t : term) : option U :=
   let: Expr n := t in onth (expx i) n.
 
 (* main interpretation function *)
-Notation fx i := (fun t f => interp' i t \+ f).
+Abbreviation fx i := (fun t f => interp' i t \+ f).
 Definition interp (i : ctx U) (ts : seq term) : option U :=
   foldr (fx i) Unit ts.
 
@@ -269,8 +269,8 @@ Module PullX.
 Section PullX.
 Variables (U : pcm).
 Implicit Types (j k : ctx U) (ts : seq term).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
+Abbreviation form := Syntactify.form.
+Abbreviation untag := Syntactify.untag.
 
 Structure packed_pcm (m : U) := Pack {unpack : U}.
 
@@ -324,8 +324,8 @@ Canonical start.
 Section Exports.
 Variables (U : pcm).
 Implicit Types (j : ctx U) (ts : seq term).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
+Abbreviation form := Syntactify.form.
+Abbreviation untag := Syntactify.untag.
 
 (* we need to syntactify first the subtractee (fm), then the goal (fg) *)
 
@@ -342,7 +342,7 @@ Qed.
 End Exports.
 
 Arguments pullX' [U] s [j k ts g r fs fg] _.
-Notation pullX s := (pullX' s erefl).
+Abbreviation pullX s := (pullX' s erefl).
 
 Example ex0 (x y z : nat) :
           1 \+ x \+ 2 \+ y \+ 3 \+ z = 0.

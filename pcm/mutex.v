@@ -111,12 +111,12 @@ HB.instance Definition _ := hasDecEq.Build (mutex T) mutex_eqP.
 End Equality.
 
 (* mutexes with distingusihed own element *)
-Notation mtx T := (mutex (option T)).
-Notation mtx2 := (mtx False).
-Notation mtx3 := (mtx unit).
-Notation own := (mx None).
-Notation auth x := (mx (Some x)).
-Notation auth1 := (mx (Some tt)).
+Abbreviation mtx T := (mutex (option T)).
+Abbreviation mtx2 := (mtx False).
+Abbreviation mtx3 := (mtx unit).
+Abbreviation own := (mx None).
+Abbreviation auth x := (mx (Some x)).
+Abbreviation auth1 := (mx (Some tt)).
 
 (* some lemmas for generalized mutexes *)
 

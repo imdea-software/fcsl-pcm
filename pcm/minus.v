@@ -16,9 +16,6 @@ From Stdlib Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import choice ssrnat eqtype ssrint ssrnum order.
 From pcm Require Import options axioms prelude pcm mutex morphism.
 
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
-
 (*************************)
 (*************************)
 (* PCMs with subtraction *)
@@ -446,7 +443,7 @@ Lemma sepyS (U : pcms) (sep : sseprel U) (x y : U) :
         sep (x \- y) Unit ->
         sep y (x \- y).
 Proof. 
-move=>V Sx Sy S; rewrite sepC; first by apply: sepSy.
+move=>V Sx Sy S; rewrite sepC; last by apply: sepSy.
 by rewrite joinxS // (validSL V).
 Qed.
 
@@ -469,7 +466,7 @@ rewrite validSX valid_pvalE; case=>Vx _ S; split=>//.
 move: (validSR V). rewrite valid_pvalE. move=>Vy.
 case/(valid_sep (xsub R)): Vx=>Vx Sx.
 case/(valid_sep (xsub R)): Vy=>Vy Sy.
-rewrite -{1}(psub_pval (xsub R) y) -pfjoin /=; last 2 first.
+rewrite -{1}(psub_pval (xsub R) y) -pfjoin /=.
 - by rewrite joinxS.
 - by rewrite /sepx /= sepyS. 
 by rewrite joinxS // psub_pval.
@@ -489,25 +486,25 @@ HB.instance Definition _ := TPCMS.on oint2.
 Module RWsep.
 Import intZmod intOrdered ssralg.GRing ssralg.GRing.Theory Num.Theory Num.Def.
 Import Order.TTheory Order.DefaultProdOrder Order.ProdSyntax.
-Import Order.DefaultProdLexiOrder Order.LexiSyntax.
+Import Order.DefaultProdLexiOrder Order.LexiSyntax.  
 Local Open Scope order_scope.
 Local Open Scope ring_scope.
 
 (* positive pairs, lexi smaller than (1, 0) *)
-(* describes the valid states of a rw-lock *)
+(* describes the valid states of a rewrite-lock *)
 (* we either have no writers and any positive number of readers *)
 (* or 1 writer and no readers *)
 Definition bnd2 (x : int *l int) := 
   ((0,0)%Z <=^p x) && (x <=^l (1,0)%Z).
 
 (* here want to use \+ from pcm scope *)
-Definition rwsep : rel oint2 := 
+Definition rewritesep : rel oint2 := 
   fun x y => if (x, y) is (Some x, Some y) then 
     [&& bnd2 x, bnd2 y & bnd2 (x \+ y)%pcm] else true.
 
-Lemma rwsep_is_seprel : seprel_axiom rwsep.
+Lemma rewritesep_is_seprel : seprel_axiom rewritesep.
 Proof.
-rewrite /rwsep; split=>[|[[x1 x2]|][[y1 y2]|]|
+rewrite /rewritesep; split=>[|[[x1 x2]|][[y1 y2]|]|
 [[x1 x2]|][[y1 y2]|]|[[x1 x2]|][[y1 y2]|][[z1 z2]|]] //= _.
 - by rewrite andbCA pcm.joinC.
 - by rewrite unitR andbb; case/and3P.
@@ -525,76 +522,76 @@ by rewrite -(lerD2l x2) ler_wpDl.
 Qed.
 
 #[export] HB.instance Definition _ := 
-  isSeprel.Build oint2 rwsep rwsep_is_seprel.
+  isSeprel.Build oint2 rewritesep rewritesep_is_seprel.
 
-(* rwsep preserves subtraction *)
-Lemma rwsep_is_sseprel : sseprel_axiom rwsep.
+(* rewritesep preserves subtraction *)
+Lemma rewritesep_is_sseprel : sseprel_axiom rewritesep.
 Proof.
-rewrite /rwsep; case=>[[x1 x2]|][[y1 y2]|] //= _.
+rewrite /rewritesep; case=>[[x1 x2]|][[y1 y2]|] //= _.
 do ![rewrite pcmE /unjoin /=].
 by rewrite -!addrA !addNr !addr0 !andbb =>->->->. 
 Qed.
 
 #[export] HB.instance Definition _ := 
-  isSseprel.Build oint2 rwsep rwsep_is_sseprel.
+  isSseprel.Build oint2 rewritesep rewritesep_is_sseprel.
 
-Definition rw := xsep rwsep.
-Definition rwsub : sub_struct rw oint2 := xsub rwsep.
-HB.instance Definition _ := TPCMS.on rw.
-HB.instance Definition _ := SubTPCM_struct.on rwsub.
+Definition rewrite := xsep rewritesep.
+Definition rewritesub : sub_struct rewrite oint2 := xsub rewritesep.
+HB.instance Definition _ := TPCMS.on rewrite.
+HB.instance Definition _ := SubTPCM_struct.on rewritesub.
 
-Lemma rw_is_conic : pcmc_axiom rw.
+Lemma rewrite_is_conic : pcmc_axiom rewrite.
 Proof.
-move=>x y; case: normalP=>// /[dup] V /(valid_sepUnS rwsub).
-rewrite -!(unitb_pval rwsub) pfjoinT //= {V}.
+move=>x y; case: normalP=>// /[dup] V /(valid_sepUnS rewritesub).
+rewrite -!(unitb_pval rewritesub) pfjoinT //= {V}.
 case: {x}(pval _ x)=>[[x1 x2]|//]; case: {y}(pval _ y)=>[[y1 y2]|//].
-rewrite /sepx/=/rwsep; do ![rewrite pcmE /= /unitb]; rewrite !addr_eq0.
+rewrite /sepx/=/rewritesep; do ![rewrite pcmE /= /unitb]; rewrite !addr_eq0.
 case: (x1 =P opp y1)=>// ->{x1}; case: (x2 =P opp y2)=>// ->{x2}.
 rewrite /bnd2/Order.le/=/Order.ProdOrder.le/Order.ProdLexiOrder.le /=.
 rewrite !oppr_eq0 !oppr_ge0 oppr_le0.
 by case: (ltgtP y1 0); case: (ltgtP y2 0)=>//=; rewrite andbF.
 Qed.
 
-#[export] HB.instance Definition _ := isPCMC.Build rw rw_is_conic.
+#[export] HB.instance Definition _ := isPCMC.Build rewrite rewrite_is_conic.
 
-(* extracting number of writers and number of readers out of rw state *)
+(* extracting number of writers and number of readers out of rewrite state *)
 (* explicitly made out to be nats, not ints *)
 
-Definition wr_no (x : rw) := oapp (absz \o fst) 0 (pval rwsub x).  
-Definition rd_no (x : rw) := oapp (absz \o snd) 0 (pval rwsub x).
+Definition wr_no (x : rewrite) := oapp (absz \o fst) 0 (pval rewritesub x).  
+Definition rd_no (x : rewrite) := oapp (absz \o snd) 0 (pval rewritesub x).
 
 Module Exports. 
-Notation rwsep := rwsep.
-Notation rw := rw.
-Notation rwsub := rwsub.
+Abbreviation rewritesep := rewritesep.
+Abbreviation rewrite := rewrite.
+Abbreviation rewritesub := rewritesub.
 
 Notation "#w x" := (wr_no x) (at level 1).
 Notation "#r x" := (rd_no x) (at level 1).
 
 (* generic lemmas to relate x to the pair (#w x, #r x) *)
 
-Lemma psub_rwsub (x : rw) : 
+Lemma psub_rewritesub (x : rewrite) : 
         valid x -> 
-        x = psub rwsub (Some (#w x %:Z, #r x %:Z)).
+        x = psub rewritesub (Some (#w x %:Z, #r x %:Z)).
 Proof.
-move/[dup]/(valid_sepS rwsub). 
-rewrite -{2 3}(psub_pval rwsub x) /wr_no/rd_no/oapp /=. 
-case: (pval rwsub x)=>[[x1 x2]|] /=; last first. 
+move/[dup]/(valid_sepS rewritesub). 
+rewrite -{2 3}(psub_pval rewritesub x) /wr_no/rd_no/oapp /=. 
+case: (pval rewritesub x)=>[[x1 x2]|] /=; last first. 
 - by rewrite (negbTE (psub_undef _)).
 case/andP=>/andP [/andP [/= X1 X2]] _ _ _.
 by case: x1 x2 X1 X2=>// x1 [].
 Qed.
 
-Lemma pval_rwsub (x : rw) : 
+Lemma pval_rewritesub (x : rewrite) : 
         valid x -> 
-        pval rwsub x = Some (#w x %:Z, #r x %:Z).
-Proof. by move=>V; rewrite {1}(psub_rwsub V) valid_psubS //= -psub_rwsub. Qed.
+        pval rewritesub x = Some (#w x %:Z, #r x %:Z).
+Proof. by move=>V; rewrite {1}(psub_rewritesub V) valid_psubS //= -psub_rewritesub. Qed.
 
-Lemma rwlex x : (#w x, #r x) <=^l (1, 0) :> (nat *l nat).
+Lemma rewritelex x : (#w x, #r x) <=^l (1, 0) :> (nat *l nat).
 Proof.
 case: (normalP x)=>[->|V].
 - by rewrite /wr_no/rd_no !pfundef.
-move: (valid_sepS rwsub V); rewrite pval_rwsub //=.
+move: (valid_sepS rewritesub V); rewrite pval_rewritesub //=.
 by case/andP=>/andP []. 
 Qed.
 

@@ -17,9 +17,6 @@ From pcm Require Import options pred prelude.
 From pcm Require Export auto.
 From pcm Require Import pcm unionmap natmap.
 
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
-
 (**************************************************************************)
 (**************************************************************************)
 (* Canonical structure lemmas for automating three tasks:                 *)
@@ -90,7 +87,7 @@ Definition interp' i t :=
   end.
 
 (* main interpretation function *)
-Notation fx i := (fun t f => interp' i t \+ f).
+Abbreviation fx i := (fun t f => interp' i t \+ f).
 Definition interp i ts := foldr (fx i) Unit ts.
 
 Lemma fE i ts x  : foldr (fx i) x ts = x \+ interp i ts.
@@ -186,7 +183,7 @@ Proof. by elim: ts=>//= t ts IH; case: ifP=>_ /andP [] //= -> /IH ->. Qed.
 Definition getkeys :=
   foldr (fun t ks => if t is Pts k _ then k :: ks else ks) [::].
 
-Lemma has_getkeys ts n : n \in getkeys ts = has (key n) ts.
+Lemma has_getkeys ts n : (n \in getkeys ts) = has (key n) ts.
 Proof. by elim: ts=>//= t ts IH; case: t=>[m v|m] //; rewrite inE IH. Qed.
 
 End Reflection.
@@ -409,8 +406,8 @@ Module ValidX.
 Section ValidX.
 Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Implicit Types (j : ctx U) (ts : seq (term T)).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
+Abbreviation form := Syntactify.form.
+Abbreviation untag := Syntactify.untag.
 
 (* The rform structure has two important components:                      *)
 (*                                                                        *)
@@ -476,8 +473,8 @@ Canonical start.
 Section Exports.
 Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Implicit Types (j : ctx U) (ts : seq (term T)).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
+Abbreviation form := Syntactify.form.
+Abbreviation untag := Syntactify.untag.
 
 (* the main lemma; note how the boolean component of rform is set to true *)
 
@@ -495,10 +492,10 @@ Example ex0 (x y z : nat) (v1 v2 : nat) h:
 Proof. apply: validX. Abort.
 
 (* Automated versions of joinKx(xK), cancPL(PR) lemmas *)
-Notation joinKX V E := (joinKx' E (validX V)).
-Notation joinXK V E := (joinxK' E (validX V)).
-Notation cancPLX pf V H1 H2 E := (cancPL' pf E H1 H2 (validX V)).
-Notation cancPRX pf V H1 H2 E := (cancPR' pf E H1 H2 (validX V)).
+Abbreviation joinKX V E := (joinKx' E (validX V)).
+Abbreviation joinXK V E := (joinxK' E (validX V)).
+Abbreviation cancPLX pf V H1 H2 E := (cancPL' pf E H1 H2 (validX V)).
+Abbreviation cancPRX pf V H1 H2 E := (cancPR' pf E H1 H2 (validX V)).
 
 End Exports.
 End ValidX.
@@ -514,8 +511,8 @@ Module DomeqX.
 Section DomeqX.
 Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Implicit Types (j : ctx U) (ts : seq (term T)).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
+Abbreviation form := Syntactify.form.
+Abbreviation untag := Syntactify.untag.
 
 Structure packed_map (m : U) := Pack {unpack : U}.
 Canonical equate (m : U) := Pack m m.
@@ -553,8 +550,8 @@ Canonical start.
 Section Exports.
 Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Implicit Types (j : ctx U) (ts : seq (term T)).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
+Abbreviation form := Syntactify.form.
+Abbreviation untag := Syntactify.untag.
 
 (* the main lemma; notice how residuals rs1, rs2 are passed to g to compute *)
 
@@ -588,8 +585,8 @@ Module InvalidX.
 Section InvalidX.
 Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Implicit Types (i : ctx U) (ts : seq (term T)).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
+Abbreviation form := Syntactify.form.
+Abbreviation untag := Syntactify.untag.
 
 Structure packed_map (m : U) := Pack {unpack : U}.
 Canonical equate (m : U) := Pack m m.
@@ -619,8 +616,8 @@ Canonical start.
 Section Exports.
 Variables (K : ordType) (C : pred K) (T : Type) (U : union_map K C T).
 Implicit Types (i : ctx U) (ts : seq (term T)).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
+Abbreviation form := Syntactify.form.
+Abbreviation untag := Syntactify.untag.
 
 (* the main lemmas *)
 
@@ -749,7 +746,7 @@ case: g=>eq g /=; elim: ts eq=>[|s a|ts1 IH1 ts2 IH2|t] /= eq pf X.
 - by rewrite pf !pfunit.
 - rewrite validPt in X; rewrite pf omfPt // omf_comp /=. 
   by case: (omf g _)=>[x|]; rewrite ?omfPt ?pfunit.
-- rewrite pf /= !omfUn //; last by rewrite -omfUn ?pfVE.
+- rewrite pf /= !omfUn //; first by rewrite -omfUn ?pfVE.
   by rewrite IH1 ?(validL X) // IH2 ?(validR X).
 by rewrite pf.
 Qed.

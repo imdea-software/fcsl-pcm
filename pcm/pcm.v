@@ -26,9 +26,6 @@ Declare Scope pcm_scope.
 Delimit Scope pcm_scope with pcm.
 Open Scope pcm_scope.
 
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
-
 (*******************************)
 (* Partial Commutative Monoids *)
 (*******************************)
@@ -489,7 +486,6 @@ Qed.
 
 End BigPartialMorph.
 
-
 (*********************)
 (* PCM constructions *)
 (*********************)
@@ -672,7 +668,7 @@ Qed.
 
 Section ProdPCM.
 Variables U V : pcm.
-Local Notation tp := (U * V)%type.
+Local Abbreviation tp := (U * V)%type.
 
 Definition valid2 := [fun x : tp => valid x.1 && valid x.2].
 Definition join2 := [fun x1 x2 : tp => (x1.1 \+ x2.1, x1.2 \+ x2.2)].
@@ -740,7 +736,7 @@ End Simplification.
 
 Section Prod3PCM.
 Variables U1 U2 U3 : pcm.
-Notation tp := (Prod3 U1 U2 U3).
+Abbreviation tp := (Prod3 U1 U2 U3).
 Definition valid3 := [fun x : tp =>
   [&& valid (proj31 x), 
       valid (proj32 x) & 
@@ -790,7 +786,7 @@ HB.instance Definition _ (U1 U2 U3 : pcmc) :=
 
 Section Prod4PCM.
 Variables U1 U2 U3 U4 : pcm.
-Notation tp := (Prod4 U1 U2 U3 U4).
+Abbreviation tp := (Prod4 U1 U2 U3 U4).
 Definition valid4 := [fun x : tp =>
   [&& valid (proj41 x), 
       valid (proj42 x),
@@ -843,7 +839,7 @@ HB.instance Definition _ (U1 U2 U3 U4 : pcmc) :=
 
 Section Prod5PCM.
 Variables U1 U2 U3 U4 U5 : pcm.
-Notation tp := (Prod5 U1 U2 U3 U4 U5).
+Abbreviation tp := (Prod5 U1 U2 U3 U4 U5).
 
 Definition valid5 := [fun x : tp =>
   [&& valid (proj51 x), 
@@ -902,7 +898,7 @@ HB.instance Definition _ (U1 U2 U3 U4 U5 : pcmc) :=
 
 Section Prod6PCM.
 Variables U1 U2 U3 U4 U5 U6 : pcm.
-Notation tp := (Prod6 U1 U2 U3 U4 U5 U6).
+Abbreviation tp := (Prod6 U1 U2 U3 U4 U5 U6).
 
 Definition valid6 := [fun x : tp =>
   [&& valid (proj61 x), 
@@ -964,7 +960,7 @@ HB.instance Definition _ (U1 U2 U3 U4 U5 U6 : pcmc) :=
 
 Section Prod7PCM.
 Variables U1 U2 U3 U4 U5 U6 U7 : pcm.
-Notation tp := (Prod7 U1 U2 U3 U4 U5 U6 U7).
+Abbreviation tp := (Prod7 U1 U2 U3 U4 U5 U6 U7).
 
 Definition valid7 := [fun x : tp =>
   [&& valid (proj71 x), 
@@ -1032,7 +1028,7 @@ HB.instance Definition _ (U1 U2 U3 U4 U5 U6 U7 : pcmc) :=
 (* Finite products of PCMs as functions *)
 Section FunPCM.
 Variables (T : finType) (Us : T -> pcm).
-Notation tp := (forall t, Us t).
+Abbreviation tp := (forall t, Us t).
 
 Definition fun_valid := [fun f : tp => [forall t, valid (f t)]].
 Definition fun_join := [fun f1 f2 : tp => fun t => f1 t \+ f2 t].
@@ -1068,7 +1064,7 @@ Arguments fun_unit /.
 (* dffun used for inheritance (see finfun.v) *)
 Section FinPCM.
 Variables (T : finType) (Us : T -> pcm).
-Notation tp := {dffun forall t, Us t}.
+Abbreviation tp := {dffun forall t, Us t}.
 
 Definition fin_valid := [fun f : tp => [forall t, valid (sel t f)]].
 Definition fin_join := [fun f g : tp => [ffun t => sel t f \+ sel t g]].
@@ -1142,7 +1138,7 @@ Arguments undef2 /.
 
 Section Prod3TPCM.
 Variables U1 U2 U3 : tpcm.
-Notation tp := (Prod3 U1 U2 U3).
+Abbreviation tp := (Prod3 U1 U2 U3).
 Definition undef3 : tp := mk3 undef undef undef.
 Definition undefb3 := [fun x : tp =>
   [&& undefb (proj31 x), 
@@ -1167,7 +1163,7 @@ Arguments undef3 /.
 
 Section Prod4TPCM.
 Variables U1 U2 U3 U4 : tpcm.
-Notation tp := (Prod4 U1 U2 U3 U4).
+Abbreviation tp := (Prod4 U1 U2 U3 U4).
 Definition undef4 : tp := mk4 undef undef undef undef.
 Definition undefb4 := [fun x : tp =>
   [&& undefb (proj41 x), 
@@ -1193,7 +1189,7 @@ Arguments undef4 /.
 
 Section Prod5TPCM.
 Variables U1 U2 U3 U4 U5 : tpcm.
-Notation tp := (Prod5 U1 U2 U3 U4 U5).
+Abbreviation tp := (Prod5 U1 U2 U3 U4 U5).
 Definition undef5 : tp := mk5 undef undef undef undef undef.
 Definition undefb5 := [fun x : tp =>
   [&& undefb (proj51 x), 
@@ -1221,7 +1217,7 @@ Arguments undef5 /.
 
 Section Prod6TPCM.
 Variables U1 U2 U3 U4 U5 U6 : tpcm.
-Notation tp := (Prod6 U1 U2 U3 U4 U5 U6).
+Abbreviation tp := (Prod6 U1 U2 U3 U4 U5 U6).
 Definition undef6 : tp := mk6 undef undef undef undef undef undef.
 Definition undefb6 := [fun x : tp =>
   [&& undefb (proj61 x), 
@@ -1249,7 +1245,7 @@ Arguments undef6 /.
 
 Section Prod7TPCM.
 Variables U1 U2 U3 U4 U5 U6 U7 : tpcm.
-Notation tp := (Prod7 U1 U2 U3 U4 U5 U6 U7).
+Abbreviation tp := (Prod7 U1 U2 U3 U4 U5 U6 U7).
 Definition undef7 : tp := mk7 undef undef undef undef undef undef undef.
 Definition undefb7 := [fun x : tp =>
   [&& undefb (proj71 x), 
@@ -1278,7 +1274,7 @@ Arguments undef7 /.
 
 (* TPCM proofs use function extensionality *)
 (* it's TPCM only if T inhabited finite type *)
-(* (otherwise valid undef) *)
+(* (otherewriteise valid undef) *)
 
 Definition fun_undef T (Us : T -> tpcm) : forall t, Us t 
   := fun t => undef. 
@@ -1290,7 +1286,7 @@ Arguments fun_undefb {T Us} f /.
 
 Section FunTPCM.
 Variables (T : ifinType) (Us : T -> tpcm).
-Notation tp := (forall t, Us t).
+Abbreviation tp := (forall t, Us t).
 
 Lemma fun_is_tpcm : tpcm_axiom fun_undef (fun_undefb (Us:=Us)).
 Proof. 
@@ -1309,7 +1305,7 @@ End FunTPCM.
 
 
 (* TPCM only if T inhabited finite type *)
-(* (otherwise valid undef) *)
+(* (otherewriteise valid undef) *)
 Definition fin_undef (T : finType) (Us : T -> tpcm) 
   : {dffun forall t, Us t} := [ffun t => undef].
 Arguments fin_undef {T Us} /.
@@ -1321,7 +1317,7 @@ Arguments fin_undefb {T Us} x /.
 
 Section FinTPCM.
 Variables (T : ifinType) (Us : T -> tpcm).
-Notation tp := {dffun forall t, Us t}.
+Abbreviation tp := {dffun forall t, Us t}.
 
 Lemma finprod_is_tpcm : tpcm_axiom fin_undef (fin_undefb (Us:=Us)).
 Proof.
@@ -1412,9 +1408,9 @@ Hint Resolve pleq_unit pleq_refl pleq_joinr pleq_joinl : core.
 Prenex Implicits pleq_refl pleq_joinl pleq_joinr.
 
 (* shorter names *)
-Notation pcmR := pleq_refl.
-Notation pcmS := pleq_joinr.
-Notation pcmO := pleq_joinl.
+Abbreviation pcmR := pleq_refl.
+Abbreviation pcmS := pleq_joinr.
+Abbreviation pcmO := pleq_joinl.
 
 Lemma pleq_undef (U : tpcm) (x : U) : [pcm x <= undef].
 Proof. by exists undef; rewrite join_undef. Qed.
@@ -1466,7 +1462,7 @@ Lemma foldr_helper (s1 s2 : seq A) (z0 : R) x :
         foldr a z0 (s1 ++ x :: s2) = foldr a z0 (s1 ++ rcons s2 x).
 Proof.
 rewrite -!foldl_rev rev_cat rev_cons cat_rcons.
-rewrite foldl_helper; last by move=>*; rewrite H. 
+rewrite foldl_helper; first by move=>*; rewrite H. 
 by rewrite -[x :: _ ++ _]revK rev_cons rev_cat !revK rcons_cat.
 Qed.
 
@@ -1618,7 +1614,7 @@ End StarMonoid.
 Section IterStarSeq.
 Context {U : pcm} {A : Type}.
 
-Notation seq_join hs := (\big[join/Unit]_(i <- hs) i).
+Abbreviation seq_join hs := (\big[join/Unit]_(i <- hs) i).
 
 (* definition is locked to prevent automation from going inside *)
 Definition sepit_seq (s : seq A) (f : A -> Pred U) : Pred U :=
@@ -1749,7 +1745,7 @@ Lemma sepitseq_emp (s : seq A) (f : A -> Pred U) :
 Proof.
 move=>H; rewrite sepit_seqE.
 elim: s H=>[|a xs IH] H; first by rewrite big_nil.
-rewrite big_cons H ?InE; last by left.
+rewrite big_cons H ?InE; first by left.
 by rewrite starL IH // => x X; apply: H; rewrite InE; right.
 Qed.
 

@@ -99,11 +99,11 @@ Polymorphic Definition pack_ := fun (m : Equality.mixin_of T)
 End PolymorphicClonePack.
 
 Local Arguments phant_clone : clear implicits.
-Notation clone X2 X1 := (phant_clone X2 X1 _ id_phant id_phant).
+Abbreviation clone X2 X1 := (phant_clone X2 X1 _ id_phant id_phant).
 Local Arguments pack_ : clear implicits.
 
 Module Exports.
-Notation ordType := Ordered.type.
+Abbreviation ordType := Ordered.type.
 #[reversible] Coercion sort : Ordered.type >-> Sortclass.
 
 (* Polymorphic annotation added *)
@@ -143,9 +143,9 @@ Definition phant_on_ : forall T : ordType, phant T -> axioms_ T :=
   fun T : ordType => fun=> class T.
 Local Arguments phant_on_ : clear implicits.
 
-Notation on_ X1 := ( phant_on_ _ (Phant X1)).
-Notation copy X2 X1 := ( phant_on_ _ (Phant X1) : axioms_ X2).
-Notation on X1 := ( phant_on_ _ (Phant _) : axioms_ X1).
+Abbreviation on_ X1 := ( phant_on_ _ (Phant X1)).
+Abbreviation copy X2 X1 := ( phant_on_ _ (Phant X1) : axioms_ X2).
+Abbreviation on X1 := ( phant_on_ _ (Phant _) : axioms_ X1).
 
 Module EtaAndMixinExports.
 Section hb_instance_91.
@@ -196,7 +196,7 @@ Definition ordtype_subproof : forall s : ordType, ordtype_axiom ord :=
 Local Arguments ordtype_subproof : clear implicits.
 Global Arguments ordtype_subproof {_}.
 
-Notation Ordered X1 := (Ordered.axioms_ X1). 
+Abbreviation Ordered X1 := (Ordered.axioms_ X1). 
 (* end of generated and changed code *)
 
 

@@ -14,7 +14,8 @@ limitations under the License.
 From HB Require Import structures.
 From Stdlib Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq eqtype.
-From pcm Require Import options prelude auto.
+From pcm Require Import options prelude.
+From pcm Require Export auto.
 
 (**********************************************************)
 (**********************************************************)
@@ -378,8 +379,8 @@ Module UniqX.
 Section UniqX.
 Variable A : eqType.
 Implicit Types (j : ctx A) (ts : seq term).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
+Abbreviation form := Syntactify.form.
+Abbreviation untag := Syntactify.untag.
 
 Structure packed_map (m : seq A) := Pack {unpack : seq A}.
 Canonical equate (m : seq A) := Pack m m.
@@ -412,8 +413,8 @@ Canonical start.
 Section Exports.
 Variable A : eqType.
 Implicit Types (j : ctx A) (ts : seq term).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
+Abbreviation form := Syntactify.form.
+Abbreviation untag := Syntactify.untag.
 
 (* main lemma *)
 (* boolean component of rform is set to true *)
@@ -442,8 +443,8 @@ Module NeqX.
 Section NeqX.
 Variable A : eqType.
 Implicit Types (j : ctx A) (ts : seq term).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
+Abbreviation form := Syntactify.form.
+Abbreviation untag := Syntactify.untag.
 
 Structure packed_elem (x : A) := Pack {unpack : A}.
 Canonical equate m := Pack m m.
@@ -485,8 +486,8 @@ Canonical start.
 Section Exports.
 Variable A : eqType.
 Implicit Types (j : ctx A) (ts : seq term).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
+Abbreviation form := Syntactify.form.
+Abbreviation untag := Syntactify.untag.
 
 (* main lemma *)
 Lemma neqO n m i keys2 ts1 (f : form (empx A) i ts1) 
@@ -523,8 +524,8 @@ Module NotinX.
 Section NotinX.
 Variable A : eqType.
 Implicit Types (j : ctx A) (ts : seq term).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
+Abbreviation form := Syntactify.form.
+Abbreviation untag := Syntactify.untag.
 
 Structure packed_map (x : seq A) := Pack {unpack : seq A}.
 Canonical equate m := Pack m m.
@@ -563,8 +564,8 @@ Canonical start.
 Section Exports.
 Variable A : eqType.
 Implicit Types (j : ctx A) (ts : seq term).
-Notation form := Syntactify.form.
-Notation untag := Syntactify.untag.
+Abbreviation form := Syntactify.form.
+Abbreviation untag := Syntactify.untag.
 
 (* main lemma *)
 Lemma notinO n m i keys2 ts1 (f : form (empx A) i ts1) 
@@ -602,11 +603,11 @@ Lemma uniqX' (A : eqType) i ts1 (f1 : Syntactify.form (empx A) i ts1) :
              uniq (UniqX.unpack (UniqX.pivot g))) * 
           (forall n keys2 (x : xfind (keyx i) keys2 n),
              ((forall m (y : NeqX.rform (Context keys2 (varx i)) ts1 n m true),
-               xuntag x == NeqX.unpack (NeqX.pivot y) = false) * 
+               (xuntag x == NeqX.unpack (NeqX.pivot y)) = false) * 
              (forall m (y : NotinX.rform (Context keys2 (varx i)) ts1 n m true),
-               xuntag x \in NotinX.unpack (NotinX.pivot y) = false))).
+               (xuntag x \in NotinX.unpack (NotinX.pivot y)) = false))).
 Proof. 
-by move=>U; split; [|split]=>*; first by [apply: uniqO U];
+by move=>U; split; [|split]; move=>*; first by [apply: uniqO U];
 apply/negbTE; [apply: neqO U|apply: notinO U].
 Qed.
 
@@ -616,3 +617,8 @@ Definition uniqX {A i ts1 f1} U :=
   (mem_rcons, mem_cat, inE, negb_or, rcons_uniq, cat_uniq, andbT, orbF, 
    @uniqX' A i ts1 f1 U).
 
+Lemma test (A : eqType) (s1 s2 : seq A) (x : A) :
+        uniq (rcons s1 x ++ s2) -> 
+        x \in s1 -> 
+        false.
+Proof. by move=>U; rewrite (uniqX U). Abort.

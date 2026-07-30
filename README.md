@@ -29,9 +29,11 @@ This library relies on propositional and functional extentionality axioms.
   - Anton Trunov
   - Alexander Gryzlov
 - License: [Apache-2.0](LICENSE)
-- Compatible Rocq/Coq versions: 9.0 or later
+- Compatible Rocq/Coq versions: none
 - Additional dependencies:
-  - [MathComp ssreflect 2.4 or later](https://math-comp.github.io)
+  - Rocq Core compiler engine
+  - Rocq Standard Library components
+  - [MathComp ssreflect 2.6 or later](https://math-comp.github.io)
   - [Hierarchy Builder 1.7.0 or later](https://github.com/math-comp/hierarchy-builder)
   - [MathComp algebra](https://math-comp.github.io)
 - Rocq/Coq namespace: `pcm`

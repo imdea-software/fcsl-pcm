@@ -7,7 +7,7 @@ action: true
 coqdoc: false
 
 synopsis: >-
-  Coq library of Partial Commutative Monoids
+  Rocq library of Partial Commutative Monoids
 description: |-
   The PCM library provides a formalisation of Partial Commutative Monoids (PCMs),
   a common algebraic structure used in separation logic for verification of
@@ -40,30 +40,40 @@ license:
   file: LICENSE
 
 supported_coq_versions:
-  text: 9.0 or later
-  opam: '{ (>= "9.0" & < "9.2~") | (= "dev") }'
+  text: "none"
+  opam: ""     
+
+supported_rocq_versions:
+  text: 9.2 or later
+  opam: '{ (>= "9.2" & < "9.3~") | (= "dev") }'
 
 tested_coq_opam_versions:
-- version: '2.4.0-rocq-prover-9.0'
-  repo: 'mathcomp/mathcomp'
-- version: '2.5.0-rocq-prover-9.1'
+- version: '2.6.0-rocq-prover-9.2'
   repo: 'mathcomp/mathcomp'
 - version: 'rocq-prover-dev'
   repo: 'mathcomp/mathcomp-dev'
 
 dependencies:
 - opam:
-    name: coq-mathcomp-ssreflect
-    version: '{ (>= "2.4.0" & < "2.6~") | (= "dev") }'
-  description: |-
-    [MathComp ssreflect 2.4 or later](https://math-comp.github.io)
+    name: rocq-core
+    version: '{ (>= "9.2" & < "9.3~") | (= "dev") }'
+  description: "Rocq Core compiler engine"
 - opam:
-    name: coq-hierarchy-builder
+    name: rocq-stdlib
+    version: '{ (>= "9.2" & < "9.3~") | (= "dev") }'
+  description: "Rocq Standard Library components"
+- opam:
+    name: rocq-mathcomp-ssreflect
+    version: '{ (>= "2.6.0" & < "2.7~") | (= "dev") }'
+  description: |-
+    [MathComp ssreflect 2.6 or later](https://math-comp.github.io)
+- opam:
+    name: rocq-hierarchy-builder
     version: '{ (>= "1.7.0" & < "1.11~") | (= "dev") }'
   description: |-
     [Hierarchy Builder 1.7.0 or later](https://github.com/math-comp/hierarchy-builder)
 - opam:
-    name: coq-mathcomp-algebra
+    name: rocq-mathcomp-algebra
   description: |-
     [MathComp algebra](https://math-comp.github.io)
 

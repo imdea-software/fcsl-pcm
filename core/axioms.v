@@ -21,7 +21,8 @@ limitations under the License.
 (* Jonh Major equality via equality cast.                                     *)
 (******************************************************************************)
 
-From Stdlib Require Import ssreflect ssrfun Eqdep ClassicalFacts.
+From Corelib Require Import ssreflect ssrfun.
+From Stdlib Require Import Eqdep ClassicalFacts.
 From mathcomp Require Import eqtype.
 From pcm Require Import options.
 
@@ -40,7 +41,7 @@ Axiom fext : forall A (B : A -> Type) (f1 f2 : forall x, B x),
 Lemma pf_irr (P : Prop) (p1 p2 : P) : p1 = p2.
 Proof. by apply/ext_prop_dep_proof_irrel_cic/@pext. Qed.
 
-Lemma sval_inj A P : injective (@sval A P).
+Lemma inj_sval A P : injective (@sval A P).
 Proof.
 move=>[x Hx][y Hy] /= H; move: Hx Hy; rewrite H=>*.
 congr exist; apply: pf_irr.
@@ -55,50 +56,31 @@ Proof. by apply: fext. Qed.
 Lemma comp1f A B (f : A -> B) : f = id \o f.
 Proof. by apply: fext. Qed.
 
-(*****************************************)
-(* Cast and John Major Equality via cast *)
-(*****************************************)
+(********)
+(* Cast *)
+(********)
 
 (* depends on StreicherK axiom *)
 
 Section Cast.
 Variable (T : Type) (interp : T -> Type).
 
-Definition cast A B (pf : A = B) (v : interp B) : interp A :=
-  ecast _ _ (esym pf) v.
+Definition cast A B (pf : A = B) (v : interp A) : interp B :=
+  ecast _ _ pf v.
 
 Lemma eqc A (pf : A = A) (v : interp A) : cast pf v = v.
 Proof. by move: pf; apply: Streicher_K. Qed.
 
-Definition jmeq A B (v : interp A) (w : interp B) := exists pf, v = cast pf w.
-
-Lemma jm_refl A (v : interp A) : jmeq v v.
-Proof. by exists (erefl _); rewrite eqc. Qed.
-
-Lemma jm_sym A B (v : interp A) (w : interp B) : jmeq v w -> jmeq w v.
-Proof. by case=>? ->; subst B; rewrite eqc; apply: jm_refl. Qed.
-
-Lemma jm_trans A B C (u : interp A) (v : interp B) (w : interp C) :
-        jmeq u v -> jmeq v w -> jmeq u w.
-Proof. by case=>? -> [? ->]; subst B C; rewrite !eqc; apply: jm_refl. Qed.
-
-Lemma jmE A (v w : interp A) : jmeq v w <-> v = w.
-Proof. by split=>[[?]|] ->; [rewrite eqc | apply: jm_refl]. Qed.
-
-Lemma castE A B (pf1 pf2 : A = B) (v1 v2 : interp B) :
+Lemma castE A B (pf1 pf2 : A = B) (v1 v2 : interp A) :
         v1 = v2 <-> cast pf1 v1 = cast pf2 v2.
 Proof. by subst B; rewrite !eqc. Qed.
 
 End Cast.
 
 Arguments cast {T} interp [A][B] pf v.
-Arguments jmeq {T} interp [A][B] v w.
-
-#[export] Hint Resolve jm_refl : core.
 
 (* special notation for the common case when interp = id *)
-Notation icast pf v := (@cast _ id _ _ pf v).
-Notation ijmeq v w := (@jmeq _ id _ _ v w).
+Abbreviation icast pf v := (@cast _ id _ _ pf v).
 
 (* in case of eqTypes StreicherK not needed *)
 Section EqTypeCast.
@@ -106,7 +88,6 @@ Variable (T : eqType) (interp : T -> Type).
 Lemma eqd a (pf : a = a) (v : interp a) : cast interp pf v = v.
 Proof. by rewrite eq_axiomK. Qed.
 End EqTypeCast.
-
 
 (* type dynamic is sigT *)
 
@@ -116,20 +97,36 @@ Variables (A : Type) (P : A -> Type).
 (** eta expand definitions to prevent universe inconsistencies when using
     the injectivity of constructors of datatypes depending on [[dynamic]] *)
 
-Definition dynamic := sigT P.
+Definition dynamic := sigT [eta P].
 Definition dyn := existT P.
 Definition dyn_tp := @projT1 _ P.
 Definition dyn_val := @projT2 _ P.
 Definition dyn_eta := @sigT_eta _ P.
-Definition dyn_injT := @eq_sigT_fst _ P.
-Definition dyn_inj := @inj_pair2 _ P.
-
+Definition inj_dynT := @eq_sigT_fst _ P.
+Definition inj_dyn := @inj_pair2 _ P.
 End Dynamic.
 
-Prenex Implicits dyn_tp dyn_val dyn_injT dyn_inj.
+Prenex Implicits dyn_tp dyn_val inj_dynT inj_dyn.
 Arguments dyn {T} interp {A} _ : rename.
-Notation idyn v := (@dyn _ id _ v).
+Abbreviation idyn v := (@dyn _ id _ v).
 
-Lemma dynE (A B : Type) interp (v : interp A) (w : interp B) :
-        jmeq interp v w <-> dyn interp v = dyn interp w.
-Proof. by split=>[[pf ->]|[pf]]; subst B; [rewrite !eqc | move/dyn_inj=>->]. Qed.
+(* Tagging *)
+
+Abbreviation Tag := (@existT _ _).
+Definition inj_tagT := @eq_sigT_fst.
+Definition inj_tagK := @inj_pair2.
+Prenex Implicits inj_tagT inj_tagK.
+
+(* Because of a bug in inversion and injection tactics *)
+(* we occasionally have to destruct pairs by hand, else we *)
+(* lose the second equation. *)
+Lemma inj_pair A B (a1 a2 : A) (b1 b2 : B) :
+         (a1, b1) = (a2, b2) -> 
+         (a1 = a2) * (b1 = b2).
+Proof. by case. Qed.
+
+Arguments inj_pair {A B a1 a2 b1 b2}.
+
+Definition inj_some := @Some_inj.
+Prenex Implicits inj_some.
+

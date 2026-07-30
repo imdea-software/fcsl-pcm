@@ -22,9 +22,6 @@ From mathcomp Require Import ssrnat eqtype seq path.
 From pcm Require Export ordtype seqperm.
 From pcm Require Import options.
 
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
-
 Section Def.
 Variables (K : ordType) (V : Type).
 
@@ -49,11 +46,11 @@ Prenex Implicits key value predk predCk seq_of.
 
 Section Ops.
 Variables (K : ordType) (V : Type).
-Notation fmap := (finMap K V).
-Notation key := (@key K V).
-Notation value := (@value K V).
-Notation predk := (@predk K V).
-Notation predCk := (@predCk K V).
+Abbreviation fmap := (finMap K V).
+Abbreviation key := (@key K V).
+Abbreviation value := (@value K V).
+Abbreviation predk := (@predk K V).
+Abbreviation predCk := (@predCk K V).
 
 Lemma fmapE (s1 s2 : fmap) : 
         s1 = s2 <-> seq_of s1 = seq_of s2.
@@ -122,8 +119,8 @@ Prenex Implicits fnd ins rem supp nil.
 
 Section Laws.
 Variables (K : ordType) (V : Type).
-Notation fmap := (finMap K V).
-Notation nil := (@nil K V).
+Abbreviation fmap := (finMap K V).
+Abbreviation nil := (@nil K V).
 
 (* `path_le` specialized to `transitive ord` *)
 Lemma ord_path (x y : K) s : 
@@ -222,8 +219,8 @@ by move=>x; case: ifP=>H /=; [|case: eqP=>//->]; rewrite ?(eqP H) ?andbN ?H.
 Qed.
 
 Variant supp_spec x (s : fmap) : bool -> Type :=
-| supp_spec_some v of fnd x s = Some v : supp_spec x s true
-| supp_spec_none of fnd x s = None : supp_spec x s false.
+| supp_spec_some v & fnd x s = Some v : supp_spec x s true
+| supp_spec_none & fnd x s = None : supp_spec x s false.
 
 Lemma suppP x (s : fmap) : supp_spec x s (x \in supp s).
 Proof.
@@ -419,7 +416,7 @@ case: (ordP k2 k3)=>H2 /=.
 - rewrite eq_sym H1 /=.
   case: (ordP k3 k1)=>H3 /=; case: (ordP k2 k3) (H2)=>//=.
   rewrite -(eqP H3) in H1 *.
-  rewrite -IH //; last by apply: path_sorted H.
+  rewrite -IH //; first by apply: path_sorted H.
   rewrite last_ins' /= 1?eq_sym ?H1 //.
   by apply: ord_path H.
 - by move: H1; rewrite (eqP H2) /= eq_sym => -> /=; rewrite irr eq_refl.
@@ -474,8 +471,8 @@ End Laws.
 
 Section Append.
 Variable (K : ordType) (V : Type).
-Notation fmap := (finMap K V).
-Notation nil := (@nil K V).
+Abbreviation fmap := (finMap K V).
+Abbreviation nil := (@nil K V).
 
 Lemma seqof_ins k v (s : fmap) :
         path ord k (supp s) -> seq_of (ins k v s) = (k, v) :: seq_of s.
@@ -523,9 +520,9 @@ Lemma fmap_ind' (P : fmap -> Prop) :
         forall s, P s.
 Proof.
 move=>H1 H2; case; elim=>[|[k v] s IH] /= H.
-- by rewrite (_ : FinMap _ = nil); last by rewrite fmapE.
+- by rewrite (_ : FinMap _ = nil); first by rewrite fmapE.
 have S: sorted ord (map key s) by apply: path_sorted H.
-rewrite (_ : FinMap _ = ins k v (FinMap S)); last first.
+rewrite (_ : FinMap _ = ins k v (FinMap S)). 
 - by rewrite fmapE /= last_ins'.
 by apply: H2.
 Qed.
@@ -537,7 +534,7 @@ Lemma fmap_ind'' (P : fmap -> Prop) :
         forall s, P s.
 Proof.
 move=>H1 H2; case; elim/last_ind=>[|s [k v] IH] /= H.
-- by rewrite (_ : FinMap _ = nil); last by rewrite fmapE.
+- by rewrite (_ : FinMap _ = nil); first by rewrite fmapE.
 have Sb: subseq (map key s) (map key (rcons s (k, v))).
 - by elim: s {IH H}=>[|x s IH] //=; rewrite eq_refl.
 have S : sorted ord (map key s).
@@ -547,7 +544,7 @@ have T : forall x : K, x \in map key s -> ord x k.
   rewrite inE; case/orP; last by apply: IH; apply: path_sorted L.
   move/eqP=>->; elim: s {IH} L=>[|[x1 w1] s IH] /=; first by rewrite andbT.
   by case/andP=>O /(ord_path O) /IH.
-rewrite (_ : FinMap _ = ins k v (FinMap S)); last first.
+rewrite (_ : FinMap _ = ins k v (FinMap S)).
 - by rewrite fmapE /= first_ins'.
 by apply: H2 (IH _)=>x /T.
 Qed.
@@ -558,7 +555,8 @@ Fixpoint fcat' (s1 : fmap) (s2 : seq (K * V)) {struct s2} : fmap :=
 Definition fcat s1 s2 := fcat' s1 (seq_of s2).
 
 Lemma fcat_ins' k v s1 s2 :
-        k \notin (map key s2) -> fcat' (ins k v s1) s2 = ins k v (fcat' s1 s2).
+        k \notin (map key s2) -> 
+        fcat' (ins k v s1) s2 = ins k v (fcat' s1 s2).
 Proof.
 move=>H; elim: s2 k v s1 H=>[|[k2 v2] s2 IH] k1 v1 s1 //=.
 rewrite inE negb_or; case/andP=>H1 H2.
@@ -650,8 +648,8 @@ End Append.
 
 Section FMapInd.
 Variables (K : ordType) (V : Type).
-Notation fmap := (finMap K V).
-Notation nil := (@nil K V).
+Abbreviation fmap := (finMap K V).
+Abbreviation nil := (@nil K V).
 
 Lemma supp_eq_ins (s1 s2 : fmap) k1 k2 v1 v2 :
         path ord k1 (supp s1) -> path ord k2 (supp s2) ->
@@ -687,8 +685,8 @@ End FMapInd.
 
 Section Filtering.
 Variables (K : ordType) (V : Type).
-Notation fmap := (finMap K V).
-Notation nil := (@nil K V).
+Abbreviation fmap := (finMap K V).
+Abbreviation nil := (@nil K V).
 
 Definition kfilter' (p : pred K) (s : fmap) :=
   filter (fun kv => p kv.1) (seq_of s).
@@ -791,16 +789,16 @@ End Filtering.
 
 Section DisjointUnion.
 Variable (K : ordType) (V : Type).
-Notation fmap := (finMap K V).
-Notation nil := (@nil K V).
+Abbreviation fmap := (finMap K V).
+Abbreviation nil := (@nil K V).
 
 Definition disj (s1 s2 : fmap) :=
   all (predC (fun x => x \in supp s2)) (supp s1).
 
 Variant disj_spec (s1 s2 : fmap) : bool -> Type :=
-| disj_true of (forall x, x \in supp s1 -> x \notin supp s2) :
+| disj_true & (forall x, x \in supp s1 -> x \notin supp s2) :
     disj_spec s1 s2 true
-| disj_false x of x \in supp s1 & x \in supp s2 :
+| disj_false x & x \in supp s1 & x \in supp s2 :
     disj_spec s1 s2 false.
 
 Lemma disjP s1 s2 : disj_spec s1 s2 (disj s1 s2).
@@ -988,9 +986,8 @@ Lemma sorted_map_key (m : seq (K * U)) :
         sorted ord (map key m) -> sorted ord (map key (mapf' m)).
 Proof.
 elim: m=>[|[k v] m IH] //= H.
-rewrite path_min_sorted; first by apply: IH; apply: path_sorted H.
-rewrite map_key_mapf.
-by apply/(order_path_min _ H);apply/trans.
+rewrite path_min_sorted; last by apply: IH; apply: path_sorted H.
+by rewrite map_key_mapf; apply/(order_path_min _ H)/trans.
 Qed.
 
 Definition mapf (m : finMap K U) : finMap K V :=
@@ -1102,7 +1099,7 @@ Lemma mapk_comp m:
 Proof.
 elim/fmap_ind': m  =>//= k v s P IH.
 rewrite [mapk (g \o f) _]mapk_ins //.
-rewrite mapk_ins // mapk_ins //; first by rewrite IH.
+rewrite mapk_ins // mapk_ins //; last by rewrite IH.
 exact: (path_mapk Hf P).
 Qed.
 End KeyMap.
