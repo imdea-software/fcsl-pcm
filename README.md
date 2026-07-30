@@ -5,10 +5,21 @@ Follow the instructions on https://github.com/coq-community/templates to regener
 # The PCM library
 
 [![Docker CI][docker-action-shield]][docker-action-link]
+[![Contributing][contributing-shield]][contributing-link]
+[![Code of Conduct][conduct-shield]][conduct-link]
+[![Zulip][zulip-shield]][zulip-link]
 
 [docker-action-shield]: https://github.com/imdea-software/fcsl-pcm/actions/workflows/docker-action.yml/badge.svg?branch=master
 [docker-action-link]: https://github.com/imdea-software/fcsl-pcm/actions/workflows/docker-action.yml
 
+[contributing-shield]: https://img.shields.io/badge/contributions-welcome-%23f7931e.svg
+[contributing-link]: https://github.com/coq-community/manifesto/blob/master/CONTRIBUTING.md
+
+[conduct-shield]: https://img.shields.io/badge/%E2%9D%A4-code%20of%20conduct-%23f15a24.svg
+[conduct-link]: https://github.com/coq-community/manifesto/blob/master/CODE_OF_CONDUCT.md
+
+[zulip-shield]: https://img.shields.io/badge/chat-on%20zulip-%23c1272d.svg
+[zulip-link]: https://coq.zulipchat.com/#narrow/stream/237663-coq-community-devs.20.26.20users
 
 
 
@@ -28,6 +39,8 @@ This library relies on propositional and functional extentionality axioms.
   - Aleksandar Nanevski (initial)
   - Anton Trunov
   - Alexander Gryzlov
+- Rocq-community maintainer(s):
+  - Alexander Gryzlov ([**@clayrat**](https://github.com/clayrat))
 - License: [Apache-2.0](LICENSE)
 - Compatible Rocq/Coq versions: 9.2 or later
 - Additional dependencies:
