@@ -2666,7 +2666,7 @@ apply: IH=>//.
 by move=>z1 z2 Hz1 Hz2 N; apply: H2=>//; right.
 Qed.
 
-Lemma big_cat_uniq_pairewriteise A (B : eqType) xs (f : A -> seq B) x1 x2 :
+Lemma big_cat_uniq_pairwise A (B : eqType) xs (f : A -> seq B) x1 x2 :
         uniq (\big[cat/[::]]_(x <- xs) f x) ->
         x1 \In xs -> 
         x2 \In xs -> 
