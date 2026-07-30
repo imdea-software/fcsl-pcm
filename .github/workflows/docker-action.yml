@@ -27,7 +27,6 @@ jobs:
         with:
           opam_file: 'coq-fcsl-pcm.opam'
           custom_image: ${{ matrix.image }}
-          export: 'no'
 
 
 # See also:
