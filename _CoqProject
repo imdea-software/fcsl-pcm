@@ -25,6 +25,7 @@ pcm/autopcm.v
 pcm/morphism.v
 pcm/invertible.v
 pcm/unionmap.v
+pcm/nmodmap.v
 pcm/natmap.v
 pcm/automap.v
 pcm/heap.v
